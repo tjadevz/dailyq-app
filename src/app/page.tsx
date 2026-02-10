@@ -57,52 +57,28 @@ export default function Home() {
 
     const initAuth = async () => {
       try {
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:58',message:'initAuth started',data:{url:window.location.href,hash:window.location.hash,pathname:window.location.pathname},timestamp:Date.now(),hypothesisId:'AUTH_FLOW',runId:'initial'})}).catch(()=>{});
-        // #endregion
-        
         console.log('🔐 Initializing auth...');
         
         const supabase = createSupabaseBrowserClient();
         
-        // Check if URL contains auth tokens (from magic link)
-        const hashParams = new URLSearchParams(window.location.hash.substring(1));
-        const hasAuthToken = hashParams.has('access_token') || hashParams.has('refresh_token');
-        
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:68',message:'Hash params checked',data:{hasAuthToken,hasAccessToken:hashParams.has('access_token'),hasRefreshToken:hashParams.has('refresh_token'),hashLength:window.location.hash.length},timestamp:Date.now(),hypothesisId:'H_MAGIC_LINK',runId:'initial'})}).catch(()=>{});
-        // #endregion
-        
-        // Check initial auth state
+        // Check initial auth state - session is automatically restored
         const { data: { user: u } } = await supabase.auth.getUser();
         
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:75',message:'getUser result',data:{hasUser:!!u,userId:u?.id,userEmail:u?.email,hasAuthToken},timestamp:Date.now(),hypothesisId:'H_TIMING',runId:'initial'})}).catch(()=>{});
-        // #endregion
-        
-        // Development-only auth bypass - but NEVER when processing magic link
-        if (!u && process.env.NODE_ENV === 'development' && !hasAuthToken) {
+        // Development-only auth bypass
+        if (!u && process.env.NODE_ENV === 'development') {
           console.log('👤 No user found - creating dev mock user');
-          // #region agent log
-          fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:83',message:'Creating dev mock user',data:{nodeEnv:process.env.NODE_ENV,hasAuthToken},timestamp:Date.now(),hypothesisId:'H_DEV_MODE',runId:'initial'})}).catch(()=>{});
-          // #endregion
           setUser({
             ...DEV_MOCK_USER,
             created_at: new Date().toISOString(),
           });
         } else {
-          // #region agent log
-          fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:92',message:'Setting user from getUser',data:{hasUser:!!u,userId:u?.id,willShowOnboarding:!u},timestamp:Date.now(),hypothesisId:'H_TIMING',runId:'initial'})}).catch(()=>{});
-          // #endregion
           setUser(u);
         }
         setCheckingAuth(false);
 
         // Listen for auth changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-          // #region agent log
-          fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:102',message:'onAuthStateChange fired',data:{event:_event,hasSession:!!session,hasUser:!!session?.user,userId:session?.user?.id},timestamp:Date.now(),hypothesisId:'H_LISTENER',runId:'initial'})}).catch(()=>{});
-          // #endregion
+          console.log('🔄 Auth state changed:', _event);
           setUser(session?.user ?? null);
           setCheckingAuth(false);
         });
@@ -111,9 +87,6 @@ export default function Home() {
           subscription.unsubscribe();
         };
       } catch (authError) {
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:115',message:'Auth error caught',data:{errorMessage:(authError as any)?.message,errorName:(authError as any)?.name},timestamp:Date.now(),hypothesisId:'H_AUTH_ERROR',runId:'initial'})}).catch(()=>{});
-        // #endregion
         // If Supabase fails to initialize, use mock user immediately
         console.warn('⚠️ Supabase auth failed, using mock user for development');
         console.error('Auth error:', authError);
@@ -350,67 +323,42 @@ function SettingsIcon() {
 // ============ ONBOARDING SCREEN ============
 function OnboardingScreen() {
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isSignUp, setIsSignUp] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const inputRef = useState<HTMLInputElement | null>(null);
-
-  useEffect(() => {
-    if (inputRef[0]) {
-      inputRef[0].focus();
-    }
-  }, [inputRef]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim() || submitting) return;
+    if (!email.trim() || !password.trim() || submitting) return;
 
     setSubmitting(true);
     setError(null);
 
     try {
-      // #region agent log
-      const attemptNumber = parseInt(sessionStorage.getItem('otp_attempt_' + email.trim()) || '0') + 1;
-      sessionStorage.setItem('otp_attempt_' + email.trim(), attemptNumber.toString());
-      fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:348',message:'handleSubmit started',data:{email:email.trim(),emailLength:email.trim().length,origin:window.location.origin,attemptNumber,url:window.location.href},timestamp:Date.now(),hypothesisId:'H_RATE_LIMIT',runId:'initial'})}).catch(()=>{});
-      // #endregion
-
       const supabase = createSupabaseBrowserClient();
       
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:353',message:'Supabase client created successfully',data:{clientExists:!!supabase},timestamp:Date.now(),hypothesisId:'H1',runId:'initial'})}).catch(()=>{});
-      // #endregion
+      let response;
+      if (isSignUp) {
+        response = await supabase.auth.signUp({
+          email: email.trim(),
+          password: password.trim(),
+        });
+      } else {
+        response = await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password: password.trim(),
+        });
+      }
 
-      const redirectTo = window.location.origin + "/";
+      if (response.error) throw response.error;
 
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:359',message:'Before signInWithOtp call',data:{email:email.trim(),redirectTo,hasAuthObject:!!supabase.auth},timestamp:Date.now(),hypothesisId:'H2-H3',runId:'initial'})}).catch(()=>{});
-      // #endregion
-
-      const otpResponse = await supabase.auth.signInWithOtp({
-        email: email.trim(),
-        options: {
-          emailRedirectTo: redirectTo,
-        },
-      });
-
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:371',message:'After signInWithOtp call',data:{hasSendError:!!otpResponse.error,hasData:!!otpResponse.data,errorMessage:otpResponse.error?.message,errorCode:otpResponse.error?.code,errorStatus:(otpResponse.error as any)?.status,errorName:otpResponse.error?.name,dataKeys:otpResponse.data ? Object.keys(otpResponse.data) : []},timestamp:Date.now(),hypothesisId:'H_NEW_USER',runId:'initial'})}).catch(()=>{});
-      // #endregion
-
-      if (otpResponse.error) throw otpResponse.error;
-
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:379',message:'Success - setting sent to true',data:{email:email.trim()},timestamp:Date.now(),hypothesisId:'SUCCESS',runId:'initial'})}).catch(()=>{});
-      // #endregion
-
-      setSent(true);
+      // Auth state will be handled by onAuthStateChange listener
+      // No need to manually set user here
     } catch (e: any) {
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:385',message:'Error caught in catch block',data:{errorMessage:e?.message,errorName:e?.name,errorCode:e?.code,errorStatus:e?.status,stack:e?.stack?.substring(0,200)},timestamp:Date.now(),hypothesisId:'H1-H2-H3-H4',runId:'initial'})}).catch(()=>{});
-      // #endregion
-      setError("Could not send link. Please try again.");
-      console.error(e);
+      const errorMessage = e?.message || "Authentication failed. Please try again.";
+      setError(errorMessage);
+      console.error('Auth error:', e);
     } finally {
       setSubmitting(false);
     }
@@ -450,78 +398,115 @@ function OnboardingScreen() {
           DailyQ
         </h1>
 
-        {!sent ? (
-          <form onSubmit={handleSubmit}>
-            <input
-              ref={(el) => {
-                inputRef[0] = el;
-              }}
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Your email"
-              disabled={submitting}
-              style={{
-                width: "100%",
-                padding: "1rem 1.25rem",
-                fontSize: "1rem",
-                border: "1px solid rgba(26, 26, 26, 0.2)",
-                borderRadius: "999px",
-                background: "rgba(255, 255, 255, 0.5)",
-                color: "#1A1A1A",
-                marginBottom: "1rem",
-                outline: "none",
-                transition: "all 0.2s",
-              }}
-              onFocus={(e) => {
-                e.target.style.background = "rgba(255, 255, 255, 0.7)";
-                e.target.style.borderColor = "rgba(26, 26, 26, 0.3)";
-              }}
-              onBlur={(e) => {
-                e.target.style.background = "rgba(255, 255, 255, 0.5)";
-                e.target.style.borderColor = "rgba(26, 26, 26, 0.2)";
-              }}
-            />
+        <form onSubmit={handleSubmit}>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Email"
+            disabled={submitting}
+            autoComplete="email"
+            style={{
+              width: "100%",
+              padding: "1rem 1.25rem",
+              fontSize: "1rem",
+              border: "1px solid rgba(26, 26, 26, 0.2)",
+              borderRadius: "999px",
+              background: "rgba(255, 255, 255, 0.5)",
+              color: "#1A1A1A",
+              marginBottom: "1rem",
+              outline: "none",
+              transition: "all 0.2s",
+            }}
+            onFocus={(e) => {
+              e.target.style.background = "rgba(255, 255, 255, 0.7)";
+              e.target.style.borderColor = "rgba(26, 26, 26, 0.3)";
+            }}
+            onBlur={(e) => {
+              e.target.style.background = "rgba(255, 255, 255, 0.5)";
+              e.target.style.borderColor = "rgba(26, 26, 26, 0.2)";
+            }}
+          />
 
-            <button
-              type="submit"
-              disabled={submitting || !email.trim()}
-              style={{
-                width: "100%",
-                padding: "1rem 1.25rem",
-                fontSize: "1rem",
-                border: "none",
-                borderRadius: "999px",
-                background: "#1A1A1A",
-                color: "#EBEBD3",
-                fontWeight: 600,
-                cursor: submitting ? "default" : "pointer",
-                opacity: submitting || !email.trim() ? 0.6 : 1,
-                transition: "all 0.2s",
-              }}
-            >
-              {submitting ? "Sending…" : "Continue"}
-            </button>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Password"
+            disabled={submitting}
+            autoComplete={isSignUp ? "new-password" : "current-password"}
+            style={{
+              width: "100%",
+              padding: "1rem 1.25rem",
+              fontSize: "1rem",
+              border: "1px solid rgba(26, 26, 26, 0.2)",
+              borderRadius: "999px",
+              background: "rgba(255, 255, 255, 0.5)",
+              color: "#1A1A1A",
+              marginBottom: "1rem",
+              outline: "none",
+              transition: "all 0.2s",
+            }}
+            onFocus={(e) => {
+              e.target.style.background = "rgba(255, 255, 255, 0.7)";
+              e.target.style.borderColor = "rgba(26, 26, 26, 0.3)";
+            }}
+            onBlur={(e) => {
+              e.target.style.background = "rgba(255, 255, 255, 0.5)";
+              e.target.style.borderColor = "rgba(26, 26, 26, 0.2)";
+            }}
+          />
 
-            {error && (
-              <p style={{ color: "#1A1A1A", marginTop: "1rem", fontSize: "0.875rem" }}>
-                {error}
-              </p>
-            )}
-          </form>
-        ) : (
-          <div>
-            <p
-              style={{
-                color: "#1A1A1A",
-                fontSize: "1.125rem",
-                lineHeight: 1.6,
-              }}
-            >
-              Sent! Check your email to continue.
+          <button
+            type="submit"
+            disabled={submitting || !email.trim() || !password.trim()}
+            style={{
+              width: "100%",
+              padding: "1rem 1.25rem",
+              fontSize: "1rem",
+              border: "none",
+              borderRadius: "999px",
+              background: "#1A1A1A",
+              color: "#EBEBD3",
+              fontWeight: 600,
+              cursor: submitting ? "default" : "pointer",
+              opacity: submitting || !email.trim() || !password.trim() ? 0.6 : 1,
+              transition: "all 0.2s",
+              marginBottom: "1rem",
+            }}
+          >
+            {submitting ? (isSignUp ? "Signing up…" : "Signing in…") : (isSignUp ? "Sign Up" : "Sign In")}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setIsSignUp(!isSignUp);
+              setError(null);
+            }}
+            disabled={submitting}
+            style={{
+              width: "100%",
+              padding: "0.75rem",
+              fontSize: "0.875rem",
+              border: "none",
+              background: "transparent",
+              color: "#1A1A1A",
+              fontWeight: 500,
+              cursor: submitting ? "default" : "pointer",
+              opacity: submitting ? 0.6 : 1,
+              textDecoration: "underline",
+            }}
+          >
+            {isSignUp ? "Already have an account? Sign in" : "Need an account? Sign up"}
+          </button>
+
+          {error && (
+            <p style={{ color: "#1A1A1A", marginTop: "1rem", fontSize: "0.875rem" }}>
+              {error}
             </p>
-          </div>
-        )}
+          )}
+        </form>
       </div>
     </div>
   );
@@ -610,8 +595,6 @@ function TodayView() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [streakOverlay, setStreakOverlay] = useState<number | null>(null);
-  const [emailPromptOpen, setEmailPromptOpen] = useState(false);
-  const [email, setEmail] = useState("");
   const [offline, setOffline] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
 
@@ -795,8 +778,7 @@ function TodayView() {
       const dayKey = getLocalDayKey(today);
 
       if (!user) {
-        storePendingDraft(dayKey, question.id, draft);
-        setEmailPromptOpen(true);
+        setError("You must be signed in to submit an answer.");
         setSubmitting(false);
         return;
       }
@@ -842,34 +824,6 @@ function TodayView() {
     }
   };
 
-  const handleSendMagicLink = async () => {
-    if (!email.trim() || !question) {
-      return;
-    }
-
-    setSubmitting(true);
-    setError(null);
-
-    try {
-      const supabase = createSupabaseBrowserClient();
-      const redirectTo = window.location.origin + "/";
-
-      await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          emailRedirectTo: redirectTo,
-        },
-      });
-
-      // Show success message inline for magic link send
-      setEmailPromptOpen(false);
-    } catch (e) {
-      setError("Could not send login link. Please check your email and try again.");
-      console.error(e);
-    } finally {
-      setSubmitting(false);
-    }
-  };
 
   if (loading) {
     return (
@@ -1024,40 +978,6 @@ function TodayView() {
               {answer ? "Update" : "Submit"}
             </button>
           </>
-        )}
-        {emailPromptOpen && (
-          <div style={{ marginTop: "1rem" }}>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Your email"
-              style={{
-                width: "100%",
-                padding: "0.75rem",
-                borderRadius: "999px",
-                border: "1px solid #ddd",
-                fontSize: "1rem",
-                marginBottom: "0.5rem",
-              }}
-            />
-            <button
-              type="button"
-              onClick={handleSendMagicLink}
-              style={{
-                padding: "0.5rem 1rem",
-                borderRadius: "999px",
-                border: "none",
-                backgroundColor: "#111827",
-                color: "#fff",
-                fontSize: "0.9rem",
-                cursor: "pointer",
-              }}
-              disabled={submitting}
-            >
-              Email me a login link
-            </button>
-          </div>
         )}
         {offline && (
           <p style={{ marginTop: "0.5rem", fontSize: "0.85rem", opacity: 0.7 }}>
@@ -1559,34 +1479,6 @@ function getLocalDayKey(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-type PendingDraft = {
-  dayKey: string;
-  questionId: string;
-  draft: string;
-};
-
-const PENDING_KEY = "dailyq_pending_answer";
-
-function storePendingDraft(dayKey: string, questionId: string, draft: string) {
-  if (typeof window === "undefined") return;
-  const payload: PendingDraft = { dayKey, questionId, draft };
-  window.localStorage.setItem(PENDING_KEY, JSON.stringify(payload));
-}
-
-function readPendingDraft(dayKey: string, questionId: string): PendingDraft | null {
-  if (typeof window === "undefined") return null;
-  const raw = window.localStorage.getItem(PENDING_KEY);
-  if (!raw) return null;
-  try {
-    const parsed = JSON.parse(raw) as PendingDraft;
-    if (parsed.dayKey === dayKey && parsed.questionId === questionId) {
-      return parsed;
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
 
 async function saveAnswerAndStreak(params: {
   supabase: ReturnType<typeof createSupabaseBrowserClient>;
@@ -1622,13 +1514,6 @@ async function saveAnswerAndStreak(params: {
 
   setAnswer(upserted);
   console.log('📝 Answer saved to database:', { id: upserted.id, textLength: upserted.answer_text?.length });
-
-  if (typeof window !== "undefined") {
-    const stored = window.localStorage.getItem(PENDING_KEY);
-    if (stored) {
-      window.localStorage.removeItem(PENDING_KEY);
-    }
-  }
 
   const streak = await computeStreak({ supabase, userId, dayKey });
   setStreakOverlay(streak);

@@ -57,6 +57,10 @@ export default function Home() {
 
     const initAuth = async () => {
       try {
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:58',message:'initAuth started',data:{url:window.location.href,hash:window.location.hash,pathname:window.location.pathname},timestamp:Date.now(),hypothesisId:'AUTH_FLOW',runId:'initial'})}).catch(()=>{});
+        // #endregion
+        
         console.log('🔐 Initializing auth...');
         
         const supabase = createSupabaseBrowserClient();
@@ -65,23 +69,40 @@ export default function Home() {
         const hashParams = new URLSearchParams(window.location.hash.substring(1));
         const hasAuthToken = hashParams.has('access_token') || hashParams.has('refresh_token');
         
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:68',message:'Hash params checked',data:{hasAuthToken,hasAccessToken:hashParams.has('access_token'),hasRefreshToken:hashParams.has('refresh_token'),hashLength:window.location.hash.length},timestamp:Date.now(),hypothesisId:'H_MAGIC_LINK',runId:'initial'})}).catch(()=>{});
+        // #endregion
+        
         // Check initial auth state
         const { data: { user: u } } = await supabase.auth.getUser();
+        
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:75',message:'getUser result',data:{hasUser:!!u,userId:u?.id,userEmail:u?.email,hasAuthToken},timestamp:Date.now(),hypothesisId:'H_TIMING',runId:'initial'})}).catch(()=>{});
+        // #endregion
         
         // Development-only auth bypass - but NEVER when processing magic link
         if (!u && process.env.NODE_ENV === 'development' && !hasAuthToken) {
           console.log('👤 No user found - creating dev mock user');
+          // #region agent log
+          fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:83',message:'Creating dev mock user',data:{nodeEnv:process.env.NODE_ENV,hasAuthToken},timestamp:Date.now(),hypothesisId:'H_DEV_MODE',runId:'initial'})}).catch(()=>{});
+          // #endregion
           setUser({
             ...DEV_MOCK_USER,
             created_at: new Date().toISOString(),
           });
         } else {
+          // #region agent log
+          fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:92',message:'Setting user from getUser',data:{hasUser:!!u,userId:u?.id,willShowOnboarding:!u},timestamp:Date.now(),hypothesisId:'H_TIMING',runId:'initial'})}).catch(()=>{});
+          // #endregion
           setUser(u);
         }
         setCheckingAuth(false);
 
         // Listen for auth changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+          // #region agent log
+          fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:102',message:'onAuthStateChange fired',data:{event:_event,hasSession:!!session,hasUser:!!session?.user,userId:session?.user?.id},timestamp:Date.now(),hypothesisId:'H_LISTENER',runId:'initial'})}).catch(()=>{});
+          // #endregion
           setUser(session?.user ?? null);
           setCheckingAuth(false);
         });
@@ -90,6 +111,9 @@ export default function Home() {
           subscription.unsubscribe();
         };
       } catch (authError) {
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:115',message:'Auth error caught',data:{errorMessage:(authError as any)?.message,errorName:(authError as any)?.name},timestamp:Date.now(),hypothesisId:'H_AUTH_ERROR',runId:'initial'})}).catch(()=>{});
+        // #endregion
         // If Supabase fails to initialize, use mock user immediately
         console.warn('⚠️ Supabase auth failed, using mock user for development');
         console.error('Auth error:', authError);

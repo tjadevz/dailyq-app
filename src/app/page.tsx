@@ -986,7 +986,7 @@ function TodayView({
             fontWeight: 600,
             textAlign: "center",
             marginBottom: "2.5rem",
-            marginTop: "1rem",
+            marginTop: "clamp(1rem, 15vh, 6rem)",
             color: "#1A1A1A",
             lineHeight: 1.3,
           }}

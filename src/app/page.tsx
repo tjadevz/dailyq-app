@@ -1324,7 +1324,12 @@ function CalendarView({
       }}
     >
       <div 
-        style={{ padding: "0 1rem", width: "100%", boxSizing: "border-box" }}
+        style={{ 
+          padding: "0 1rem", 
+          width: "100%", 
+          boxSizing: "border-box",
+          paddingTop: "clamp(1rem, 12vh, 5rem)"
+        }}
       >
         <div
           style={{

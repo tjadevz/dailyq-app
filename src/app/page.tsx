@@ -1420,29 +1420,29 @@ function SettingsView() {
     >
       <h2 style={{ fontSize: "1.5rem", marginBottom: "1.5rem" }}>Settings</h2>
 
-      {user && (
-        <div style={{ marginBottom: "2rem" }}>
+      <div style={{ marginBottom: "2rem" }}>
+        {user && user.email && (
           <p style={{ fontSize: "0.9rem", opacity: 0.7, marginBottom: "1rem" }}>
             Signed in as: {user.email}
           </p>
-          <button
-            type="button"
-            onClick={handleSignOut}
-            disabled={signingOut}
-            style={{
-              padding: "0.75rem 1.5rem",
-              borderRadius: "999px",
-              border: "1px solid rgba(128, 128, 128, 0.3)",
-              background: "transparent",
-              color: "var(--foreground)",
-              fontSize: "1rem",
-              cursor: "pointer",
-            }}
-          >
-            {signingOut ? "Signing out…" : "Sign out"}
-          </button>
-        </div>
-      )}
+        )}
+        <button
+          type="button"
+          onClick={handleSignOut}
+          disabled={signingOut}
+          style={{
+            padding: "0.75rem 1.5rem",
+            borderRadius: "999px",
+            border: "1px solid rgba(128, 128, 128, 0.3)",
+            background: "transparent",
+            color: "var(--foreground)",
+            fontSize: "1rem",
+            cursor: "pointer",
+          }}
+        >
+          {signingOut ? "Logging out…" : "Log Out"}
+        </button>
+      </div>
 
       <div style={{ borderTop: "1px solid rgba(128, 128, 128, 0.2)", paddingTop: "1.5rem" }}>
         <p style={{ fontSize: "0.9rem", marginBottom: "0.5rem" }}>

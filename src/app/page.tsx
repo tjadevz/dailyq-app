@@ -577,6 +577,20 @@ function OnboardingScreen() {
 
 // ============ STREAK MODAL ============
 function StreakModal({ streak, onClose }: { streak: number; onClose: () => void }) {
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    import("canvas-confetti").then(({ default: confetti }) => {
+      confetti({
+        particleCount: 40,
+        spread: 55,
+        origin: { y: 0.6 },
+        startVelocity: 18,
+        colors: ["#1A1A1A", "#E5DECA", "#c4b89a"],
+        ticks: 100,
+      });
+    });
+  }, []);
+
   return (
     <div
       style={{

@@ -1,9 +1,9 @@
 .page {
-  --background: #fafafa;
-  --foreground: #fff;
+  --background: #EBEBD3;
+  --foreground: #EBEBD3;
 
-  --text-primary: #000;
-  --text-secondary: #666;
+  --text-primary: #1A1A1A;
+  --text-secondary: #3A3A3A;
 
   --button-primary-hover: #383838;
   --button-secondary-hover: #f2f2f2;
@@ -122,20 +122,3 @@ a.secondary {
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  .logo {
-    filter: invert();
-  }
-
-  .page {
-    --background: #000;
-    --foreground: #000;
-
-    --text-primary: #ededed;
-    --text-secondary: #999;
-
-    --button-primary-hover: #ccc;
-    --button-secondary-hover: #1a1a1a;
-    --button-secondary-border: #1a1a1a;
-  }
-}

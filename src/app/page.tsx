@@ -20,15 +20,15 @@ type TabType = "today" | "calendar" | "settings";
 
 // Style Constants
 const COLORS = {
-  primary: '#4F86C6',
-  secondary: '#2F6FAF',
-  tertiary: '#0F3E73',
-  white: '#ffffff',
+  primary: '#1A1A1A',
+  secondary: '#2A2A2A',
+  tertiary: '#3A3A3A',
+  white: '#EBEBD3',
 } as const;
 
 const GRADIENTS = {
   horizontal: `linear-gradient(to right, ${COLORS.primary}, ${COLORS.secondary})`,
-  vertical: `linear-gradient(to bottom, ${COLORS.primary}, ${COLORS.secondary}, ${COLORS.tertiary})`,
+  vertical: `linear-gradient(to bottom, #EBEBD3, #E5E5CD, #DFDFCD)`,
 } as const;
 
 const COMMON_STYLES = {
@@ -134,6 +134,7 @@ export default function Home() {
         flexDirection: "column",
         minHeight: "100dvh",
         maxHeight: "100dvh",
+        background: "#EBEBD3",
       }}
     >
       {/* Header */}
@@ -141,6 +142,7 @@ export default function Home() {
         style={{
           padding: "1rem 1.5rem",
           borderBottom: "1px solid rgba(128, 128, 128, 0.2)",
+          background: "#EBEBD3",
         }}
       >
         <h2 
@@ -148,11 +150,7 @@ export default function Home() {
             fontSize: "1.25rem", 
             fontWeight: 600, 
             margin: 0,
-            background: GRADIENTS.horizontal,
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            backgroundClip: "text",
-            color: COLORS.secondary, // Fallback for browsers that don't support gradient text
+            color: "#1A1A1A",
           }}
         >
           DailyQ
@@ -204,6 +202,7 @@ export default function Home() {
           display: "flex",
           borderTop: "1px solid rgba(128, 128, 128, 0.2)",
           paddingBottom: "env(safe-area-inset-bottom, 0)",
+          background: "#EBEBD3",
         }}
       >
         <TabButton
@@ -411,7 +410,7 @@ function OnboardingScreen() {
       >
         <h1
           style={{
-            color: "#ffffff",
+            color: "#1A1A1A",
             fontSize: "1.75rem",
             fontWeight: 600,
             marginBottom: "3rem",
@@ -435,21 +434,21 @@ function OnboardingScreen() {
                 width: "100%",
                 padding: "1rem 1.25rem",
                 fontSize: "1rem",
-                border: "1px solid rgba(255, 255, 255, 0.3)",
+                border: "1px solid rgba(26, 26, 26, 0.2)",
                 borderRadius: "999px",
-                background: "rgba(255, 255, 255, 0.1)",
-                color: "#ffffff",
+                background: "rgba(255, 255, 255, 0.5)",
+                color: "#1A1A1A",
                 marginBottom: "1rem",
                 outline: "none",
                 transition: "all 0.2s",
               }}
               onFocus={(e) => {
-                e.target.style.background = "rgba(255, 255, 255, 0.15)";
-                e.target.style.borderColor = "rgba(255, 255, 255, 0.5)";
+                e.target.style.background = "rgba(255, 255, 255, 0.7)";
+                e.target.style.borderColor = "rgba(26, 26, 26, 0.3)";
               }}
               onBlur={(e) => {
-                e.target.style.background = "rgba(255, 255, 255, 0.1)";
-                e.target.style.borderColor = "rgba(255, 255, 255, 0.3)";
+                e.target.style.background = "rgba(255, 255, 255, 0.5)";
+                e.target.style.borderColor = "rgba(26, 26, 26, 0.2)";
               }}
             />
 
@@ -462,8 +461,8 @@ function OnboardingScreen() {
                 fontSize: "1rem",
                 border: "none",
                 borderRadius: "999px",
-                background: "rgba(255, 255, 255, 0.95)",
-                color: COLORS.tertiary,
+                background: "#1A1A1A",
+                color: "#EBEBD3",
                 fontWeight: 600,
                 cursor: submitting ? "default" : "pointer",
                 opacity: submitting || !email.trim() ? 0.6 : 1,
@@ -474,7 +473,7 @@ function OnboardingScreen() {
             </button>
 
             {error && (
-              <p style={{ color: "#ffffff", marginTop: "1rem", fontSize: "0.875rem" }}>
+              <p style={{ color: "#1A1A1A", marginTop: "1rem", fontSize: "0.875rem" }}>
                 {error}
               </p>
             )}
@@ -483,7 +482,7 @@ function OnboardingScreen() {
           <div>
             <p
               style={{
-                color: "#ffffff",
+                color: "#1A1A1A",
                 fontSize: "1.125rem",
                 lineHeight: 1.6,
               }}
@@ -520,7 +519,7 @@ function StreakModal({ streak, onClose }: { streak: number; onClose: () => void 
     >
       <div
         style={{
-          backgroundColor: "#ffffff",
+          backgroundColor: "#EBEBD3",
           borderRadius: "1.5rem",
           padding: "3rem 2rem",
           maxWidth: "24rem",
@@ -536,7 +535,7 @@ function StreakModal({ streak, onClose }: { streak: number; onClose: () => void 
             fontSize: "2rem",
             fontWeight: 600,
             marginBottom: "1.5rem",
-            color: "#111827",
+            color: "#1A1A1A",
           }}
         >
           Yay.
@@ -544,7 +543,7 @@ function StreakModal({ streak, onClose }: { streak: number; onClose: () => void 
         <p
           style={{
             fontSize: "1.25rem",
-            color: "#111827",
+            color: "#1A1A1A",
             marginBottom: "2rem",
           }}
         >
@@ -557,8 +556,8 @@ function StreakModal({ streak, onClose }: { streak: number; onClose: () => void 
             padding: "0.75rem 2rem",
             borderRadius: "999px",
             border: "none",
-            backgroundColor: "#2563eb",
-            color: "#ffffff",
+            backgroundColor: "#1A1A1A",
+            color: "#EBEBD3",
             fontSize: "1rem",
             fontWeight: 600,
             cursor: "pointer",
@@ -900,7 +899,7 @@ function TodayView() {
         padding: "2rem 1.5rem",
         height: "100%",
         width: "100%",
-        backgroundColor: "#ffffff",
+        backgroundColor: "#EBEBD3",
         boxSizing: "border-box",
         overflow: "auto",
       }}
@@ -913,10 +912,7 @@ function TodayView() {
             textAlign: "center",
             marginBottom: "2.5rem",
             marginTop: "1rem",
-            background: GRADIENTS.horizontal,
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            backgroundClip: "text",
+            color: "#1A1A1A",
             lineHeight: 1.3,
           }}
         >
@@ -933,7 +929,7 @@ function TodayView() {
           }}>
             <p style={{
               fontSize: "1.125rem",
-              color: "#333333",
+              color: "#1A1A1A",
               textAlign: "center",
               fontWeight: 500,
             }}>
@@ -947,9 +943,9 @@ function TodayView() {
               }}
               style={{
                 ...COMMON_STYLES.pillButton,
-                border: COMMON_STYLES.primaryBorder,
-                background: COLORS.white,
-                color: COLORS.primary,
+                border: "2px solid #1A1A1A",
+                background: "#EBEBD3",
+                color: "#1A1A1A",
                 fontSize: "1rem",
                 fontWeight: 600,
                 cursor: "pointer",
@@ -969,12 +965,12 @@ function TodayView() {
                 minHeight: "12rem",
                 padding: "1.25rem",
                 borderRadius: "1rem",
-                border: COMMON_STYLES.primaryBorder,
-                background: COLORS.white,
+                border: "2px solid #1A1A1A",
+                background: "rgba(255, 255, 255, 0.5)",
                 resize: "vertical",
                 fontSize: "1rem",
                 lineHeight: 1.6,
-                color: "#000000",
+                color: "#1A1A1A",
               }}
             />
             <button
@@ -984,12 +980,12 @@ function TodayView() {
                 marginTop: "1.5rem",
                 ...COMMON_STYLES.pillButton,
                 border: "none",
-                background: GRADIENTS.vertical,
-                color: COLORS.white,
+                background: "#1A1A1A",
+                color: "#EBEBD3",
                 fontSize: "1rem",
                 fontWeight: 600,
                 cursor: "pointer",
-                boxShadow: "0 4px 14px rgba(47, 111, 175, 0.4)",
+                boxShadow: "0 4px 14px rgba(26, 26, 26, 0.3)",
                 transition: "transform 0.2s, box-shadow 0.2s",
               }}
               disabled={submitting}
@@ -1279,12 +1275,12 @@ function CalendarView() {
               background: "transparent",
               cursor: "pointer",
               fontSize: "1.25rem",
-              color: "#ffffff",
+              color: "#1A1A1A",
             }}
           >
             ‹
           </button>
-          <h2 style={{ fontSize: "1.25rem", fontWeight: 600, color: "#ffffff" }}>
+          <h2 style={{ fontSize: "1.25rem", fontWeight: 600, color: "#1A1A1A" }}>
             {monthNames[displayMonth]} {displayYear}
           </h2>
           <button
@@ -1296,7 +1292,7 @@ function CalendarView() {
               background: "transparent",
               cursor: "pointer",
               fontSize: "1.25rem",
-              color: "#ffffff",
+              color: "#1A1A1A",
             }}
           >
             ›
@@ -1321,7 +1317,7 @@ function CalendarView() {
                 fontWeight: 600,
                 opacity: 0.8,
                 padding: "0.5rem",
-                color: "#ffffff",
+                color: "#1A1A1A",
                 minWidth: 0,
                 boxSizing: "border-box",
               }}
@@ -1346,12 +1342,12 @@ function CalendarView() {
                   flexDirection: "column",
                   alignItems: "center",
                   justifyContent: "center",
-                  border: "1px solid rgba(255, 255, 255, 0.3)",
+                  border: "1px solid rgba(26, 26, 26, 0.3)",
                   borderRadius: "0.5rem",
                   background: "transparent",
                   cursor: hasAnswer ? "pointer" : "default",
                   position: "relative",
-                  color: "#ffffff",
+                  color: "#1A1A1A",
                   padding: "0.25rem",
                   minWidth: 0,
                   boxSizing: "border-box",
@@ -1364,7 +1360,7 @@ function CalendarView() {
                       width: "6px",
                       height: "6px",
                       borderRadius: "50%",
-                      backgroundColor: "#ffffff",
+                      backgroundColor: "#1A1A1A",
                       marginTop: "4px",
                     }}
                   />
@@ -1513,8 +1509,8 @@ function SettingsView() {
             display: "inline-block",
             marginTop: "1rem",
             fontSize: "0.85rem",
-            color: COLORS.primary,
-            textDecoration: "none",
+            color: "#1A1A1A",
+            textDecoration: "underline",
           }}
         >
           @tjadevz

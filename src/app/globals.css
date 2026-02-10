@@ -1,17 +1,8 @@
 :root {
-  --background: #f9fafb; /* soft off-white */
-  --foreground: #111827; /* near-black for calm contrast */
-  --accent: #2563eb; /* single calm blue accent */
-  --accent-soft: #dbeafe;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #020617; /* very dark, slightly blue-tinted */
-    --foreground: #e5e7eb; /* soft light gray */
-    --accent: #60a5fa;
-    --accent-soft: #1d283a;
-  }
+  --background: #EBEBD3; /* warm beige background */
+  --foreground: #1A1A1A; /* near-black text */
+  --accent: #4F86C6; /* calm blue accent */
+  --accent-soft: #d4dce6;
 }
 
 html,
@@ -46,11 +37,6 @@ a:hover {
   text-decoration-color: var(--accent);
 }
 
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
-  }
-}
 
 h1 {
   font-size: 1.5rem;

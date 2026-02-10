@@ -1679,10 +1679,6 @@ async function computeStreak(params: {
     }
   }
 
-  if (!uniqueDays.includes(dayKey)) {
-    uniqueDays.unshift(dayKey);
-  }
-
   let streak = 0;
   let currentDate = new Date(dayKey);
 

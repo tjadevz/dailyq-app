@@ -1,0 +1,1660 @@
+"use client";
+/* eslint-disable no-console */
+
+import { useEffect, useState } from "react";
+import { createSupabaseBrowserClient } from "@/lib/supabaseClient";
+import { registerServiceWorker } from "./register-sw";
+
+type Question = {
+  id: string;
+  text: string;
+  day: string;
+};
+
+type Answer = {
+  id: string;
+  answer_text: string;
+};
+
+type TabType = "today" | "calendar" | "settings";
+
+// Style Constants
+const COLORS = {
+  primary: '#4F86C6',
+  secondary: '#2F6FAF',
+  tertiary: '#0F3E73',
+  white: '#ffffff',
+} as const;
+
+const GRADIENTS = {
+  horizontal: `linear-gradient(to right, ${COLORS.primary}, ${COLORS.secondary})`,
+  vertical: `linear-gradient(to bottom, ${COLORS.primary}, ${COLORS.secondary}, ${COLORS.tertiary})`,
+} as const;
+
+const COMMON_STYLES = {
+  pillButton: {
+    borderRadius: '999px',
+    padding: '1rem 2rem',
+  },
+  primaryBorder: `2px solid ${COLORS.primary}`,
+} as const;
+
+// Mock user for development
+const DEV_MOCK_USER = {
+  id: 'dev-user-id',
+  email: 'dev@localhost',
+  aud: 'authenticated',
+  role: 'authenticated',
+} as const;
+
+export default function Home() {
+  const [activeTab, setActiveTab] = useState<TabType>("today");
+  const [user, setUser] = useState<any>(null);
+  const [checkingAuth, setCheckingAuth] = useState(true);
+
+  useEffect(() => {
+    registerServiceWorker();
+
+    const initAuth = async () => {
+      try {
+        console.log('🔐 Initializing auth...');
+        
+        const supabase = createSupabaseBrowserClient();
+        
+        // Check if URL contains auth tokens (from magic link)
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const hasAuthToken = hashParams.has('access_token') || hashParams.has('refresh_token');
+        
+        // Check initial auth state
+        const { data: { user: u } } = await supabase.auth.getUser();
+        
+        // Development-only auth bypass - but NEVER when processing magic link
+        if (!u && process.env.NODE_ENV === 'development' && !hasAuthToken) {
+          console.log('👤 No user found - creating dev mock user');
+          setUser({
+            ...DEV_MOCK_USER,
+            created_at: new Date().toISOString(),
+          });
+        } else {
+          setUser(u);
+        }
+        setCheckingAuth(false);
+
+        // Listen for auth changes
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+          setUser(session?.user ?? null);
+          setCheckingAuth(false);
+        });
+
+        return () => {
+          subscription.unsubscribe();
+        };
+      } catch (authError) {
+        // If Supabase fails to initialize, use mock user immediately
+        console.warn('⚠️ Supabase auth failed, using mock user for development');
+        console.error('Auth error:', authError);
+        
+        setUser({
+          ...DEV_MOCK_USER,
+          created_at: new Date().toISOString(),
+        });
+        setCheckingAuth(false);
+      }
+    };
+
+    const cleanup = initAuth();
+    return () => {
+      cleanup?.then(fn => fn?.());
+    };
+  }, []);
+
+  if (checkingAuth) {
+    return (
+      <div
+        style={{
+          minHeight: "100dvh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <p>Loading…</p>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <OnboardingScreen />;
+  }
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        minHeight: "100dvh",
+        maxHeight: "100dvh",
+      }}
+    >
+      {/* Header */}
+      <header
+        style={{
+          padding: "1rem 1.5rem",
+          borderBottom: "1px solid rgba(128, 128, 128, 0.2)",
+        }}
+      >
+        <h2 
+          style={{ 
+            fontSize: "1.25rem", 
+            fontWeight: 600, 
+            margin: 0,
+            background: GRADIENTS.horizontal,
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            backgroundClip: "text",
+            color: COLORS.secondary, // Fallback for browsers that don't support gradient text
+          }}
+        >
+          DailyQ
+        </h2>
+      </header>
+
+      {/* Main content */}
+      <main
+        style={{
+          flex: 1,
+          overflowY: "auto",
+          overflowX: "hidden",
+          position: "relative",
+          background: activeTab === "calendar" 
+            ? GRADIENTS.vertical
+            : undefined,
+        }}
+      >
+        <div
+          style={{
+            display: activeTab === "today" ? "flex" : "none",
+            height: "100%",
+          }}
+        >
+          <TodayView />
+        </div>
+        <div
+          style={{
+            display: activeTab === "calendar" ? "flex" : "none",
+            height: "100%",
+            width: "100%",
+          }}
+        >
+          <CalendarView />
+        </div>
+        <div
+          style={{
+            display: activeTab === "settings" ? "flex" : "none",
+            height: "100%",
+          }}
+        >
+          <SettingsView />
+        </div>
+      </main>
+
+      {/* Tab bar */}
+      <nav
+        style={{
+          display: "flex",
+          borderTop: "1px solid rgba(128, 128, 128, 0.2)",
+          paddingBottom: "env(safe-area-inset-bottom, 0)",
+        }}
+      >
+        <TabButton
+          active={activeTab === "today"}
+          onClick={() => setActiveTab("today")}
+          label="Today"
+          icon={<QuestionMarkIcon />}
+        />
+        <TabButton
+          active={activeTab === "calendar"}
+          onClick={() => setActiveTab("calendar")}
+          label="Calendar"
+          icon={<CalendarIcon />}
+        />
+        <TabButton
+          active={activeTab === "settings"}
+          onClick={() => setActiveTab("settings")}
+          label="Settings"
+          icon={<SettingsIcon />}
+        />
+      </nav>
+    </div>
+  );
+}
+
+function TabButton({
+  active,
+  onClick,
+  label,
+  icon,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  icon: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        flex: 1,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: "0.25rem",
+        padding: "0.75rem 0.5rem",
+        border: "none",
+        background: "transparent",
+        color: active ? "var(--accent)" : "var(--foreground)",
+        opacity: active ? 1 : 0.65,
+        fontSize: "0.75rem",
+        cursor: "pointer",
+        transition: "color 0.2s, opacity 0.2s",
+      }}
+    >
+      {icon}
+      <span>{label}</span>
+    </button>
+  );
+}
+
+// Simple inline SVG icons
+function QuestionMarkIcon() {
+  return (
+    <svg
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="12" cy="12" r="10" />
+      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+      <circle cx="12" cy="17" r="0.5" fill="currentColor" />
+    </svg>
+  );
+}
+
+function CalendarIcon() {
+  return (
+    <svg
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+      <line x1="16" y1="2" x2="16" y2="6" />
+      <line x1="8" y1="2" x2="8" y2="6" />
+      <line x1="3" y1="10" x2="21" y2="10" />
+    </svg>
+  );
+}
+
+function SettingsIcon() {
+  return (
+    <svg
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    </svg>
+  );
+}
+
+// ============ ONBOARDING SCREEN ============
+function OnboardingScreen() {
+  const [email, setEmail] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const inputRef = useState<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (inputRef[0]) {
+      inputRef[0].focus();
+    }
+  }, [inputRef]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim() || submitting) return;
+
+    setSubmitting(true);
+    setError(null);
+
+    try {
+      const supabase = createSupabaseBrowserClient();
+      const redirectTo = window.location.origin + "/";
+
+      // #region agent log
+      console.log('[DEBUG H2-A] Before signInWithOtp call:', {email: email.trim(), redirectTo});
+      fetch('http://127.0.0.1:7242/ingest/b2cd3d95-63ad-413f-9f8e-e1f2fe79049b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:352-before',message:'Before signInWithOtp',data:{email:email.trim(),redirectTo},timestamp:Date.now(),hypothesisId:'H2-A'})}).catch(()=>{});
+      // #endregion
+
+      const { error: sendError } = await supabase.auth.signInWithOtp({
+        email: email.trim(),
+        options: {
+          emailRedirectTo: redirectTo,
+        },
+      });
+
+      // #region agent log
+      console.log('[DEBUG H2-B] After signInWithOtp call:', {hasSendError:!!sendError,sendError:sendError ? {message:sendError.message,status:sendError.status,name:sendError.name} : null});
+      fetch('http://127.0.0.1:7242/ingest/b2cd3d95-63ad-413f-9f8e-e1f2fe79049b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:359-after',message:'After signInWithOtp',data:{hasSendError:!!sendError,errorDetails:sendError ? {message:sendError.message,status:(sendError as any).status,name:sendError.name} : null},timestamp:Date.now(),hypothesisId:'H2-B'})}).catch(()=>{});
+      // #endregion
+
+      if (sendError) throw sendError;
+
+      // #region agent log
+      console.log('[DEBUG H2-D] About to setSent(true) - success path');
+      fetch('http://127.0.0.1:7242/ingest/b2cd3d95-63ad-413f-9f8e-e1f2fe79049b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:361-success',message:'Setting sent to true',data:{email:email.trim()},timestamp:Date.now(),hypothesisId:'H2-D'})}).catch(()=>{});
+      // #endregion
+
+      setSent(true);
+    } catch (e: any) {
+      // #region agent log
+      console.log('[DEBUG H2-C] Caught error:', {errorMessage:e?.message,errorName:e?.name,errorStatus:e?.status,fullError:JSON.stringify(e)});
+      fetch('http://127.0.0.1:7242/ingest/b2cd3d95-63ad-413f-9f8e-e1f2fe79049b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:363-catch',message:'Error caught',data:{errorMessage:e?.message,errorName:e?.name,errorStatus:e?.status},timestamp:Date.now(),hypothesisId:'H2-C'})}).catch(()=>{});
+      // #endregion
+      setError("Could not send link. Please try again.");
+      console.error(e);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div
+      style={{
+        minHeight: "100dvh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        position: "relative",
+        background: GRADIENTS.vertical,
+        padding: "2rem 1.5rem",
+        overflow: "hidden",
+      }}
+    >
+      {/* Main content */}
+      <div
+        style={{
+          maxWidth: "24rem",
+          width: "100%",
+          textAlign: "center",
+          position: "relative",
+          zIndex: 1,
+        }}
+      >
+        <h1
+          style={{
+            color: "#ffffff",
+            fontSize: "1.75rem",
+            fontWeight: 600,
+            marginBottom: "3rem",
+          }}
+        >
+          DailyQ
+        </h1>
+
+        {!sent ? (
+          <form onSubmit={handleSubmit}>
+            <input
+              ref={(el) => {
+                inputRef[0] = el;
+              }}
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Your email"
+              disabled={submitting}
+              style={{
+                width: "100%",
+                padding: "1rem 1.25rem",
+                fontSize: "1rem",
+                border: "1px solid rgba(255, 255, 255, 0.3)",
+                borderRadius: "999px",
+                background: "rgba(255, 255, 255, 0.1)",
+                color: "#ffffff",
+                marginBottom: "1rem",
+                outline: "none",
+                transition: "all 0.2s",
+              }}
+              onFocus={(e) => {
+                e.target.style.background = "rgba(255, 255, 255, 0.15)";
+                e.target.style.borderColor = "rgba(255, 255, 255, 0.5)";
+              }}
+              onBlur={(e) => {
+                e.target.style.background = "rgba(255, 255, 255, 0.1)";
+                e.target.style.borderColor = "rgba(255, 255, 255, 0.3)";
+              }}
+            />
+
+            <button
+              type="submit"
+              disabled={submitting || !email.trim()}
+              style={{
+                width: "100%",
+                padding: "1rem 1.25rem",
+                fontSize: "1rem",
+                border: "none",
+                borderRadius: "999px",
+                background: "rgba(255, 255, 255, 0.95)",
+                color: COLORS.tertiary,
+                fontWeight: 600,
+                cursor: submitting ? "default" : "pointer",
+                opacity: submitting || !email.trim() ? 0.6 : 1,
+                transition: "all 0.2s",
+              }}
+            >
+              {submitting ? "Sending…" : "Continue"}
+            </button>
+
+            {error && (
+              <p style={{ color: "#ffffff", marginTop: "1rem", fontSize: "0.875rem" }}>
+                {error}
+              </p>
+            )}
+          </form>
+        ) : (
+          <div>
+            <p
+              style={{
+                color: "#ffffff",
+                fontSize: "1.125rem",
+                lineHeight: 1.6,
+              }}
+            >
+              Sent! Check your email to continue.
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============ STREAK MODAL ============
+function StreakModal({ streak, onClose }: { streak: number; onClose: () => void }) {
+  return (
+    <div
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: "rgba(0, 0, 0, 0.6)",
+        backdropFilter: "blur(4px)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "2rem",
+        zIndex: 2000,
+        animation: "fadeIn 0.2s ease-out",
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          backgroundColor: "#ffffff",
+          borderRadius: "1.5rem",
+          padding: "3rem 2rem",
+          maxWidth: "24rem",
+          width: "100%",
+          textAlign: "center",
+          animation: "streakEnter 0.3s ease-out",
+          boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <p
+          style={{
+            fontSize: "2rem",
+            fontWeight: 600,
+            marginBottom: "1.5rem",
+            color: "#111827",
+          }}
+        >
+          Yay.
+        </p>
+        <p
+          style={{
+            fontSize: "1.25rem",
+            color: "#111827",
+            marginBottom: "2rem",
+          }}
+        >
+          This is your {streak}-day streak.
+        </p>
+        <button
+          type="button"
+          onClick={onClose}
+          style={{
+            padding: "0.75rem 2rem",
+            borderRadius: "999px",
+            border: "none",
+            backgroundColor: "#2563eb",
+            color: "#ffffff",
+            fontSize: "1rem",
+            fontWeight: 600,
+            cursor: "pointer",
+          }}
+        >
+          Done
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ============ TODAY VIEW ============
+function TodayView() {
+  const [loading, setLoading] = useState(true);
+  const [question, setQuestion] = useState<Question | null>(null);
+  const [answer, setAnswer] = useState<Answer | null>(null);
+  const [draft, setDraft] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [streakOverlay, setStreakOverlay] = useState<number | null>(null);
+  const [emailPromptOpen, setEmailPromptOpen] = useState(false);
+  const [email, setEmail] = useState("");
+  const [offline, setOffline] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+
+  useEffect(() => {
+    registerServiceWorker();
+
+    const load = async () => {
+      console.log('🔧 TodayView: Starting to load...');
+      
+      setLoading(true);
+      setError(null);
+
+      try {
+        if (typeof window !== "undefined" && !window.navigator.onLine) {
+          setOffline(true);
+        }
+
+        const today = new Date();
+        const dayKey = getLocalDayKey(today);
+        
+        // Check if we're using mock user - if so, skip database entirely
+        let currentUser = null;
+        try {
+          const supabase = createSupabaseBrowserClient();
+          const { data: { user } } = await supabase.auth.getUser();
+          currentUser = user;
+        } catch (e) {
+          console.warn('⚠️ Could not get user, will use mock data');
+        }
+
+        // If mock user, use mock data immediately (no database queries)
+        if (currentUser?.id === 'dev-user-id') {
+          console.log('👤 Mock user detected - using mock question immediately');
+          setQuestion({
+            id: 'dev-question-id',
+            text: 'What made you smile today?',
+            day: dayKey,
+          });
+          
+          // Load mock answer from localStorage if exists
+          try {
+            const mockAnswerKey = `dev-answer-${dayKey}`;
+            const savedAnswer = localStorage.getItem(mockAnswerKey);
+            if (savedAnswer) {
+              setAnswer({
+                id: 'dev-answer-id',
+                answer_text: savedAnswer,
+              });
+              console.log('✅ Loaded mock answer from localStorage');
+            }
+          } catch (e) {
+            console.warn('Could not load mock answer from localStorage');
+          }
+          
+          setLoading(false);
+          return;
+        }
+
+        // Real user - try to load from database
+        let questionData = null;
+
+        try {
+          console.log('📡 Fetching question from Supabase...');
+
+          const supabase = createSupabaseBrowserClient();
+          
+          // 2 second timeout for faster feedback
+          const queryPromise = supabase
+            .from("questions")
+            .select("id, text, day")
+            .eq("day", dayKey)
+            .maybeSingle();
+
+          const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Query timeout')), 2000)
+          );
+          
+          const result: any = await Promise.race([queryPromise, timeoutPromise]);
+          
+          console.log('✅ Successfully fetched question from Supabase');
+
+          const { data, error: questionError } = result;
+
+          if (questionError) {
+            throw questionError;
+          }
+
+          questionData = data;
+        } catch (dbError) {
+          // Fallback to mock data on any error
+          console.warn('⚠️ Database query failed, using mock data');
+          console.log('Error:', dbError);
+          questionData = {
+            id: 'dev-question-id',
+            text: 'What made you smile today?',
+            day: dayKey,
+          };
+        }
+
+        if (!questionData) {
+          setQuestion(null);
+          setLoading(false);
+          return;
+        }
+
+        setQuestion(questionData);
+
+        // Load existing answer only for real users
+        if (currentUser && currentUser.id !== 'dev-user-id') {
+          try {
+            console.log('📝 Checking for existing answer...');
+            
+            const supabase = createSupabaseBrowserClient();
+            const {
+              data: answerData,
+              error: answerError,
+            } = await supabase
+              .from("answers")
+              .select("id, answer_text")
+              .eq("user_id", currentUser.id)
+              .eq("question_id", questionData.id)
+              .maybeSingle();
+
+            if (answerError) {
+              throw answerError;
+            }
+
+            if (answerData) {
+              setAnswer(answerData);
+              console.log('✅ Found existing answer:', { id: answerData.id, textLength: answerData.answer_text?.length });
+            } else {
+              console.log('ℹ️ No existing answer found for today');
+            }
+          } catch (answerError) {
+            // Silently ignore answer fetch errors
+            console.warn('⚠️ Could not load answer:', answerError);
+          }
+        } else {
+          console.log('👤 Mock user - skipping answer load');
+        }
+      } catch (e) {
+        setError("Something went wrong loading today's question.");
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    void load();
+
+    if (typeof window !== "undefined") {
+      const handleOnline = () => setOffline(false);
+      const handleOffline = () => setOffline(true);
+      window.addEventListener("online", handleOnline);
+      window.addEventListener("offline", handleOffline);
+      return () => {
+        window.removeEventListener("online", handleOnline);
+        window.removeEventListener("offline", handleOffline);
+      };
+    }
+
+    return undefined;
+  }, []);
+
+  const handleSubmit = async () => {
+    if (!question || !draft.trim() || submitting) {
+      return;
+    }
+
+    setSubmitting(true);
+    setError(null);
+    setStreakOverlay(null);
+
+    try {
+      const supabase = createSupabaseBrowserClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      const today = new Date();
+      const dayKey = getLocalDayKey(today);
+
+      if (!user) {
+        storePendingDraft(dayKey, question.id, draft);
+        setEmailPromptOpen(true);
+        setSubmitting(false);
+        return;
+      }
+
+      // In development with mock user, simulate success without database
+      if (process.env.NODE_ENV === 'development' && user.id === 'dev-user-id') {
+        console.log('✅ Dev mode: Simulating answer submission (not saved to database)');
+        
+        // Save mock answer to localStorage
+        try {
+          const mockAnswerKey = `dev-answer-${dayKey}`;
+          localStorage.setItem(mockAnswerKey, draft);
+        } catch (e) {
+          console.warn('Could not save mock answer to localStorage');
+        }
+        
+        setAnswer({
+          id: 'dev-answer-id',
+          answer_text: draft,
+        });
+        setStreakOverlay(1); // Show streak modal with day 1
+        setDraft(''); // Clear the draft
+        setIsEditMode(false); // Exit edit mode
+      } else {
+        await saveAnswerAndStreak({
+          supabase,
+          userId: user.id,
+          questionId: question.id,
+          draft,
+          dayKey,
+          setAnswer,
+          setStreakOverlay,
+        });
+        setDraft(''); // Clear draft after successful submission
+        setIsEditMode(false); // Exit edit mode
+        console.log('✅ Real user submission complete - answer set, draft cleared, edit mode off');
+      }
+    } catch (e) {
+      setError("Could not submit your answer. Please try again.");
+      console.error(e);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleSendMagicLink = async () => {
+    if (!email.trim() || !question) {
+      return;
+    }
+
+    setSubmitting(true);
+    setError(null);
+
+    try {
+      const supabase = createSupabaseBrowserClient();
+      const redirectTo = window.location.origin + "/";
+
+      await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: redirectTo,
+        },
+      });
+
+      // Show success message inline for magic link send
+      setEmailPromptOpen(false);
+    } catch (e) {
+      setError("Could not send login link. Please check your email and try again.");
+      console.error(e);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div
+        style={{
+          height: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "1.5rem",
+          boxSizing: "border-box",
+        }}
+      >
+        <p>Loading today's question…</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div
+        style={{
+          height: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "1.5rem",
+          boxSizing: "border-box",
+        }}
+      >
+        <p>{error}</p>
+      </div>
+    );
+  }
+
+  if (!question) {
+    return (
+      <div
+        style={{
+          height: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "1.5rem",
+          boxSizing: "border-box",
+        }}
+      >
+        <p>No question is configured for today.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        padding: "2rem 1.5rem",
+        height: "100%",
+        width: "100%",
+        backgroundColor: "#ffffff",
+        boxSizing: "border-box",
+        overflow: "auto",
+      }}
+    >
+      <section style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+        <h1 
+          style={{ 
+            fontSize: "2rem",
+            fontWeight: 600,
+            textAlign: "center",
+            marginBottom: "2.5rem",
+            marginTop: "1rem",
+            background: GRADIENTS.horizontal,
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            backgroundClip: "text",
+            lineHeight: 1.3,
+          }}
+        >
+          {question.text}
+        </h1>
+        {answer && !isEditMode ? (
+          <div style={{ 
+            flex: 1, 
+            display: "flex", 
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "1.5rem"
+          }}>
+            <p style={{
+              fontSize: "1.125rem",
+              color: "#333333",
+              textAlign: "center",
+              fontWeight: 500,
+            }}>
+              Nice! You've answered today's question.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setIsEditMode(true);
+                setDraft(answer.answer_text);
+              }}
+              style={{
+                ...COMMON_STYLES.pillButton,
+                border: COMMON_STYLES.primaryBorder,
+                background: COLORS.white,
+                color: COLORS.primary,
+                fontSize: "1rem",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Edit Answer
+            </button>
+          </div>
+        ) : (
+          <>
+            <textarea
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              placeholder="Type your answer…"
+              style={{
+                flex: 1,
+                minHeight: "12rem",
+                padding: "1.25rem",
+                borderRadius: "1rem",
+                border: COMMON_STYLES.primaryBorder,
+                background: COLORS.white,
+                resize: "vertical",
+                fontSize: "1rem",
+                lineHeight: 1.6,
+                color: "#000000",
+              }}
+            />
+            <button
+              type="button"
+              onClick={handleSubmit}
+              style={{
+                marginTop: "1.5rem",
+                ...COMMON_STYLES.pillButton,
+                border: "none",
+                background: GRADIENTS.vertical,
+                color: COLORS.white,
+                fontSize: "1rem",
+                fontWeight: 600,
+                cursor: "pointer",
+                boxShadow: "0 4px 14px rgba(47, 111, 175, 0.4)",
+                transition: "transform 0.2s, box-shadow 0.2s",
+              }}
+              disabled={submitting}
+            >
+              {answer ? "Update" : "Submit"}
+            </button>
+          </>
+        )}
+        {emailPromptOpen && (
+          <div style={{ marginTop: "1rem" }}>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Your email"
+              style={{
+                width: "100%",
+                padding: "0.75rem",
+                borderRadius: "999px",
+                border: "1px solid #ddd",
+                fontSize: "1rem",
+                marginBottom: "0.5rem",
+              }}
+            />
+            <button
+              type="button"
+              onClick={handleSendMagicLink}
+              style={{
+                padding: "0.5rem 1rem",
+                borderRadius: "999px",
+                border: "none",
+                backgroundColor: "#111827",
+                color: "#fff",
+                fontSize: "0.9rem",
+                cursor: "pointer",
+              }}
+              disabled={submitting}
+            >
+              Email me a login link
+            </button>
+          </div>
+        )}
+        {offline && (
+          <p style={{ marginTop: "0.5rem", fontSize: "0.85rem", opacity: 0.7 }}>
+            You are offline. Your answer will sync when you're back online.
+          </p>
+        )}
+      </section>
+
+      {streakOverlay !== null && (
+        <StreakModal streak={streakOverlay} onClose={() => setStreakOverlay(null)} />
+      )}
+    </div>
+  );
+}
+
+// ============ CALENDAR VIEW ============
+function CalendarView() {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [user, setUser] = useState<any>(null);
+  const [displayYear, setDisplayYear] = useState(() => new Date().getFullYear());
+  const [displayMonth, setDisplayMonth] = useState(() => new Date().getMonth());
+  const [answersMap, setAnswersMap] = useState<
+    Map<string, { questionText: string; answerText: string }>
+  >(new Map());
+  const [selectedDay, setSelectedDay] = useState<{
+    day: string;
+    questionText: string;
+    answerText: string;
+  } | null>(null);
+  const [closingModal, setClosingModal] = useState(false);
+
+  useEffect(() => {
+    const loadUser = async () => {
+      const supabase = createSupabaseBrowserClient();
+      const {
+        data: { user: u },
+      } = await supabase.auth.getUser();
+      setUser(u);
+      if (!u) {
+        setLoading(false);
+      }
+    };
+    void loadUser();
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchAnswers = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        // In development with mock user, show empty calendar
+        if (process.env.NODE_ENV === 'development' && user.id === 'dev-user-id') {
+          console.log('📅 Dev mode: Showing empty calendar (no database connection)');
+          setAnswersMap(new Map());
+          setLoading(false);
+          return;
+        }
+
+        const supabase = createSupabaseBrowserClient();
+        const startOfMonth = new Date(displayYear, displayMonth, 1);
+        const endOfMonth = new Date(displayYear, displayMonth + 1, 0);
+
+        const { data, error: fetchError } = await supabase
+          .from("answers")
+          .select("answer_text, questions!inner(text, day)")
+          .eq("user_id", user.id)
+          .gte("questions.day", startOfMonth.toISOString().slice(0, 10))
+          .lte("questions.day", endOfMonth.toISOString().slice(0, 10));
+
+        if (fetchError) throw fetchError;
+
+        const map = new Map<
+          string,
+          { questionText: string; answerText: string }
+        >();
+        if (data) {
+          for (const row of data as any[]) {
+            const q = row.questions as { text: string; day: string };
+            if (q && q.day) {
+              map.set(q.day, {
+                questionText: q.text,
+                answerText: row.answer_text,
+              });
+            }
+          }
+        }
+        setAnswersMap(map);
+      } catch (e) {
+        setError("Could not load answers for this month.");
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    void fetchAnswers();
+  }, [user, displayYear, displayMonth]);
+
+  if (!user) {
+    return (
+      <div
+        style={{
+          height: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "1.5rem",
+          boxSizing: "border-box",
+        }}
+      >
+        <p>Sign in to see your answers.</p>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div
+        style={{
+          height: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "1.5rem",
+          boxSizing: "border-box",
+        }}
+      >
+        <p>Loading calendar…</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div
+        style={{
+          height: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "1.5rem",
+          boxSizing: "border-box",
+        }}
+      >
+        <p>{error}</p>
+      </div>
+    );
+  }
+
+  const monthNames = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ];
+
+  const prevMonth = () => {
+    if (displayMonth === 0) {
+      setDisplayMonth(11);
+      setDisplayYear(displayYear - 1);
+    } else {
+      setDisplayMonth(displayMonth - 1);
+    }
+  };
+
+  const nextMonth = () => {
+    if (displayMonth === 11) {
+      setDisplayMonth(0);
+      setDisplayYear(displayYear + 1);
+    } else {
+      setDisplayMonth(displayMonth + 1);
+    }
+  };
+
+  const firstDay = new Date(displayYear, displayMonth, 1).getDay();
+  const daysInMonth = new Date(displayYear, displayMonth + 1, 0).getDate();
+
+  const days: (number | null)[] = [];
+  for (let i = 0; i < firstDay; i++) {
+    days.push(null);
+  }
+  for (let d = 1; d <= daysInMonth; d++) {
+    days.push(d);
+  }
+
+  const handleDayClick = (day: number) => {
+    const dayKey = getLocalDayKey(new Date(displayYear, displayMonth, day));
+    const entry = answersMap.get(dayKey);
+    if (entry) {
+      setSelectedDay({
+        day: dayKey,
+        questionText: entry.questionText,
+        answerText: entry.answerText,
+      });
+    }
+  };
+
+  const handleCloseModal = () => {
+    setClosingModal(true);
+    setTimeout(() => {
+      setSelectedDay(null);
+      setClosingModal(false);
+    }, 200); // Match animation duration
+  };
+
+  return (
+    <div 
+      style={{ 
+        height: "100%",
+        width: "100%",
+        padding: "1rem 0",
+        position: "relative",
+        overflowY: "auto",
+        overflowX: "hidden",
+        boxSizing: "border-box",
+      }}
+    >
+      <div 
+        style={{ padding: "0 1rem", width: "100%", boxSizing: "border-box" }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: "1rem",
+          }}
+        >
+          <button
+            type="button"
+            onClick={prevMonth}
+            style={{
+              padding: "0.5rem",
+              border: "none",
+              background: "transparent",
+              cursor: "pointer",
+              fontSize: "1.25rem",
+              color: "#ffffff",
+            }}
+          >
+            ‹
+          </button>
+          <h2 style={{ fontSize: "1.25rem", fontWeight: 600, color: "#ffffff" }}>
+            {monthNames[displayMonth]} {displayYear}
+          </h2>
+          <button
+            type="button"
+            onClick={nextMonth}
+            style={{
+              padding: "0.5rem",
+              border: "none",
+              background: "transparent",
+              cursor: "pointer",
+              fontSize: "1.25rem",
+              color: "#ffffff",
+            }}
+          >
+            ›
+          </button>
+        </div>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(7, 1fr)",
+            gap: "0.75rem",
+            minWidth: 0,
+            boxSizing: "border-box",
+          }}
+        >
+          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((dow) => (
+            <div
+              key={dow}
+              style={{
+                textAlign: "center",
+                fontSize: "0.875rem",
+                fontWeight: 600,
+                opacity: 0.8,
+                padding: "0.5rem",
+                color: "#ffffff",
+                minWidth: 0,
+                boxSizing: "border-box",
+              }}
+            >
+              {dow}
+            </div>
+          ))}
+          {days.map((day, idx) => {
+            if (day === null) {
+              return <div key={`empty-${idx}`} />;
+            }
+            const dayKey = getLocalDayKey(new Date(displayYear, displayMonth, day));
+            const hasAnswer = answersMap.has(dayKey);
+            return (
+              <button
+                key={day}
+                type="button"
+                onClick={() => hasAnswer && handleDayClick(day)}
+                style={{
+                  aspectRatio: "1",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  border: "1px solid rgba(255, 255, 255, 0.3)",
+                  borderRadius: "0.5rem",
+                  background: "transparent",
+                  cursor: hasAnswer ? "pointer" : "default",
+                  position: "relative",
+                  color: "#ffffff",
+                  padding: "0.25rem",
+                  minWidth: 0,
+                  boxSizing: "border-box",
+                }}
+              >
+                <span style={{ fontSize: "1rem", fontWeight: 500 }}>{day}</span>
+                {hasAnswer && (
+                  <span
+                    style={{
+                      width: "6px",
+                      height: "6px",
+                      borderRadius: "50%",
+                      backgroundColor: "#ffffff",
+                      marginTop: "4px",
+                    }}
+                  />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {selectedDay && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "1.5rem",
+            zIndex: 1000,
+            animation: closingModal ? "fadeOut 0.2s ease-out" : "fadeIn 0.2s ease-out",
+          }}
+          onClick={handleCloseModal}
+        >
+          <div
+            style={{
+              backgroundColor: "var(--background)",
+              borderRadius: "1rem",
+              padding: "1.5rem",
+              maxWidth: "28rem",
+              width: "100%",
+              maxHeight: "80vh",
+              overflow: "auto",
+              animation: closingModal ? "scaleOut 0.2s ease-out" : "scaleIn 0.2s ease-out",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ fontSize: "1.25rem", marginBottom: "1rem" }}>
+              {selectedDay.questionText}
+            </h3>
+            <p style={{ fontSize: "1rem", lineHeight: 1.5, marginBottom: "1.5rem" }}>
+              {selectedDay.answerText}
+            </p>
+            <button
+              type="button"
+              onClick={handleCloseModal}
+              style={{
+                padding: "0.5rem 1rem",
+                borderRadius: "999px",
+                border: "none",
+                backgroundColor: "var(--accent)",
+                color: "#fff",
+                fontSize: "0.9rem",
+                cursor: "pointer",
+              }}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============ SETTINGS VIEW ============
+function SettingsView() {
+  const [user, setUser] = useState<any>(null);
+  const [signingOut, setSigningOut] = useState(false);
+
+  useEffect(() => {
+    const loadUser = async () => {
+      const supabase = createSupabaseBrowserClient();
+      const {
+        data: { user: u },
+      } = await supabase.auth.getUser();
+      setUser(u);
+    };
+    void loadUser();
+  }, []);
+
+  const handleSignOut = async () => {
+    setSigningOut(true);
+    try {
+      const supabase = createSupabaseBrowserClient();
+      await supabase.auth.signOut();
+      setUser(null);
+      window.location.reload();
+    } catch (e) {
+      console.error("Sign out error:", e);
+    } finally {
+      setSigningOut(false);
+    }
+  };
+
+  return (
+    <div
+      style={{
+        padding: "1.5rem",
+        width: "100%",
+      }}
+    >
+      <h2 style={{ fontSize: "1.5rem", marginBottom: "1.5rem" }}>Settings</h2>
+
+      {user && (
+        <div style={{ marginBottom: "2rem" }}>
+          <p style={{ fontSize: "0.9rem", opacity: 0.7, marginBottom: "1rem" }}>
+            Signed in as: {user.email}
+          </p>
+          <button
+            type="button"
+            onClick={handleSignOut}
+            disabled={signingOut}
+            style={{
+              padding: "0.75rem 1.5rem",
+              borderRadius: "999px",
+              border: "1px solid rgba(128, 128, 128, 0.3)",
+              background: "transparent",
+              color: "var(--foreground)",
+              fontSize: "1rem",
+              cursor: "pointer",
+            }}
+          >
+            {signingOut ? "Signing out…" : "Sign out"}
+          </button>
+        </div>
+      )}
+
+      <div style={{ borderTop: "1px solid rgba(128, 128, 128, 0.2)", paddingTop: "1.5rem" }}>
+        <p style={{ fontSize: "0.9rem", marginBottom: "0.5rem" }}>
+          <strong>DailyQ</strong>
+        </p>
+        <p style={{ fontSize: "0.85rem", opacity: 0.6 }}>Version 1.0</p>
+        <p style={{ fontSize: "0.85rem", opacity: 0.6, marginTop: "0.5rem" }}>
+          One question a day.
+        </p>
+        <a
+          href="https://instagram.com/tjadevz"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display: "inline-block",
+            marginTop: "1rem",
+            fontSize: "0.85rem",
+            color: COLORS.primary,
+            textDecoration: "none",
+          }}
+        >
+          @tjadevz
+        </a>
+      </div>
+    </div>
+  );
+}
+
+// ============ UTILITIES ============
+function getLocalDayKey(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+type PendingDraft = {
+  dayKey: string;
+  questionId: string;
+  draft: string;
+};
+
+const PENDING_KEY = "dailyq_pending_answer";
+
+function storePendingDraft(dayKey: string, questionId: string, draft: string) {
+  if (typeof window === "undefined") return;
+  const payload: PendingDraft = { dayKey, questionId, draft };
+  window.localStorage.setItem(PENDING_KEY, JSON.stringify(payload));
+}
+
+function readPendingDraft(dayKey: string, questionId: string): PendingDraft | null {
+  if (typeof window === "undefined") return null;
+  const raw = window.localStorage.getItem(PENDING_KEY);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as PendingDraft;
+    if (parsed.dayKey === dayKey && parsed.questionId === questionId) {
+      return parsed;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+async function saveAnswerAndStreak(params: {
+  supabase: ReturnType<typeof createSupabaseBrowserClient>;
+  userId: string;
+  questionId: string;
+  draft: string;
+  dayKey: string;
+  setAnswer: (a: Answer) => void;
+  setStreakOverlay: (streak: number) => void;
+}) {
+  const { supabase, userId, questionId, draft, dayKey, setAnswer, setStreakOverlay } =
+    params;
+
+  const { data: upserted, error: upsertError } = await supabase
+    .from("answers")
+    .upsert(
+      {
+        user_id: userId,
+        question_id: questionId,
+        answer_text: draft,
+      },
+      {
+        onConflict: "user_id,question_id",
+        ignoreDuplicates: false,
+      },
+    )
+    .select("id, answer_text")
+    .single();
+
+  if (upsertError || !upserted) {
+    throw upsertError ?? new Error("Could not save answer");
+  }
+
+  setAnswer(upserted);
+  console.log('📝 Answer saved to database:', { id: upserted.id, textLength: upserted.answer_text?.length });
+
+  if (typeof window !== "undefined") {
+    const stored = window.localStorage.getItem(PENDING_KEY);
+    if (stored) {
+      window.localStorage.removeItem(PENDING_KEY);
+    }
+  }
+
+  const streak = await computeStreak({ supabase, userId, dayKey });
+  setStreakOverlay(streak);
+}
+
+async function computeStreak(params: {
+  supabase: ReturnType<typeof createSupabaseBrowserClient>;
+  userId: string;
+  dayKey: string;
+}): Promise<number> {
+  const { supabase, userId, dayKey } = params;
+
+  const { data, error } = await supabase
+    .from("answers")
+    .select(
+      `
+      id,
+      created_at,
+      questions!answers_question_id_fkey(day)
+    `,
+    )
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+
+  if (error || !data) {
+    throw error ?? new Error("Could not load answers for streak");
+  }
+
+  const uniqueDays: string[] = [];
+  for (const row of data as any[]) {
+    const question = row.questions as { day: string } | null;
+    if (!question?.day) continue;
+    const d = question.day;
+    if (!uniqueDays.includes(d)) {
+      uniqueDays.push(d);
+    }
+  }
+
+  if (!uniqueDays.includes(dayKey)) {
+    uniqueDays.unshift(dayKey);
+  }
+
+  let streak = 0;
+  let currentDate = new Date(dayKey);
+
+  for (let i = 0; i < uniqueDays.length; i++) {
+    const key = getLocalDayKey(currentDate);
+    if (!uniqueDays.includes(key)) {
+      break;
+    }
+    streak += 1;
+    currentDate.setDate(currentDate.getDate() - 1);
+  }
+
+  return streak;
+}

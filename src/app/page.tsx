@@ -51,6 +51,9 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<TabType>("today");
   const [user, setUser] = useState<any>(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
+  const [onCalendarUpdate, setOnCalendarUpdate] = useState<
+    ((dayKey: string, questionText: string, answerText: string) => void) | null
+  >(null);
 
   useEffect(() => {
     registerServiceWorker();
@@ -140,6 +143,9 @@ export default function Home() {
           padding: "1rem 1.5rem",
           borderBottom: "1px solid rgba(128, 128, 128, 0.2)",
           background: "#E5DECA",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
         }}
       >
         <h2 
@@ -152,6 +158,22 @@ export default function Home() {
         >
           DailyQ
         </h2>
+        {activeTab === "today" && (
+          <span
+            style={{
+              fontSize: "0.875rem",
+              fontWeight: 500,
+              color: "#1A1A1A",
+              opacity: 0.7,
+            }}
+          >
+            {new Date().toLocaleDateString("en-US", { 
+              weekday: "short", 
+              month: "short", 
+              day: "numeric" 
+            })}
+          </span>
+        )}
       </header>
 
       {/* Main content */}
@@ -172,7 +194,7 @@ export default function Home() {
             height: "100%",
           }}
         >
-          <TodayView />
+          <TodayView onCalendarUpdate={onCalendarUpdate} />
         </div>
         <div
           style={{
@@ -181,7 +203,7 @@ export default function Home() {
             width: "100%",
           }}
         >
-          <CalendarView />
+          <CalendarView registerCalendarUpdate={setOnCalendarUpdate} />
         </div>
         <div
           style={{
@@ -587,7 +609,11 @@ function StreakModal({ streak, onClose }: { streak: number; onClose: () => void 
 }
 
 // ============ TODAY VIEW ============
-function TodayView() {
+function TodayView({ 
+  onCalendarUpdate 
+}: { 
+  onCalendarUpdate: ((dayKey: string, questionText: string, answerText: string) => void) | null 
+}) {
   const [loading, setLoading] = useState(true);
   const [question, setQuestion] = useState<Question | null>(null);
   const [answer, setAnswer] = useState<Answer | null>(null);
@@ -809,8 +835,10 @@ function TodayView() {
           questionId: question.id,
           draft,
           dayKey,
+          questionText: question.text,
           setAnswer,
           setStreakOverlay,
+          onCalendarUpdate,
         });
         setDraft(''); // Clear draft after successful submission
         setIsEditMode(false); // Exit edit mode
@@ -994,7 +1022,11 @@ function TodayView() {
 }
 
 // ============ CALENDAR VIEW ============
-function CalendarView() {
+function CalendarView({ 
+  registerCalendarUpdate 
+}: { 
+  registerCalendarUpdate: (callback: (dayKey: string, questionText: string, answerText: string) => void) => void 
+}) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [user, setUser] = useState<any>(null);
@@ -1009,6 +1041,18 @@ function CalendarView() {
     answerText: string;
   } | null>(null);
   const [closingModal, setClosingModal] = useState(false);
+
+  useEffect(() => {
+    const updateFunction = (dayKey: string, questionText: string, answerText: string) => {
+      setAnswersMap(prev => {
+        const newMap = new Map(prev);
+        newMap.set(dayKey, { questionText, answerText });
+        return newMap;
+      });
+    };
+    
+    registerCalendarUpdate(updateFunction);
+  }, [registerCalendarUpdate]);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -1486,10 +1530,12 @@ async function saveAnswerAndStreak(params: {
   questionId: string;
   draft: string;
   dayKey: string;
+  questionText: string;
   setAnswer: (a: Answer) => void;
   setStreakOverlay: (streak: number) => void;
+  onCalendarUpdate: ((dayKey: string, questionText: string, answerText: string) => void) | null;
 }) {
-  const { supabase, userId, questionId, draft, dayKey, setAnswer, setStreakOverlay } =
+  const { supabase, userId, questionId, draft, dayKey, questionText, setAnswer, setStreakOverlay, onCalendarUpdate } =
     params;
 
   const { data: upserted, error: upsertError } = await supabase
@@ -1514,6 +1560,11 @@ async function saveAnswerAndStreak(params: {
 
   setAnswer(upserted);
   console.log('📝 Answer saved to database:', { id: upserted.id, textLength: upserted.answer_text?.length });
+
+  // Optimistically update calendar
+  if (onCalendarUpdate) {
+    onCalendarUpdate(dayKey, questionText, draft);
+  }
 
   const streak = await computeStreak({ supabase, userId, dayKey });
   setStreakOverlay(streak);

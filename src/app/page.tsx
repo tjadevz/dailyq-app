@@ -23,12 +23,12 @@ const COLORS = {
   primary: '#1A1A1A',
   secondary: '#2A2A2A',
   tertiary: '#3A3A3A',
-  white: '#EBEBD3',
+  white: '#E5DECA',
 } as const;
 
 const GRADIENTS = {
   horizontal: `linear-gradient(to right, ${COLORS.primary}, ${COLORS.secondary})`,
-  vertical: `linear-gradient(to bottom, #EBEBD3, #E5E5CD, #DFDFCD)`,
+  vertical: `linear-gradient(to bottom, #E5DECA, #E5E5CD, #DFDFCD)`,
 } as const;
 
 const COMMON_STYLES = {
@@ -131,7 +131,7 @@ export default function Home() {
         flexDirection: "column",
         minHeight: "100dvh",
         maxHeight: "100dvh",
-        background: "#EBEBD3",
+        background: "#E5DECA",
       }}
     >
       {/* Header */}
@@ -139,7 +139,7 @@ export default function Home() {
         style={{
           padding: "1rem 1.5rem",
           borderBottom: "1px solid rgba(128, 128, 128, 0.2)",
-          background: "#EBEBD3",
+          background: "#E5DECA",
         }}
       >
         <h2 
@@ -199,7 +199,7 @@ export default function Home() {
           display: "flex",
           borderTop: "1px solid rgba(128, 128, 128, 0.2)",
           paddingBottom: "env(safe-area-inset-bottom, 0)",
-          background: "#EBEBD3",
+          background: "#E5DECA",
         }}
       >
         <TabButton
@@ -467,7 +467,7 @@ function OnboardingScreen() {
               border: "none",
               borderRadius: "999px",
               background: "#1A1A1A",
-              color: "#EBEBD3",
+              color: "#E5DECA",
               fontWeight: 600,
               cursor: submitting ? "default" : "pointer",
               opacity: submitting || !email.trim() || !password.trim() ? 0.6 : 1,
@@ -535,7 +535,7 @@ function StreakModal({ streak, onClose }: { streak: number; onClose: () => void 
     >
       <div
         style={{
-          backgroundColor: "#EBEBD3",
+          backgroundColor: "#E5DECA",
           borderRadius: "1.5rem",
           padding: "3rem 2rem",
           maxWidth: "24rem",
@@ -573,7 +573,7 @@ function StreakModal({ streak, onClose }: { streak: number; onClose: () => void 
             borderRadius: "999px",
             border: "none",
             backgroundColor: "#1A1A1A",
-            color: "#EBEBD3",
+            color: "#E5DECA",
             fontSize: "1rem",
             fontWeight: 600,
             cursor: "pointer",
@@ -884,7 +884,7 @@ function TodayView() {
         padding: "2rem 1.5rem",
         height: "100%",
         width: "100%",
-        backgroundColor: "#EBEBD3",
+        backgroundColor: "#E5DECA",
         boxSizing: "border-box",
         overflow: "auto",
       }}
@@ -929,7 +929,7 @@ function TodayView() {
               style={{
                 ...COMMON_STYLES.pillButton,
                 border: "2px solid #1A1A1A",
-                background: "#EBEBD3",
+                background: "#E5DECA",
                 color: "#1A1A1A",
                 fontSize: "1rem",
                 fontWeight: 600,
@@ -966,7 +966,7 @@ function TodayView() {
                 ...COMMON_STYLES.pillButton,
                 border: "none",
                 background: "#1A1A1A",
-                color: "#EBEBD3",
+                color: "#E5DECA",
                 fontSize: "1rem",
                 fontWeight: 600,
                 cursor: "pointer",

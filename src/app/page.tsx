@@ -83,7 +83,12 @@ export default function Home() {
         // Listen for auth changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
           console.log('🔄 Auth state changed:', _event);
-          setUser(session?.user ?? null);
+          // In development, keep mock user when session is null so submit still works
+          if (process.env.NODE_ENV === "development" && !session?.user) {
+            setUser({ ...DEV_MOCK_USER, created_at: new Date().toISOString() });
+          } else {
+            setUser(session?.user ?? null);
+          }
           setCheckingAuth(false);
         });
 
@@ -576,21 +581,21 @@ function OnboardingScreen() {
 }
 
 // ============ STREAK MODAL ============
-function StreakModal({ streak, onClose }: { streak: number; onClose: () => void }) {
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    import("canvas-confetti").then(({ default: confetti }) => {
-      confetti({
-        particleCount: 40,
-        spread: 55,
-        origin: { y: 0.6 },
-        startVelocity: 18,
-        colors: ["#1A1A1A", "#E5DECA", "#c4b89a"],
-        ticks: 100,
-      });
+function fireConfetti(): void {
+  if (typeof window === "undefined") return;
+  import("canvas-confetti").then(({ default: confetti }) => {
+    confetti({
+      particleCount: 40,
+      spread: 55,
+      origin: { y: 0.6 },
+      startVelocity: 18,
+      colors: ["#1A1A1A", "#E5DECA", "#c4b89a"],
+      ticks: 100,
     });
-  }, []);
+  });
+}
 
+function StreakModal({ streak, onClose }: { streak: number; onClose: () => void }) {
   return (
     <div
       style={{
@@ -891,6 +896,7 @@ function TodayView({
           setShowEditConfirmation(true);
           setTimeout(() => setShowEditConfirmation(false), 2000);
         } else {
+          fireConfetti();
           setStreakOverlay(1); // Show streak modal with day 1
         }
         
@@ -1081,6 +1087,28 @@ function TodayView({
             >
               {answer ? "Update" : "Submit"}
             </button>
+            {process.env.NODE_ENV === "development" && (
+              <button
+                type="button"
+                onClick={() => {
+                fireConfetti();
+                setStreakOverlay(1);
+              }}
+                style={{
+                  marginTop: "0.5rem",
+                  padding: "0.35rem 0.75rem",
+                  fontSize: "0.75rem",
+                  color: "#1A1A1A",
+                  background: "transparent",
+                  border: "1px dashed #1A1A1A",
+                  borderRadius: "999px",
+                  cursor: "pointer",
+                  opacity: 0.7,
+                }}
+              >
+                Test confetti
+              </button>
+            )}
           </>
         )}
         {offline && (
@@ -1651,6 +1679,7 @@ async function saveAnswerAndStreak(params: {
   
   // Only show streak modal for new answers, not edits
   if (!isEdit) {
+    fireConfetti();
     setStreakOverlay(streak);
   }
 

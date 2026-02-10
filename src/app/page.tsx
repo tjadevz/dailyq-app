@@ -370,7 +370,9 @@ function OnboardingScreen() {
 
     try {
       // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:348',message:'handleSubmit started',data:{email:email.trim(),emailLength:email.trim().length,origin:window.location.origin},timestamp:Date.now(),hypothesisId:'H1-H2-H3',runId:'initial'})}).catch(()=>{});
+      const attemptNumber = parseInt(sessionStorage.getItem('otp_attempt_' + email.trim()) || '0') + 1;
+      sessionStorage.setItem('otp_attempt_' + email.trim(), attemptNumber.toString());
+      fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:348',message:'handleSubmit started',data:{email:email.trim(),emailLength:email.trim().length,origin:window.location.origin,attemptNumber,url:window.location.href},timestamp:Date.now(),hypothesisId:'H_RATE_LIMIT',runId:'initial'})}).catch(()=>{});
       // #endregion
 
       const supabase = createSupabaseBrowserClient();
@@ -385,7 +387,7 @@ function OnboardingScreen() {
       fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:359',message:'Before signInWithOtp call',data:{email:email.trim(),redirectTo,hasAuthObject:!!supabase.auth},timestamp:Date.now(),hypothesisId:'H2-H3',runId:'initial'})}).catch(()=>{});
       // #endregion
 
-      const { error: sendError } = await supabase.auth.signInWithOtp({
+      const otpResponse = await supabase.auth.signInWithOtp({
         email: email.trim(),
         options: {
           emailRedirectTo: redirectTo,
@@ -393,10 +395,10 @@ function OnboardingScreen() {
       });
 
       // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:371',message:'After signInWithOtp call',data:{hasSendError:!!sendError,errorMessage:sendError?.message,errorCode:sendError?.code,errorStatus:(sendError as any)?.status,errorName:sendError?.name},timestamp:Date.now(),hypothesisId:'H2-H3-H4',runId:'initial'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:371',message:'After signInWithOtp call',data:{hasSendError:!!otpResponse.error,hasData:!!otpResponse.data,errorMessage:otpResponse.error?.message,errorCode:otpResponse.error?.code,errorStatus:(otpResponse.error as any)?.status,errorName:otpResponse.error?.name,dataKeys:otpResponse.data ? Object.keys(otpResponse.data) : []},timestamp:Date.now(),hypothesisId:'H_NEW_USER',runId:'initial'})}).catch(()=>{});
       // #endregion
 
-      if (sendError) throw sendError;
+      if (otpResponse.error) throw otpResponse.error;
 
       // #region agent log
       fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:379',message:'Success - setting sent to true',data:{email:email.trim()},timestamp:Date.now(),hypothesisId:'SUCCESS',runId:'initial'})}).catch(()=>{});

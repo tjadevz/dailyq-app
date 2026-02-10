@@ -345,12 +345,20 @@ function OnboardingScreen() {
     setError(null);
 
     try {
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:348',message:'handleSubmit started',data:{email:email.trim(),emailLength:email.trim().length,origin:window.location.origin},timestamp:Date.now(),hypothesisId:'H1-H2-H3',runId:'initial'})}).catch(()=>{});
+      // #endregion
+
       const supabase = createSupabaseBrowserClient();
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:353',message:'Supabase client created successfully',data:{clientExists:!!supabase},timestamp:Date.now(),hypothesisId:'H1',runId:'initial'})}).catch(()=>{});
+      // #endregion
+
       const redirectTo = window.location.origin + "/";
 
       // #region agent log
-      console.log('[DEBUG H2-A] Before signInWithOtp call:', {email: email.trim(), redirectTo});
-      fetch('http://127.0.0.1:7242/ingest/b2cd3d95-63ad-413f-9f8e-e1f2fe79049b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:352-before',message:'Before signInWithOtp',data:{email:email.trim(),redirectTo},timestamp:Date.now(),hypothesisId:'H2-A'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:359',message:'Before signInWithOtp call',data:{email:email.trim(),redirectTo,hasAuthObject:!!supabase.auth},timestamp:Date.now(),hypothesisId:'H2-H3',runId:'initial'})}).catch(()=>{});
       // #endregion
 
       const { error: sendError } = await supabase.auth.signInWithOtp({
@@ -361,22 +369,19 @@ function OnboardingScreen() {
       });
 
       // #region agent log
-      console.log('[DEBUG H2-B] After signInWithOtp call:', {hasSendError:!!sendError,sendError:sendError ? {message:sendError.message,status:sendError.status,name:sendError.name} : null});
-      fetch('http://127.0.0.1:7242/ingest/b2cd3d95-63ad-413f-9f8e-e1f2fe79049b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:359-after',message:'After signInWithOtp',data:{hasSendError:!!sendError,errorDetails:sendError ? {message:sendError.message,status:(sendError as any).status,name:sendError.name} : null},timestamp:Date.now(),hypothesisId:'H2-B'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:371',message:'After signInWithOtp call',data:{hasSendError:!!sendError,errorMessage:sendError?.message,errorCode:sendError?.code,errorStatus:(sendError as any)?.status,errorName:sendError?.name},timestamp:Date.now(),hypothesisId:'H2-H3-H4',runId:'initial'})}).catch(()=>{});
       // #endregion
 
       if (sendError) throw sendError;
 
       // #region agent log
-      console.log('[DEBUG H2-D] About to setSent(true) - success path');
-      fetch('http://127.0.0.1:7242/ingest/b2cd3d95-63ad-413f-9f8e-e1f2fe79049b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:361-success',message:'Setting sent to true',data:{email:email.trim()},timestamp:Date.now(),hypothesisId:'H2-D'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:379',message:'Success - setting sent to true',data:{email:email.trim()},timestamp:Date.now(),hypothesisId:'SUCCESS',runId:'initial'})}).catch(()=>{});
       // #endregion
 
       setSent(true);
     } catch (e: any) {
       // #region agent log
-      console.log('[DEBUG H2-C] Caught error:', {errorMessage:e?.message,errorName:e?.name,errorStatus:e?.status,fullError:JSON.stringify(e)});
-      fetch('http://127.0.0.1:7242/ingest/b2cd3d95-63ad-413f-9f8e-e1f2fe79049b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:363-catch',message:'Error caught',data:{errorMessage:e?.message,errorName:e?.name,errorStatus:e?.status},timestamp:Date.now(),hypothesisId:'H2-C'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:385',message:'Error caught in catch block',data:{errorMessage:e?.message,errorName:e?.name,errorCode:e?.code,errorStatus:e?.status,stack:e?.stack?.substring(0,200)},timestamp:Date.now(),hypothesisId:'H1-H2-H3-H4',runId:'initial'})}).catch(()=>{});
       // #endregion
       setError("Could not send link. Please try again.");
       console.error(e);

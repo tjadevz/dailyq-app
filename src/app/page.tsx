@@ -23,12 +23,12 @@ const COLORS = {
   primary: '#1A1A1A',
   secondary: '#2A2A2A',
   tertiary: '#3A3A3A',
-  white: '#eee9e0',
+  white: '#F2F0EC',
 } as const;
 
 const GRADIENTS = {
   horizontal: `linear-gradient(to right, ${COLORS.primary}, ${COLORS.secondary})`,
-  vertical: `linear-gradient(to bottom, #eee9e0, #E5E5CD, #DFDFCD)`,
+  vertical: `linear-gradient(to bottom, #F2F0EC, #ebe9e5, #e8e6e2)`,
 } as const;
 
 const COMMON_STYLES = {
@@ -169,62 +169,78 @@ export default function Home() {
         flexDirection: "column",
         minHeight: "100dvh",
         maxHeight: "100dvh",
-        background: "#eee9e0",
+        background: "#F2F0EC",
       }}
     >
       {/* Header */}
       <header
         style={{
           padding: "1rem 1.5rem",
-          borderBottom: "1px solid rgba(128, 128, 128, 0.2)",
-          background: "#eee9e0",
+          paddingTop: "1.25rem",
+          paddingBottom: "1.25rem",
+          background: "#F2F0EC",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
+          position: "relative",
         }}
       >
-        <h2 
-          style={{ 
-            fontSize: "1.25rem", 
-            fontWeight: 600, 
-            margin: 0,
-            color: "#1A1A1A",
+        <div style={{ flex: 1, minWidth: 0 }} />
+        <div
+          style={{
+            position: "absolute",
+            left: "50%",
+            top: "50%",
+            transform: "translate(-50%, -50%)",
           }}
         >
-          DailyQ
-        </h2>
-        
-        {activeTab === "today" && (
           <span
             style={{
-              fontSize: "0.875rem",
-              fontWeight: 600,
-              color: "#1A1A1A",
-              position: "absolute",
-              left: "50%",
-              transform: "translateX(-50%)",
-            }}
-          >
-            Streak: {currentStreak}
-          </span>
-        )}
-        
-        {activeTab === "today" && (
-          <span
-            style={{
-              fontSize: "0.875rem",
+              fontFamily: 'var(--font-logo), "SF Pro Rounded", -apple-system, BlinkMacSystemFont, system-ui, sans-serif',
+              fontSize: "1.25rem",
               fontWeight: 500,
+              letterSpacing: "0.03em",
               color: "#1A1A1A",
-              opacity: 0.7,
             }}
           >
-            {new Date().toLocaleDateString("en-US", { 
-              weekday: "short", 
-              month: "short", 
-              day: "numeric" 
-            })}
+            DailyQ
           </span>
-        )}
+        </div>
+        <div
+          style={{
+            flex: 1,
+            minWidth: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "flex-end",
+            paddingRight: "0.25rem",
+          }}
+        >
+          {activeTab === "today" && (
+            <div
+              style={{
+                width: 30,
+                height: 30,
+                borderRadius: "50%",
+                border: "1.5px solid rgba(0, 0, 0, 0.18)",
+                background: "transparent",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <span
+                style={{
+                  fontSize: "0.8125rem",
+                  fontWeight: 500,
+                  color: "#5A5A5A",
+                }}
+              >
+                {currentStreak}
+              </span>
+            </div>
+          )}
+        </div>
       </header>
 
       {/* Main content */}
@@ -270,7 +286,7 @@ export default function Home() {
           flexDirection: "row",
           justifyContent: "space-evenly",
           alignItems: "center",
-          background: "#eee9e0",
+          background: "#F2F0EC",
           borderRadius: "24px 24px 0 0",
           borderTop: "1px solid rgba(0, 0, 0, 0.08)",
           paddingTop: "12px",
@@ -556,7 +572,7 @@ function OnboardingScreen() {
               border: "none",
               borderRadius: "999px",
               background: "#1A1A1A",
-              color: "#eee9e0",
+              color: "#FFFFFF",
               fontWeight: 600,
               cursor: submitting ? "default" : "pointer",
               opacity: submitting || !email.trim() || !password.trim() ? 0.6 : 1,
@@ -610,7 +626,7 @@ function fireConfetti(): void {
       spread: 55,
       origin: { y: 0.6 },
       startVelocity: 18,
-      colors: ["#1A1A1A", "#eee9e0", "#c4b89a"],
+      colors: ["#1A1A1A", "#F2F0EC", "#c4b89a"],
       ticks: 100,
     });
   });
@@ -638,14 +654,14 @@ function StreakModal({ streak, onClose }: { streak: number; onClose: () => void 
     >
       <div
         style={{
-          backgroundColor: "#eee9e0",
+          backgroundColor: "#FFFFFF",
           borderRadius: "1.5rem",
           padding: "3rem 2rem",
           maxWidth: "24rem",
           width: "100%",
           textAlign: "center",
           animation: "streakEnter 0.3s ease-out",
-          boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
+          boxShadow: "0 4px 24px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04)",
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -676,7 +692,7 @@ function StreakModal({ streak, onClose }: { streak: number; onClose: () => void 
             borderRadius: "999px",
             border: "none",
             backgroundColor: "#1A1A1A",
-            color: "#eee9e0",
+            color: "#FFFFFF",
             fontSize: "1rem",
             fontWeight: 600,
             cursor: "pointer",
@@ -1016,7 +1032,7 @@ function TodayView({
         padding: "2rem 1.5rem",
         height: "100%",
         width: "100%",
-        backgroundColor: "#eee9e0",
+        backgroundColor: "#F2F0EC",
         boxSizing: "border-box",
         overflow: "auto",
       }}
@@ -1038,11 +1054,11 @@ function TodayView({
               style={{
                 width: "100%",
                 maxWidth: "28rem",
-                padding: "3rem 2rem",
+                padding: "2.5rem 2rem",
                 borderRadius: "1.75rem",
-                background: "#fdfcfb",
-                border: "1px solid rgba(214, 211, 209, 0.5)",
-                boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.05)",
+                background: "#FFFFFF",
+                border: "none",
+                boxShadow: "0 2px 12px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04)",
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
@@ -1056,32 +1072,25 @@ function TodayView({
                   flexDirection: "row",
                   alignItems: "center",
                   justifyContent: "center",
-                  gap: "0.75rem",
+                  gap: "0.5rem",
                   color: "#292524",
-                  fontWeight: 600,
-                  fontSize: "1rem",
+                  fontWeight: 500,
+                  fontSize: "1.125rem",
+                  letterSpacing: "0.025em",
                 }}
               >
-                <span style={{ display: "inline-flex", alignItems: "center" }}>
+                <span>Done for today</span>
+                <span style={{ display: "inline-flex", alignItems: "center", opacity: 0.9 }}>
                   <CheckIconSmall />
                 </span>
-                <span>Completed today</span>
               </div>
-              <div
-                style={{
-                  width: "100%",
-                  marginTop: "1.5rem",
-                  paddingTop: "1.5rem",
-                  borderTop: "1px solid #e7e5e4",
-                }}
-              />
               <p
                 style={{
                   margin: 0,
-                  marginTop: "1rem",
+                  marginTop: "1.25rem",
                   fontSize: "1.125rem",
                   lineHeight: 1.625,
-                  color: "#44403c",
+                  color: "#9ca3af",
                   fontWeight: 500,
                   textAlign: "center",
                 }}
@@ -1173,7 +1182,7 @@ function TodayView({
                 ...COMMON_STYLES.pillButton,
                 border: "none",
                 background: "#002E5D",
-                color: "#eee9e0",
+                color: "#FFFFFF",
                 fontSize: "1rem",
                 fontWeight: 600,
                 cursor: "pointer",
@@ -1240,14 +1249,14 @@ function TodayView({
         >
           <div
             style={{
-              backgroundColor: "#eee9e0",
+              backgroundColor: "#FFFFFF",
               borderRadius: "1.5rem",
               padding: "3rem 2rem",
               maxWidth: "24rem",
               width: "100%",
               textAlign: "center",
               animation: "streakEnter 0.3s ease-out",
-              boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
+              boxShadow: "0 4px 24px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04)",
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -1485,7 +1494,7 @@ function CalendarView({
         overflowY: "auto",
         overflowX: "hidden",
         boxSizing: "border-box",
-        background: "#eee9e0",
+        background: "#F2F0EC",
       }}
     >
       <div 
@@ -1494,7 +1503,7 @@ function CalendarView({
           width: "100%", 
           boxSizing: "border-box",
           paddingTop: "clamp(1rem, 12vh, 5rem)",
-          background: "#eee9e0",
+          background: "#F2F0EC",
         }}
       >
         <div

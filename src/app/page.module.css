@@ -1,6 +1,6 @@
 .page {
-  --background: #eee9e0;
-  --foreground: #eee9e0;
+  --background: #F2F0EC;
+  --foreground: #F2F0EC;
 
   --text-primary: #1A1A1A;
   --text-secondary: #3A3A3A;
@@ -13,7 +13,8 @@
   min-height: 100vh;
   align-items: center;
   justify-content: center;
-  font-family: var(--font-geist-sans);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
+    system-ui, sans-serif;
   background-color: var(--background);
 }
 

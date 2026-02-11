@@ -1,5 +1,5 @@
 :root {
-  --background: #eee9e0; /* warm beige background */
+  --background: #F2F0EC; /* warm greige — light, neutral, airy */
   --foreground: #1A1A1A; /* near-black text */
   --accent: #4F86C6; /* calm blue accent */
   --accent-soft: #d4dce6;
@@ -14,8 +14,8 @@ body {
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont,
-    "Segoe UI", sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
+    system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   line-height: 1.5;

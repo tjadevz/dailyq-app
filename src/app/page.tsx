@@ -448,7 +448,7 @@ function OnboardingScreen() {
         alignItems: "center",
         justifyContent: "center",
         position: "relative",
-        background: GRADIENTS.vertical,
+        background: COLORS.white,
         padding: "2rem 1.5rem",
         overflow: "hidden",
       }}

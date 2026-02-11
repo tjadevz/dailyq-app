@@ -267,6 +267,7 @@ export default function Home() {
           alignItems: "center",
           background: "#eee9e0",
           borderRadius: "24px 24px 0 0",
+          borderTop: "1px solid rgba(0, 0, 0, 0.08)",
           paddingTop: "12px",
           paddingLeft: "16px",
           paddingRight: "16px",
@@ -327,7 +328,7 @@ function TabButton({
         padding: 0,
         cursor: "pointer",
         transition: "background 0.2s, color 0.2s",
-        background: active ? "#002E5D" : "#E5E5E5",
+        background: active ? "#002E5D" : "#FFFFFF",
         color: active ? "#FFFFFF" : "#5A5A5A",
       }}
     >

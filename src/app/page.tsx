@@ -275,6 +275,7 @@ export default function Home() {
           marginLeft: "12px",
           marginRight: "12px",
           marginBottom: 0,
+          marginTop: "-12px",
         }}
       >
         <TabButton
@@ -317,8 +318,8 @@ function TabButton({
       onClick={onClick}
       aria-label={label}
       style={{
-        width: 48,
-        height: 48,
+        width: 52,
+        height: 52,
         borderRadius: "50%",
         flex: "0 0 auto",
         display: "flex",
@@ -341,8 +342,8 @@ function TabButton({
 function QuestionMarkIcon() {
   return (
     <svg
-      width="24"
-      height="24"
+      width="28"
+      height="28"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -360,8 +361,8 @@ function QuestionMarkIcon() {
 function CalendarIcon() {
   return (
     <svg
-      width="24"
-      height="24"
+      width="28"
+      height="28"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -380,8 +381,8 @@ function CalendarIcon() {
 function SettingsIcon() {
   return (
     <svg
-      width="24"
-      height="24"
+      width="28"
+      height="28"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -1070,6 +1071,7 @@ function TodayView({
                 border: "2px solid #1A1A1A",
                 background: "rgba(255, 255, 255, 0.5)",
                 resize: "vertical",
+                fontFamily: "inherit",
                 fontSize: "1rem",
                 lineHeight: 1.6,
                 color: "#1A1A1A",

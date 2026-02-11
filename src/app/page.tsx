@@ -26,17 +26,11 @@ const COLORS = {
   white: '#F2F0EC',
 } as const;
 
-const GRADIENTS = {
-  horizontal: `linear-gradient(to right, ${COLORS.primary}, ${COLORS.secondary})`,
-  vertical: `linear-gradient(to bottom, #F2F0EC, #ebe9e5, #e8e6e2)`,
-} as const;
-
 const COMMON_STYLES = {
   pillButton: {
     borderRadius: '999px',
     padding: '1rem 2rem',
   },
-  primaryBorder: `2px solid ${COLORS.primary}`,
 } as const;
 
 // Development-only: fake user when Supabase is unavailable or not used
@@ -175,9 +169,7 @@ export default function Home() {
       {/* Header */}
       <header
         style={{
-          padding: "1rem 1.5rem",
-          paddingTop: "1.25rem",
-          paddingBottom: "1.25rem",
+          padding: "1.25rem 1.5rem",
           background: "#F2F0EC",
           display: "flex",
           alignItems: "center",
@@ -673,7 +665,7 @@ function StreakModal({ streak, onClose }: { streak: number; onClose: () => void 
             color: "#1A1A1A",
           }}
         >
-          Mooi.
+          Yay!
         </p>
         <p
           style={{
@@ -682,7 +674,7 @@ function StreakModal({ streak, onClose }: { streak: number; onClose: () => void 
             marginBottom: "2rem",
           }}
         >
-          Dit is je streak van {streak} dagen.
+          Je hebt nu een streak van {streak} {streak === 1 ? "dag" : "dagen"}.
         </p>
         <button
           type="button"
@@ -1365,7 +1357,11 @@ function CalendarView({
             }
           }
         }
-        setAnswersMap(map);
+        setAnswersMap((prev) => {
+          const merged = new Map(prev);
+          for (const [k, v] of map) merged.set(k, v);
+          return merged;
+        });
       } catch (e) {
         setError("Antwoorden voor deze maand konden niet worden geladen.");
         console.error(e);

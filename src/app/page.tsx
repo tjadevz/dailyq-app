@@ -39,13 +39,19 @@ const COMMON_STYLES = {
   primaryBorder: `2px solid ${COLORS.primary}`,
 } as const;
 
-// Mock user for development
-const DEV_MOCK_USER = {
-  id: 'dev-user-id',
-  email: 'dev@localhost',
-  aud: 'authenticated',
-  role: 'authenticated',
+// Development-only: fake user when Supabase is unavailable or not used
+const DEV_USER = {
+  id: 'dev-user',
+  email: 'dev@dailyq.local',
 } as const;
+
+/** In development returns a fake user so the app works without Supabase. In production returns the real Supabase user. */
+function getCurrentUser(supabaseUser: any): any {
+  if (process.env.NODE_ENV === 'development') {
+    return supabaseUser ?? DEV_USER;
+  }
+  return supabaseUser;
+}
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<TabType>("today");
@@ -70,11 +76,8 @@ export default function Home() {
         
         // Development-only auth bypass
         if (!u && process.env.NODE_ENV === 'development') {
-          console.log('👤 No user found - creating dev mock user');
-          setUser({
-            ...DEV_MOCK_USER,
-            created_at: new Date().toISOString(),
-          });
+          console.log('👤 No user found - using dev user');
+          setUser(DEV_USER);
         } else {
           setUser(u);
         }
@@ -83,9 +86,9 @@ export default function Home() {
         // Listen for auth changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
           console.log('🔄 Auth state changed:', _event);
-          // In development, keep mock user when session is null so submit still works
+          // In development, keep dev user when session is null so submit still works
           if (process.env.NODE_ENV === "development" && !session?.user) {
-            setUser({ ...DEV_MOCK_USER, created_at: new Date().toISOString() });
+            setUser(DEV_USER);
           } else {
             setUser(session?.user ?? null);
           }
@@ -96,14 +99,12 @@ export default function Home() {
           subscription.unsubscribe();
         };
       } catch (authError) {
-        // If Supabase fails to initialize, use mock user immediately
-        console.warn('⚠️ Supabase auth failed, using mock user for development');
+        // If Supabase fails in development, use dev user so app still works
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('⚠️ Supabase auth failed, using dev user');
+          setUser(DEV_USER);
+        }
         console.error('Auth error:', authError);
-        
-        setUser({
-          ...DEV_MOCK_USER,
-          created_at: new Date().toISOString(),
-        });
         setCheckingAuth(false);
       }
     };
@@ -114,15 +115,19 @@ export default function Home() {
     };
   }, []);
 
+  const effectiveUser = getCurrentUser(user);
+
   const loadCurrentStreak = async () => {
-    if (!user) return;
-    
+    if (!effectiveUser) return;
+    if (process.env.NODE_ENV === 'development' && effectiveUser.id === 'dev-user') {
+      setCurrentStreak(0);
+      return;
+    }
     try {
       const supabase = createSupabaseBrowserClient();
       const today = new Date();
       const dayKey = getLocalDayKey(today);
-      
-      const streak = await computeStreak({ supabase, userId: user.id, dayKey });
+      const streak = await computeStreak({ supabase, userId: effectiveUser.id, dayKey });
       setCurrentStreak(streak);
     } catch (e) {
       console.error('Failed to load streak:', e);
@@ -131,12 +136,12 @@ export default function Home() {
   };
 
   useEffect(() => {
-    if (user && user.id !== 'dev-user-id') {
+    if (effectiveUser && effectiveUser.id !== 'dev-user') {
       loadCurrentStreak();
     } else {
       setCurrentStreak(0);
     }
-  }, [user]);
+  }, [effectiveUser]);
 
   if (checkingAuth) {
     return (
@@ -153,7 +158,7 @@ export default function Home() {
     );
   }
 
-  if (!user) {
+  if (!effectiveUser) {
     return <OnboardingScreen />;
   }
 
@@ -237,7 +242,7 @@ export default function Home() {
             height: "100%",
           }}
         >
-          <TodayView onCalendarUpdate={onCalendarUpdate} onStreakUpdate={setCurrentStreak} />
+          <TodayView user={effectiveUser} onCalendarUpdate={onCalendarUpdate} onStreakUpdate={setCurrentStreak} />
         </div>
         <div
           style={{
@@ -246,7 +251,7 @@ export default function Home() {
             width: "100%",
           }}
         >
-          <CalendarView registerCalendarUpdate={setOnCalendarUpdate} user={user} />
+          <CalendarView registerCalendarUpdate={setOnCalendarUpdate} user={effectiveUser} />
         </div>
         <div
           style={{
@@ -254,7 +259,7 @@ export default function Home() {
             height: "100%",
           }}
         >
-          <SettingsView user={user} />
+          <SettingsView user={effectiveUser} />
         </div>
       </main>
 
@@ -275,7 +280,7 @@ export default function Home() {
           marginLeft: "12px",
           marginRight: "12px",
           marginBottom: 0,
-          marginTop: "-12px",
+          marginTop: "-24px",
         }}
       >
         <TabButton
@@ -392,6 +397,14 @@ function SettingsIcon() {
     >
       <circle cx="12" cy="12" r="3" />
       <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    </svg>
+  );
+}
+
+function CheckIconSmall() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="20 6 9 17 4 12" />
     </svg>
   );
 }
@@ -677,10 +690,12 @@ function StreakModal({ streak, onClose }: { streak: number; onClose: () => void 
 }
 
 // ============ TODAY VIEW ============
-function TodayView({ 
+function TodayView({
+  user: effectiveUser,
   onCalendarUpdate,
-  onStreakUpdate
-}: { 
+  onStreakUpdate,
+}: {
+  user: any;
   onCalendarUpdate: ((dayKey: string, questionText: string, answerText: string) => void) | null;
   onStreakUpdate?: (streak: number) => void;
 }) {
@@ -711,19 +726,9 @@ function TodayView({
 
         const today = new Date();
         const dayKey = getLocalDayKey(today);
-        
-        // Check if we're using mock user - if so, skip database entirely
-        let currentUser = null;
-        try {
-          const supabase = createSupabaseBrowserClient();
-          const { data: { user } } = await supabase.auth.getUser();
-          currentUser = user;
-        } catch (e) {
-          console.warn('⚠️ Could not get user, will use mock data');
-        }
 
-        // If mock user, use mock data immediately (no database queries)
-        if (currentUser?.id === 'dev-user-id') {
+        // In development with dev user, skip database and use mock data
+        if (effectiveUser?.id === 'dev-user') {
           console.log('👤 Mock user detected - using mock question immediately');
           setQuestion({
             id: 'dev-question-id',
@@ -800,7 +805,7 @@ function TodayView({
         setQuestion(questionData);
 
         // Load existing answer only for real users
-        if (currentUser && currentUser.id !== 'dev-user-id') {
+        if (effectiveUser && effectiveUser.id !== 'dev-user') {
           try {
             console.log('📝 Checking for existing answer...');
             
@@ -811,7 +816,7 @@ function TodayView({
             } = await supabase
               .from("answers")
               .select("id, answer_text")
-              .eq("user_id", currentUser.id)
+              .eq("user_id", effectiveUser.id)
               .eq("question_id", questionData.id)
               .maybeSingle();
 
@@ -866,15 +871,10 @@ function TodayView({
     setStreakOverlay(null);
 
     try {
-      const supabase = createSupabaseBrowserClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
       const today = new Date();
       const dayKey = getLocalDayKey(today);
 
-      if (!user) {
+      if (!effectiveUser) {
         setError("You must be signed in to submit an answer.");
         setSubmitting(false);
         return;
@@ -883,8 +883,8 @@ function TodayView({
       // Check if we're editing an existing answer
       const editingExisting = !!answer;
 
-      // In development with mock user, simulate success without database
-      if (process.env.NODE_ENV === 'development' && user.id === 'dev-user-id') {
+      // In development with dev user, simulate success without database
+      if (process.env.NODE_ENV === 'development' && effectiveUser.id === 'dev-user') {
         console.log('✅ Dev mode: Simulating answer submission (not saved to database)');
         
         // Save mock answer to localStorage
@@ -911,27 +911,41 @@ function TodayView({
         setDraft(''); // Clear the draft
         setIsEditMode(false); // Exit edit mode
       } else {
-        await saveAnswerAndStreak({
-          supabase,
-          userId: user.id,
-          questionId: question.id,
-          draft,
-          dayKey,
-          questionText: question.text,
-          setAnswer,
-          setStreakOverlay,
-          onCalendarUpdate,
-          onStreakUpdate,
-          isEdit: editingExisting,
-        });
-        
+        const supabase = createSupabaseBrowserClient();
+        try {
+          await saveAnswerAndStreak({
+            supabase,
+            userId: effectiveUser.id,
+            questionId: question.id,
+            draft,
+            dayKey,
+            questionText: question.text,
+            setAnswer,
+            setStreakOverlay,
+            onCalendarUpdate,
+            onStreakUpdate,
+            isEdit: editingExisting,
+          });
+        } catch (dbError) {
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('⚠️ Database save failed in development, simulating success');
+            setAnswer({ id: 'dev-answer-id', answer_text: draft });
+            if (onCalendarUpdate) onCalendarUpdate(dayKey, question.text, draft);
+            if (!editingExisting) {
+              fireConfetti();
+              setStreakOverlay(1);
+            }
+            if (onStreakUpdate) onStreakUpdate(1);
+          } else {
+            throw dbError;
+          }
+        }
         if (editingExisting) {
           setShowEditConfirmation(true);
           setTimeout(() => setShowEditConfirmation(false), 2000);
         }
-        
-        setDraft(''); // Clear draft after successful submission
-        setIsEditMode(false); // Exit edit mode
+        setDraft('');
+        setIsEditMode(false);
         console.log('✅ Real user submission complete - answer set, draft cleared, edit mode off');
       }
     } catch (e) {
@@ -1008,36 +1022,73 @@ function TodayView({
       }}
     >
       <section style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-        <h1 
-          style={{ 
-            fontSize: "2rem",
-            fontWeight: 600,
-            textAlign: "center",
-            marginBottom: "2.5rem",
-            marginTop: "clamp(1rem, 15vh, 6rem)",
-            color: "#1A1A1A",
-            lineHeight: 1.3,
-          }}
-        >
-          {question.text}
-        </h1>
         {answer && !isEditMode ? (
-          <div style={{ 
-            flex: 1, 
-            display: "flex", 
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: "1.5rem"
-          }}>
-            <p style={{
-              fontSize: "1.125rem",
-              color: "#1A1A1A",
-              textAlign: "center",
-              fontWeight: 500,
-            }}>
-              Nice! You've answered today's question.
-            </p>
+          <div
+            style={{
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "clamp(2rem, 10vh, 5rem) 1.5rem",
+              marginTop: "4rem",
+            }}
+          >
+            <div
+              style={{
+                width: "100%",
+                maxWidth: "28rem",
+                padding: "3rem 2rem",
+                borderRadius: "1.75rem",
+                background: "#fdfcfb",
+                border: "1px solid rgba(214, 211, 209, 0.5)",
+                boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.05)",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                textAlign: "center",
+                gap: 0,
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "0.75rem",
+                  color: "#292524",
+                  fontWeight: 600,
+                  fontSize: "1rem",
+                }}
+              >
+                <span style={{ display: "inline-flex", alignItems: "center" }}>
+                  <CheckIconSmall />
+                </span>
+                <span>Completed today</span>
+              </div>
+              <div
+                style={{
+                  width: "100%",
+                  marginTop: "1.5rem",
+                  paddingTop: "1.5rem",
+                  borderTop: "1px solid #e7e5e4",
+                }}
+              />
+              <p
+                style={{
+                  margin: 0,
+                  marginTop: "1rem",
+                  fontSize: "1.125rem",
+                  lineHeight: 1.625,
+                  color: "#44403c",
+                  fontWeight: 500,
+                  textAlign: "center",
+                }}
+              >
+                {question.text}
+              </p>
+            </div>
             <button
               type="button"
               onClick={() => {
@@ -1046,12 +1097,22 @@ function TodayView({
               }}
               style={{
                 ...COMMON_STYLES.pillButton,
-                border: "2px solid #1A1A1A",
-                background: "#eee9e0",
-                color: "#1A1A1A",
-                fontSize: "1rem",
-                fontWeight: 600,
+                marginTop: "3rem",
+                border: "1px solid #d6d3d1",
+                background: "transparent",
+                color: "#78716c",
+                fontSize: "0.9375rem",
+                fontWeight: 500,
                 cursor: "pointer",
+                transition: "background 0.2s, border-color 0.2s, color 0.2s",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "rgba(0, 0, 0, 0.03)";
+                e.currentTarget.style.borderColor = "#a8a29e";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "transparent";
+                e.currentTarget.style.borderColor = "#d6d3d1";
               }}
             >
               Edit Answer
@@ -1059,6 +1120,33 @@ function TodayView({
           </div>
         ) : (
           <>
+            <p
+              style={{
+                fontSize: "0.875rem",
+                color: "#8A8A8A",
+                textAlign: "center",
+                marginTop: "clamp(1rem, 15vh, 6rem)",
+                marginBottom: "0.75rem",
+                letterSpacing: "0.04em",
+                textTransform: "uppercase",
+                fontWeight: 500,
+              }}
+            >
+              Today's question
+            </p>
+            <h1
+              style={{
+                fontSize: "2rem",
+                fontWeight: 600,
+                textAlign: "center",
+                marginBottom: "3.5rem",
+                marginTop: 0,
+                color: "#1A1A1A",
+                lineHeight: 1.3,
+              }}
+            >
+              {question.text}
+            </h1>
             <textarea
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
@@ -1135,20 +1223,45 @@ function TodayView({
         <div
           style={{
             position: "fixed",
-            top: "50%",
-            left: "50%",
-            transform: "translate(-50%, -50%)",
-            background: "#1A1A1A",
-            color: "#eee9e0",
-            padding: "1rem 2rem",
-            borderRadius: "999px",
-            fontSize: "1rem",
-            fontWeight: 600,
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.6)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "2rem",
             zIndex: 2000,
             animation: "fadeIn 0.2s ease-out",
           }}
+          onClick={() => setShowEditConfirmation(false)}
         >
-          Answer changed
+          <div
+            style={{
+              backgroundColor: "#eee9e0",
+              borderRadius: "1.5rem",
+              padding: "3rem 2rem",
+              maxWidth: "24rem",
+              width: "100%",
+              textAlign: "center",
+              animation: "streakEnter 0.3s ease-out",
+              boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p
+              style={{
+                fontSize: "1.25rem",
+                fontWeight: 600,
+                color: "#1A1A1A",
+                margin: 0,
+              }}
+            >
+              Answer changed
+            </p>
+          </div>
         </div>
       )}
     </div>
@@ -1200,7 +1313,7 @@ function CalendarView({
       setError(null);
       try {
         // In development with mock user, show empty calendar
-        if (process.env.NODE_ENV === 'development' && user.id === 'dev-user-id') {
+        if (process.env.NODE_ENV === 'development' && user.id === 'dev-user') {
           console.log('📅 Dev mode: Showing empty calendar (no database connection)');
           setAnswersMap(new Map());
           setLoading(false);

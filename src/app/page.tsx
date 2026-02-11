@@ -153,7 +153,7 @@ export default function Home() {
           justifyContent: "center",
         }}
       >
-        <p>Loading…</p>
+        <p>Laden…</p>
       </div>
     );
   }
@@ -302,19 +302,19 @@ export default function Home() {
         <TabButton
           active={activeTab === "today"}
           onClick={() => setActiveTab("today")}
-          label="Today"
+          label="Vandaag"
           icon={<QuestionMarkIcon />}
         />
         <TabButton
           active={activeTab === "calendar"}
           onClick={() => setActiveTab("calendar")}
-          label="Calendar"
+          label="Kalender"
           icon={<CalendarIcon />}
         />
         <TabButton
           active={activeTab === "settings"}
           onClick={() => setActiveTab("settings")}
-          label="Settings"
+          label="Instellingen"
           icon={<SettingsIcon />}
         />
       </nav>
@@ -461,7 +461,7 @@ function OnboardingScreen() {
       // Auth state will be handled by onAuthStateChange listener
       // No need to manually set user here
     } catch (e: any) {
-      const errorMessage = e?.message || "Authentication failed. Please try again.";
+      const errorMessage = e?.message || "Inloggen mislukt. Probeer het opnieuw.";
       setError(errorMessage);
       console.error('Auth error:', e);
     } finally {
@@ -580,7 +580,7 @@ function OnboardingScreen() {
               marginBottom: "1rem",
             }}
           >
-            {submitting ? (isSignUp ? "Signing up…" : "Signing in…") : (isSignUp ? "Sign Up" : "Sign In")}
+            {submitting ? (isSignUp ? "Bezig met registreren…" : "Bezig met inloggen…") : (isSignUp ? "Registreren" : "Inloggen")}
           </button>
 
           <button
@@ -603,7 +603,7 @@ function OnboardingScreen() {
               textDecoration: "underline",
             }}
           >
-            {isSignUp ? "Already have an account? Sign in" : "Need an account? Sign up"}
+            {isSignUp ? "Heb je al een account? Log in" : "Nog geen account? Registreer"}
           </button>
 
           {error && (
@@ -673,7 +673,7 @@ function StreakModal({ streak, onClose }: { streak: number; onClose: () => void 
             color: "#1A1A1A",
           }}
         >
-          Yay.
+          Mooi.
         </p>
         <p
           style={{
@@ -682,7 +682,7 @@ function StreakModal({ streak, onClose }: { streak: number; onClose: () => void 
             marginBottom: "2rem",
           }}
         >
-          This is your {streak}-day streak.
+          Dit is je streak van {streak} dagen.
         </p>
         <button
           type="button"
@@ -698,7 +698,7 @@ function StreakModal({ streak, onClose }: { streak: number; onClose: () => void 
             cursor: "pointer",
           }}
         >
-          Done
+          Sluiten
         </button>
       </div>
     </div>
@@ -748,7 +748,7 @@ function TodayView({
           console.log('👤 Mock user detected - using mock question immediately');
           setQuestion({
             id: 'dev-question-id',
-            text: 'What made you smile today?',
+            text: 'Waar heb je vandaag om gelachen?',
             day: dayKey,
           });
           
@@ -807,7 +807,7 @@ function TodayView({
           console.log('Error:', dbError);
           questionData = {
             id: 'dev-question-id',
-            text: 'What made you smile today?',
+            text: 'Waar heb je vandaag om gelachen?',
             day: dayKey,
           };
         }
@@ -854,7 +854,7 @@ function TodayView({
           console.log('👤 Mock user - skipping answer load');
         }
       } catch (e) {
-        setError("Something went wrong loading today's question.");
+        setError("Er ging iets mis bij het laden van de vraag.");
         console.error(e);
       } finally {
         setLoading(false);
@@ -891,7 +891,7 @@ function TodayView({
       const dayKey = getLocalDayKey(today);
 
       if (!effectiveUser) {
-        setError("You must be signed in to submit an answer.");
+        setError("Log in om een antwoord te versturen.");
         setSubmitting(false);
         return;
       }
@@ -965,7 +965,7 @@ function TodayView({
         console.log('✅ Real user submission complete - answer set, draft cleared, edit mode off');
       }
     } catch (e) {
-      setError("Could not submit your answer. Please try again.");
+      setError("Je antwoord kon niet worden verstuurd. Probeer het opnieuw.");
       console.error(e);
     } finally {
       setSubmitting(false);
@@ -985,7 +985,7 @@ function TodayView({
           boxSizing: "border-box",
         }}
       >
-        <p>Loading today's question…</p>
+        <p>Vraag van vandaag laden…</p>
       </div>
     );
   }
@@ -1019,7 +1019,7 @@ function TodayView({
           boxSizing: "border-box",
         }}
       >
-        <p>No question is configured for today.</p>
+        <p>Er staat geen vraag voor vandaag.</p>
       </div>
     );
   }
@@ -1079,7 +1079,7 @@ function TodayView({
                   letterSpacing: "0.025em",
                 }}
               >
-                <span>Done for today</span>
+                <span>Klaar voor vandaag</span>
                 <span style={{ display: "inline-flex", alignItems: "center", opacity: 0.9 }}>
                   <CheckIconSmall />
                 </span>
@@ -1124,7 +1124,7 @@ function TodayView({
                 e.currentTarget.style.borderColor = "#d6d3d1";
               }}
             >
-              Edit Answer
+              Antwoord bewerken
             </button>
           </div>
         ) : (
@@ -1141,7 +1141,7 @@ function TodayView({
                 fontWeight: 500,
               }}
             >
-              Today's question
+              Vraag van vandaag
             </p>
             <h1
               style={{
@@ -1159,7 +1159,7 @@ function TodayView({
             <textarea
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
-              placeholder="Type your answer…"
+              placeholder="Typ je antwoord…"
               style={{
                 flex: 1,
                 minHeight: "12rem",
@@ -1191,7 +1191,7 @@ function TodayView({
               }}
               disabled={submitting}
             >
-              {answer ? "Update" : "Submit"}
+              {answer ? "Bijwerken" : "Versturen"}
             </button>
             {process.env.NODE_ENV === "development" && (
               <button
@@ -1219,7 +1219,7 @@ function TodayView({
         )}
         {offline && (
           <p style={{ marginTop: "0.5rem", fontSize: "0.85rem", opacity: 0.7 }}>
-            You are offline. Your answer will sync when you're back online.
+            Je bent offline. Je antwoord wordt gesynchroniseerd zodra je weer online bent.
           </p>
         )}
       </section>
@@ -1268,7 +1268,7 @@ function TodayView({
                 margin: 0,
               }}
             >
-              Answer changed
+              Antwoord gewijzigd
             </p>
           </div>
         </div>
@@ -1359,7 +1359,7 @@ function CalendarView({
         }
         setAnswersMap(map);
       } catch (e) {
-        setError("Could not load answers for this month.");
+        setError("Antwoorden voor deze maand konden niet worden geladen.");
         console.error(e);
       } finally {
         setLoading(false);
@@ -1381,7 +1381,7 @@ function CalendarView({
           boxSizing: "border-box",
         }}
       >
-        <p>Sign in to see your answers.</p>
+        <p>Log in om je antwoorden te zien.</p>
       </div>
     );
   }
@@ -1398,7 +1398,7 @@ function CalendarView({
           boxSizing: "border-box",
         }}
       >
-        <p>Loading calendar…</p>
+        <p>Kalender laden…</p>
       </div>
     );
   }
@@ -1421,18 +1421,18 @@ function CalendarView({
   }
 
   const monthNames = [
-    "January",
-    "February",
-    "March",
-    "April",
-    "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December",
+    "januari",
+    "februari",
+    "maart",
+    "april",
+    "mei",
+    "juni",
+    "juli",
+    "augustus",
+    "september",
+    "oktober",
+    "november",
+    "december",
   ];
 
   const prevMonth = () => {
@@ -1562,7 +1562,7 @@ function CalendarView({
             textAlign: "center",
           }}
         >
-          {capturedThisMonth} / {daysInMonth} days captured this month
+          {capturedThisMonth} / {daysInMonth} vragen beantwoord deze maand
         </p>
 
         <div
@@ -1574,7 +1574,7 @@ function CalendarView({
             boxSizing: "border-box",
           }}
         >
-          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((dow) => (
+          {["zo", "ma", "di", "wo", "do", "vr", "za"].map((dow) => (
             <div
               key={dow}
               style={{
@@ -1680,7 +1680,7 @@ function CalendarView({
                 cursor: "pointer",
               }}
             >
-              Close
+              Sluiten
             </button>
           </div>
         </div>
@@ -1713,12 +1713,12 @@ function SettingsView({ user }: { user: any }) {
         width: "100%",
       }}
     >
-      <h2 style={{ fontSize: "1.5rem", marginBottom: "1.5rem" }}>Settings</h2>
+      <h2 style={{ fontSize: "1.5rem", marginBottom: "1.5rem" }}>Instellingen</h2>
 
       <div style={{ marginBottom: "2rem" }}>
         {user && user.email && (
           <p style={{ fontSize: "0.9rem", opacity: 0.7, marginBottom: "1rem" }}>
-            Signed in as: {user.email}
+            Ingelogd als: {user.email}
           </p>
         )}
         <button
@@ -1735,7 +1735,7 @@ function SettingsView({ user }: { user: any }) {
             cursor: "pointer",
           }}
         >
-          {signingOut ? "Logging out…" : "Log Out"}
+          {signingOut ? "Bezig met uitloggen…" : "Uitloggen"}
         </button>
       </div>
 
@@ -1743,7 +1743,7 @@ function SettingsView({ user }: { user: any }) {
         <p style={{ fontSize: "0.9rem", marginBottom: "0.5rem" }}>
           <strong>DailyQ</strong>
         </p>
-        <p style={{ fontSize: "0.85rem", opacity: 0.6 }}>Version 1.0</p>
+        <p style={{ fontSize: "0.85rem", opacity: 0.6 }}>Versie 1.0</p>
         <p style={{ fontSize: "0.85rem", opacity: 0.6, marginTop: "0.5rem" }}>
           One question a day.
         </p>

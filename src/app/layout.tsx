@@ -10,7 +10,7 @@ const nunito = Nunito({
 
 export const metadata: Metadata = {
   title: "DailyQ",
-  description: "One calm question a day.",
+  description: "Eén rustige vraag per dag.",
 };
 
 export default function RootLayout({
@@ -19,7 +19,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="nl">
       <head>
         <link rel="manifest" href="/manifest.webmanifest" />
       </head>

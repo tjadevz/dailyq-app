@@ -96,7 +96,7 @@ The MVP includes a **very light streak mechanic**.
 **Modal characteristics:**
 
 - Full-screen backdrop with blur effect
-- Centered card with warm beige background (#E5DECA), near-black text
+- Centered card with warm beige background (#eee9e0), near-black text
 - Enters with a gentle scale-in animation (~300ms)
 - Celebratory but calm (no confetti, no excessive animation)
 - **Must be manually dismissed** - user taps "Done" button or backdrop to close
@@ -126,7 +126,7 @@ They are **not** a product feature.
 For unauthenticated users, the app displays a full-screen onboarding view before access to any content:
 
 - **Visual design:**
-  - Warm beige background (#E5DECA) with subtle gradient variation
+  - Warm beige background (#eee9e0) with subtle gradient variation
   - Near-black text (#1A1A1A) for readability
   - Email and password input fields; primary button inverts to dark background
 - **Layout:**
@@ -167,7 +167,7 @@ Multi-device behavior (e.g., phone + laptop) is **best-effort only** in MVP v1 a
   - Service worker for shell caching and aggressive update strategy on new deployments
   - PWA manifest for installability
 - **UI structure:**
-  - **Top header:** "DailyQ" (left); on Today tab only: "Streak: X" (center) and current date e.g. "Mon, Feb 10" (right). Background and text use global theme (#E5DECA, #1A1A1A).
+  - **Top header:** "DailyQ" (left); on Today tab only: "Streak: X" (center) and current date e.g. "Mon, Feb 10" (right). Background and text use global theme (#eee9e0, #1A1A1A).
   - Bottom tab bar with three tabs: Today, Calendar, Settings
   - Tab icons: question mark, calendar, gear
   - Client-side tab switching (no route changes, using state to hide/show content)
@@ -344,7 +344,7 @@ The app should feel:
 Principles:
 
 - **First-time users** see a full-screen onboarding screen with:
-  - Warm beige background (#E5DECA)
+  - Warm beige background (#eee9e0)
   - Email + password inputs and Sign Up / Sign In flow
   - Minimal copy: "DailyQ" heading and toggle between sign up and sign in
 - **Returning authenticated users** land directly on the Today tab with today's question (session restored).
@@ -361,7 +361,7 @@ Principles:
   - Inter font (via `next/font/google`) system-wide
   - Mobile-friendly sizing and generous spacing
 - **Visual style:**
-  - Single theme: warm beige background (#E5DECA), near-black text (#1A1A1A)
+  - Single theme: warm beige background (#eee9e0), near-black text (#1A1A1A)
   - No dark mode in MVP v1; consistent calm palette across the app
   - Minimal chrome; very few elements per screen
   - Buttons and inputs use the same palette (e.g. dark buttons with light text where appropriate)
@@ -422,7 +422,7 @@ Any future feature must be evaluated against a single criterion:
 ## Implementation notes (changelog)
 
 - **Auth:** Magic link removed; sign up / sign in use email + password. Session is restored on load via Supabase auth state; no hash-based redirect.
-- **UI:** Single theme (warm beige #E5DECA, text #1A1A1A); no dark mode. Header and nav use the same background.
+- **UI:** Single theme (warm beige #eee9e0, text #1A1A1A); no dark mode. Header and nav use the same background.
 - **Header:** On Today tab, center shows "Streak: X" (including 0); right shows current date (e.g. "Mon, Feb 10").
 - **Streak:** Derived only from answered days; no answer today ⇒ streak 0. New answer shows streak modal; editing existing answer shows "Answer changed" toast only.
 - **Calendar:** After saving an answer, calendar updates optimistically (day shown as answered without full reload).

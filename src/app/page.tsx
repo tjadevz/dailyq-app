@@ -23,12 +23,12 @@ const COLORS = {
   primary: '#1A1A1A',
   secondary: '#2A2A2A',
   tertiary: '#3A3A3A',
-  white: '#E5DECA',
+  white: '#eee9e0',
 } as const;
 
 const GRADIENTS = {
   horizontal: `linear-gradient(to right, ${COLORS.primary}, ${COLORS.secondary})`,
-  vertical: `linear-gradient(to bottom, #E5DECA, #E5E5CD, #DFDFCD)`,
+  vertical: `linear-gradient(to bottom, #eee9e0, #E5E5CD, #DFDFCD)`,
 } as const;
 
 const COMMON_STYLES = {
@@ -164,7 +164,7 @@ export default function Home() {
         flexDirection: "column",
         minHeight: "100dvh",
         maxHeight: "100dvh",
-        background: "#E5DECA",
+        background: "#eee9e0",
       }}
     >
       {/* Header */}
@@ -172,7 +172,7 @@ export default function Home() {
         style={{
           padding: "1rem 1.5rem",
           borderBottom: "1px solid rgba(128, 128, 128, 0.2)",
-          background: "#E5DECA",
+          background: "#eee9e0",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
@@ -229,9 +229,6 @@ export default function Home() {
           overflowY: "auto",
           overflowX: "hidden",
           position: "relative",
-          background: activeTab === "calendar" 
-            ? GRADIENTS.vertical
-            : undefined,
         }}
       >
         <div
@@ -265,9 +262,18 @@ export default function Home() {
       <nav
         style={{
           display: "flex",
-          borderTop: "1px solid rgba(128, 128, 128, 0.2)",
-          paddingBottom: "env(safe-area-inset-bottom, 0)",
-          background: "#E5DECA",
+          flexDirection: "row",
+          justifyContent: "space-evenly",
+          alignItems: "center",
+          background: "#eee9e0",
+          borderRadius: "24px 24px 0 0",
+          paddingTop: "12px",
+          paddingLeft: "16px",
+          paddingRight: "16px",
+          paddingBottom: "max(12px, env(safe-area-inset-bottom))",
+          marginLeft: "12px",
+          marginRight: "12px",
+          marginBottom: 0,
         }}
       >
         <TabButton
@@ -308,24 +314,24 @@ function TabButton({
     <button
       type="button"
       onClick={onClick}
+      aria-label={label}
       style={{
-        flex: 1,
+        width: 48,
+        height: 48,
+        borderRadius: "50%",
+        flex: "0 0 auto",
         display: "flex",
-        flexDirection: "column",
         alignItems: "center",
-        gap: "0.25rem",
-        padding: "0.75rem 0.5rem",
+        justifyContent: "center",
         border: "none",
-        background: "transparent",
-        color: active ? "var(--accent)" : "var(--foreground)",
-        opacity: active ? 1 : 0.65,
-        fontSize: "0.75rem",
+        padding: 0,
         cursor: "pointer",
-        transition: "color 0.2s, opacity 0.2s",
+        transition: "background 0.2s, color 0.2s",
+        background: active ? "#002E5D" : "#E5E5E5",
+        color: active ? "#FFFFFF" : "#5A5A5A",
       }}
     >
       {icon}
-      <span>{label}</span>
     </button>
   );
 }
@@ -535,7 +541,7 @@ function OnboardingScreen() {
               border: "none",
               borderRadius: "999px",
               background: "#1A1A1A",
-              color: "#E5DECA",
+              color: "#eee9e0",
               fontWeight: 600,
               cursor: submitting ? "default" : "pointer",
               opacity: submitting || !email.trim() || !password.trim() ? 0.6 : 1,
@@ -589,7 +595,7 @@ function fireConfetti(): void {
       spread: 55,
       origin: { y: 0.6 },
       startVelocity: 18,
-      colors: ["#1A1A1A", "#E5DECA", "#c4b89a"],
+      colors: ["#1A1A1A", "#eee9e0", "#c4b89a"],
       ticks: 100,
     });
   });
@@ -617,7 +623,7 @@ function StreakModal({ streak, onClose }: { streak: number; onClose: () => void 
     >
       <div
         style={{
-          backgroundColor: "#E5DECA",
+          backgroundColor: "#eee9e0",
           borderRadius: "1.5rem",
           padding: "3rem 2rem",
           maxWidth: "24rem",
@@ -655,7 +661,7 @@ function StreakModal({ streak, onClose }: { streak: number; onClose: () => void 
             borderRadius: "999px",
             border: "none",
             backgroundColor: "#1A1A1A",
-            color: "#E5DECA",
+            color: "#eee9e0",
             fontSize: "1rem",
             fontWeight: 600,
             cursor: "pointer",
@@ -994,7 +1000,7 @@ function TodayView({
         padding: "2rem 1.5rem",
         height: "100%",
         width: "100%",
-        backgroundColor: "#E5DECA",
+        backgroundColor: "#eee9e0",
         boxSizing: "border-box",
         overflow: "auto",
       }}
@@ -1039,7 +1045,7 @@ function TodayView({
               style={{
                 ...COMMON_STYLES.pillButton,
                 border: "2px solid #1A1A1A",
-                background: "#E5DECA",
+                background: "#eee9e0",
                 color: "#1A1A1A",
                 fontSize: "1rem",
                 fontWeight: 600,
@@ -1075,8 +1081,8 @@ function TodayView({
                 marginTop: "1.5rem",
                 ...COMMON_STYLES.pillButton,
                 border: "none",
-                background: "#1A1A1A",
-                color: "#E5DECA",
+                background: "#002E5D",
+                color: "#eee9e0",
                 fontSize: "1rem",
                 fontWeight: 600,
                 cursor: "pointer",
@@ -1130,7 +1136,7 @@ function TodayView({
             left: "50%",
             transform: "translate(-50%, -50%)",
             background: "#1A1A1A",
-            color: "#E5DECA",
+            color: "#eee9e0",
             padding: "1rem 2rem",
             borderRadius: "999px",
             fontSize: "1rem",
@@ -1363,6 +1369,7 @@ function CalendarView({
         overflowY: "auto",
         overflowX: "hidden",
         boxSizing: "border-box",
+        background: "#eee9e0",
       }}
     >
       <div 
@@ -1370,7 +1377,8 @@ function CalendarView({
           padding: "0 1rem", 
           width: "100%", 
           boxSizing: "border-box",
-          paddingTop: "clamp(1rem, 12vh, 5rem)"
+          paddingTop: "clamp(1rem, 12vh, 5rem)",
+          background: "#eee9e0",
         }}
       >
         <div

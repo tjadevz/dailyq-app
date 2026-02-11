@@ -1298,7 +1298,6 @@ function CalendarView({
     answerText: string;
   } | null>(null);
   const [closingModal, setClosingModal] = useState(false);
-  const [hoveredDayKey, setHoveredDayKey] = useState<string | null>(null);
 
   useEffect(() => {
     const updateFunction = (dayKey: string, questionText: string, answerText: string) => {
@@ -1600,53 +1599,21 @@ function CalendarView({
             const hasAnswer = answersMap.has(dayKey);
             const isToday = dayKey === todayKey;
             const isFuture = dayKey > todayKey;
-            const isMissed = !isFuture && !isToday && !hasAnswer;
-            const isHovered = hoveredDayKey === dayKey;
 
-            const baseCellStyle: React.CSSProperties = {
-              aspectRatio: "1",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              borderRadius: "50%",
-              position: "relative",
-              padding: 0,
-              minWidth: 0,
-              boxSizing: "border-box",
-              transition: "all 0.18s ease",
-            };
+            const baseClasses =
+              "aspect-square flex items-center justify-center rounded-full relative p-0 min-w-0 box-border transition-all duration-[180ms] text-[0.9375rem] font-medium";
 
+            let cellClasses = baseClasses;
             if (isFuture) {
-              Object.assign(baseCellStyle, {
-                border: "1px solid rgba(0, 0, 0, 0.08)",
-                background: "transparent",
-                cursor: "default",
-                color: "rgba(26, 26, 26, 0.35)",
-                opacity: 0.5,
-              });
+              cellClasses += " border border-gray-200 bg-transparent cursor-default text-gray-400 opacity-50";
             } else if (hasAnswer) {
-              const todayRing = "0 0 0 2px #4F86C6";
-              const elevation = isHovered
-                ? "0 2px 8px rgba(0, 0, 0, 0.2)"
-                : "0 1px 4px rgba(0, 0, 0, 0.12)";
-              Object.assign(baseCellStyle, {
-                border: "none",
-                background: "#292524",
-                color: "#fff",
-                cursor: "pointer",
-                boxShadow: isToday ? `${todayRing}, ${elevation}` : elevation,
-              });
+              cellClasses +=
+                " bg-emerald-200 text-gray-900 cursor-pointer hover:bg-emerald-300 border-none" +
+                (isToday ? " ring-2 ring-emerald-400 ring-offset-2 ring-offset-[#F2F0EC]" : "");
             } else {
-              Object.assign(baseCellStyle, {
-                border: `1.5px solid ${isHovered ? "rgba(0, 0, 0, 0.35)" : "rgba(0, 0, 0, 0.2)"}`,
-                background: "transparent",
-                cursor: "default",
-                color: "#1A1A1A",
-                opacity: 0.75,
-                ...(isToday && {
-                  boxShadow: "0 0 0 2px #4F86C6",
-                }),
-              });
+              cellClasses +=
+                " bg-transparent border border-gray-300 text-gray-700 cursor-default hover:border-gray-400" +
+                (isToday ? " ring-2 ring-emerald-400 ring-offset-2 ring-offset-[#F2F0EC]" : "");
             }
 
             return (
@@ -1654,11 +1621,9 @@ function CalendarView({
                 key={day}
                 type="button"
                 onClick={() => hasAnswer && handleDayClick(day)}
-                onMouseEnter={() => !isFuture && setHoveredDayKey(dayKey)}
-                onMouseLeave={() => setHoveredDayKey(null)}
-                style={baseCellStyle}
+                className={cellClasses}
               >
-                <span style={{ fontSize: "0.9375rem", fontWeight: 500 }}>{day}</span>
+                {day}
               </button>
             );
           })}

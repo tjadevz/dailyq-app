@@ -1128,13 +1128,22 @@ function TodayView({
             </button>
           </div>
         ) : (
-          <>
+          <div
+            style={{
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              alignItems: "stretch",
+              padding: "1.5rem 0",
+            }}
+          >
             <p
               style={{
                 fontSize: "0.875rem",
                 color: "#8A8A8A",
                 textAlign: "center",
-                marginTop: "clamp(1rem, 15vh, 6rem)",
+                marginTop: 0,
                 marginBottom: "0.75rem",
                 letterSpacing: "0.04em",
                 textTransform: "uppercase",
@@ -1161,7 +1170,6 @@ function TodayView({
               onChange={(e) => setDraft(e.target.value)}
               placeholder="Typ je antwoord…"
               style={{
-                flex: 1,
                 minHeight: "12rem",
                 padding: "1.25rem",
                 borderRadius: "1rem",
@@ -1215,7 +1223,7 @@ function TodayView({
                 Test confetti
               </button>
             )}
-          </>
+          </div>
         )}
         {offline && (
           <p style={{ marginTop: "0.5rem", fontSize: "0.85rem", opacity: 0.7 }}>

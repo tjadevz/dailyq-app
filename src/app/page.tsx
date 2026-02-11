@@ -1298,6 +1298,7 @@ function CalendarView({
     answerText: string;
   } | null>(null);
   const [closingModal, setClosingModal] = useState(false);
+  const [hoveredDayKey, setHoveredDayKey] = useState<string | null>(null);
 
   useEffect(() => {
     const updateFunction = (dayKey: string, questionText: string, answerText: string) => {
@@ -1455,6 +1456,13 @@ function CalendarView({
 
   const firstDay = new Date(displayYear, displayMonth, 1).getDay();
   const daysInMonth = new Date(displayYear, displayMonth + 1, 0).getDate();
+  const todayKey = getLocalDayKey(new Date());
+
+  let capturedThisMonth = 0;
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dk = getLocalDayKey(new Date(displayYear, displayMonth, d));
+    if (answersMap.has(dk)) capturedThisMonth++;
+  }
 
   const days: (number | null)[] = [];
   for (let i = 0; i < firstDay; i++) {
@@ -1547,6 +1555,17 @@ function CalendarView({
           </button>
         </div>
 
+        <p
+          style={{
+            fontSize: "0.8125rem",
+            color: "#6b7280",
+            marginBottom: "1rem",
+            textAlign: "center",
+          }}
+        >
+          {capturedThisMonth} / {daysInMonth} days captured this month
+        </p>
+
         <div
           style={{
             display: "grid",
@@ -1579,40 +1598,67 @@ function CalendarView({
             }
             const dayKey = getLocalDayKey(new Date(displayYear, displayMonth, day));
             const hasAnswer = answersMap.has(dayKey);
+            const isToday = dayKey === todayKey;
+            const isFuture = dayKey > todayKey;
+            const isMissed = !isFuture && !isToday && !hasAnswer;
+            const isHovered = hoveredDayKey === dayKey;
+
+            const baseCellStyle: React.CSSProperties = {
+              aspectRatio: "1",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              borderRadius: "50%",
+              position: "relative",
+              padding: 0,
+              minWidth: 0,
+              boxSizing: "border-box",
+              transition: "all 0.18s ease",
+            };
+
+            if (isFuture) {
+              Object.assign(baseCellStyle, {
+                border: "1px solid rgba(0, 0, 0, 0.08)",
+                background: "transparent",
+                cursor: "default",
+                color: "rgba(26, 26, 26, 0.35)",
+                opacity: 0.5,
+              });
+            } else if (hasAnswer) {
+              const todayRing = "0 0 0 2px #4F86C6";
+              const elevation = isHovered
+                ? "0 2px 8px rgba(0, 0, 0, 0.2)"
+                : "0 1px 4px rgba(0, 0, 0, 0.12)";
+              Object.assign(baseCellStyle, {
+                border: "none",
+                background: "#292524",
+                color: "#fff",
+                cursor: "pointer",
+                boxShadow: isToday ? `${todayRing}, ${elevation}` : elevation,
+              });
+            } else {
+              Object.assign(baseCellStyle, {
+                border: `1.5px solid ${isHovered ? "rgba(0, 0, 0, 0.35)" : "rgba(0, 0, 0, 0.2)"}`,
+                background: "transparent",
+                cursor: "default",
+                color: "#1A1A1A",
+                opacity: 0.75,
+                ...(isToday && {
+                  boxShadow: "0 0 0 2px #4F86C6",
+                }),
+              });
+            }
+
             return (
               <button
                 key={day}
                 type="button"
                 onClick={() => hasAnswer && handleDayClick(day)}
-                style={{
-                  aspectRatio: "1",
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  border: "1px solid rgba(26, 26, 26, 0.3)",
-                  borderRadius: "0.5rem",
-                  background: "transparent",
-                  cursor: hasAnswer ? "pointer" : "default",
-                  position: "relative",
-                  color: "#1A1A1A",
-                  padding: "0.25rem",
-                  minWidth: 0,
-                  boxSizing: "border-box",
-                }}
+                onMouseEnter={() => !isFuture && setHoveredDayKey(dayKey)}
+                onMouseLeave={() => setHoveredDayKey(null)}
+                style={baseCellStyle}
               >
-                <span style={{ fontSize: "1rem", fontWeight: 500 }}>{day}</span>
-                {hasAnswer && (
-                  <span
-                    style={{
-                      width: "6px",
-                      height: "6px",
-                      borderRadius: "50%",
-                      backgroundColor: "#1A1A1A",
-                      marginTop: "4px",
-                    }}
-                  />
-                )}
+                <span style={{ fontSize: "0.9375rem", fontWeight: 500 }}>{day}</span>
               </button>
             );
           })}

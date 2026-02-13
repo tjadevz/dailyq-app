@@ -142,7 +142,20 @@ function Home() {
     last_joker_grant_month: string | null;
   } | null>(null);
   const [showJokerModal, setShowJokerModal] = useState(false);
+  const [jokerModalClosing, setJokerModalClosing] = useState(false);
   const jokerModalCloseRef = useRef<HTMLButtonElement>(null);
+  const jokerModalClosingRef = useRef(false);
+
+  const closeJokerModal = () => {
+    if (jokerModalClosingRef.current) return;
+    jokerModalClosingRef.current = true;
+    setJokerModalClosing(true);
+    setTimeout(() => {
+      setShowJokerModal(false);
+      setJokerModalClosing(false);
+      jokerModalClosingRef.current = false;
+    }, MODAL_CLOSE_MS);
+  };
   const grantCheckedRef = useRef(false);
   const lastGrantUserIdRef = useRef<string | null>(null);
 
@@ -287,7 +300,7 @@ function Home() {
     if (!showJokerModal) return;
     jokerModalCloseRef.current?.focus();
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setShowJokerModal(false);
+      if (e.key === "Escape") closeJokerModal();
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
@@ -543,8 +556,9 @@ function Home() {
               justifyContent: "center",
               padding: "1.5rem",
               zIndex: 2000,
+              animation: jokerModalClosing ? `fadeOut ${MODAL_CLOSE_MS}ms ease-out` : "fadeIn 0.2s ease-out forwards",
             }}
-            onClick={() => setShowJokerModal(false)}
+            onClick={closeJokerModal}
           >
             <div
               style={{
@@ -564,7 +578,7 @@ function Home() {
                 ref={jokerModalCloseRef}
                 type="button"
                 aria-label={t("common_close")}
-                onClick={() => setShowJokerModal(false)}
+                onClick={closeJokerModal}
                 style={{
                   position: "absolute",
                   top: "0.75rem",
@@ -989,7 +1003,7 @@ function MondayRecapModal({
           maxWidth: "24rem",
           width: "100%",
           textAlign: "center",
-          animation: isClosing ? `scaleOut ${MODAL_CLOSE_MS}ms ease-out` : "streakEnter 0.2s ease-out forwards",
+          animation: isClosing ? "none" : "streakEnter 0.2s ease-out forwards",
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -1712,14 +1726,14 @@ function TodayView({
                 maxWidth: "24rem",
                 width: "100%",
                 textAlign: "center",
-                animation: editConfirmationClosing ? `scaleOut ${MODAL_CLOSE_MS}ms ease-out` : "streakEnter 0.2s ease-out forwards",
-              }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <button
-                type="button"
-                aria-label={t("common_close")}
-                onClick={closeEditConfirmation}
+animation: editConfirmationClosing ? "none" : "streakEnter 0.2s ease-out forwards",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              aria-label={t("common_close")}
+              onClick={closeEditConfirmation}
                 style={{
                   position: "absolute",
                   top: "1rem",
@@ -1911,7 +1925,7 @@ function MissedDayAnswerModal({
           width: "100%",
           maxHeight: "90vh",
           overflow: "auto",
-          animation: isClosing ? `scaleOut ${MODAL_CLOSE_MS}ms ease-out` : "streakEnter 0.2s ease-out forwards",
+          animation: isClosing ? "none" : "streakEnter 0.2s ease-out forwards",
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -2501,14 +2515,14 @@ function CalendarView({
                 width: "100%",
                 maxHeight: "80vh",
                 overflow: "auto",
-                animation: closingModal ? `scaleOut ${MODAL_CLOSE_MS}ms ease-out` : "scaleIn 0.2s ease-out forwards",
-              }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <button
-                type="button"
-                aria-label={t("common_close")}
-                onClick={handleCloseModal}
+animation: closingModal ? "none" : "scaleIn 0.2s ease-out forwards",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              aria-label={t("common_close")}
+              onClick={handleCloseModal}
                 style={{
                   position: "absolute",
                   top: "1rem",
@@ -2592,37 +2606,37 @@ function CalendarView({
                 maxWidth: "28rem",
                 width: "100%",
                 textAlign: "center",
-                animation: closingMissedModal ? `scaleOut ${MODAL_CLOSE_MS}ms ease-out` : "scaleIn 0.2s ease-out forwards",
+animation: closingMissedModal ? "none" : "scaleIn 0.2s ease-out forwards",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              aria-label={t("common_close")}
+              onClick={handleCloseMissedModal}
+              style={{
+                position: "absolute",
+                top: "1rem",
+                right: "1rem",
+                width: 36,
+                height: 36,
+                borderRadius: "50%",
+                border: "none",
+                background: "transparent",
+                color: COLORS.TEXT_SECONDARY,
+                fontSize: "1.5rem",
+                lineHeight: 1,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
               }}
-              onClick={(e) => e.stopPropagation()}
             >
-              <button
-                type="button"
-                aria-label={t("common_close")}
-                onClick={handleCloseMissedModal}
-                style={{
-                  position: "absolute",
-                  top: "1rem",
-                  right: "1rem",
-                  width: 36,
-                  height: 36,
-                  borderRadius: "50%",
-                  border: "none",
-                  background: "transparent",
-                  color: COLORS.TEXT_SECONDARY,
-                  fontSize: "1.5rem",
-                  lineHeight: 1,
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                ×
-              </button>
-              <p
-                style={{
-                  fontSize: "1.125rem",
+              ×
+            </button>
+            <p
+              style={{
+                fontSize: "1.125rem",
                   lineHeight: 1.5,
                   marginBottom: "1.25rem",
                   marginTop: 0,
@@ -2715,7 +2729,7 @@ function CalendarView({
                 maxWidth: "28rem",
                 width: "100%",
                 textAlign: "center",
-                animation: closingMissedModal ? `scaleOut ${MODAL_CLOSE_MS}ms ease-out` : "scaleIn 0.2s ease-out forwards",
+                animation: closingMissedModal ? "none" : "scaleIn 0.2s ease-out forwards",
               }}
               onClick={(e) => e.stopPropagation()}
             >
@@ -2804,7 +2818,7 @@ function CalendarView({
                 maxWidth: "28rem",
                 width: "100%",
                 textAlign: "center",
-                animation: closingMissedModal ? `scaleOut ${MODAL_CLOSE_MS}ms ease-out` : "scaleIn 0.2s ease-out forwards",
+                animation: closingMissedModal ? "none" : "scaleIn 0.2s ease-out forwards",
               }}
               onClick={(e) => e.stopPropagation()}
             >

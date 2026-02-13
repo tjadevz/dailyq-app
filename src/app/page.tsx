@@ -370,7 +370,7 @@ export default function Home() {
           onClearInitialDay={() => setInitialQuestionDayKey(null)}
           onShowRecapTest={
             process.env.NODE_ENV === "development"
-              ? () => setRecapModal({ open: true, count: 7 })
+              ? () => setRecapModal({ open: true, count: 3 })
               : undefined
           }
         />
@@ -793,8 +793,7 @@ function StreakModal({ streak, onClose }: { streak: number; onClose: () => void 
     >
       <div
         style={{
-          background: GLASS.BG,
-          backdropFilter: GLASS.BLUR,
+          background: COLORS.BACKGROUND,
           border: GLASS.BORDER,
           boxShadow: GLASS.SHADOW,
           borderRadius: 26,
@@ -881,8 +880,7 @@ function MondayRecapModal({
     >
       <div
         style={{
-          background: GLASS.BG,
-          backdropFilter: GLASS.BLUR,
+          background: COLORS.BACKGROUND,
           border: GLASS.BORDER,
           boxShadow: GLASS.SHADOW,
           borderRadius: 26,
@@ -902,7 +900,7 @@ function MondayRecapModal({
             lineHeight: 1.45,
           }}
         >
-          You answered {count} out of 7 last week
+          Je hebt {count} van de 7 vragen vorige week beantwoord.
         </p>
         {isPerfect && (
           <p style={{ fontSize: "1.5rem", fontWeight: 600, color: COLORS.ACCENT, marginBottom: "1.5rem" }}>
@@ -928,7 +926,7 @@ function MondayRecapModal({
                 transition: "150ms ease",
               }}
             >
-              Yay
+              Mooi
             </button>
           ) : (
             <>
@@ -949,7 +947,7 @@ function MondayRecapModal({
                   transition: "150ms ease",
                 }}
               >
-                Answer a missed day
+                Beantwoord een gemiste dag
               </button>
               <button
                 type="button"
@@ -964,7 +962,7 @@ function MondayRecapModal({
                   transition: "150ms ease",
                 }}
               >
-                Close
+                Sluiten
               </button>
             </>
           )}
@@ -1348,8 +1346,7 @@ function TodayView({
                 maxWidth: "28rem",
                 padding: "2.5rem 2rem",
                 borderRadius: 26,
-                background: GLASS.BG,
-                backdropFilter: GLASS.BLUR,
+                background: COLORS.BACKGROUND,
                 border: GLASS.BORDER,
                 boxShadow: GLASS.SHADOW,
                 display: "flex",
@@ -1412,6 +1409,25 @@ function TodayView({
             >
               Antwoord bewerken
             </button>
+            {process.env.NODE_ENV === "development" && onShowRecapTest && (
+              <button
+                type="button"
+                onClick={onShowRecapTest}
+                style={{
+                  marginTop: "0.5rem",
+                  padding: "0.35rem 0.75rem",
+                  fontSize: "0.75rem",
+                  color: COLORS.TEXT_PRIMARY,
+                  background: "transparent",
+                  border: `1px dashed ${COLORS.TEXT_TERTIARY}`,
+                  borderRadius: "999px",
+                  cursor: "pointer",
+                  opacity: 0.7,
+                }}
+              >
+                Show Monday Recap
+              </button>
+            )}
           </div>
         ) : (
           <div
@@ -1548,8 +1564,7 @@ function TodayView({
         >
           <div
             style={{
-              background: GLASS.BG,
-              backdropFilter: GLASS.BLUR,
+              background: COLORS.BACKGROUND,
               border: GLASS.BORDER,
               boxShadow: GLASS.SHADOW,
               borderRadius: 26,
@@ -1578,6 +1593,267 @@ function TodayView({
   );
 }
 
+// ============ MISSED DAY ANSWER MODAL (Calendar overlay) ============
+function MissedDayAnswerModal({
+  dayKey,
+  user,
+  onClose,
+  onSuccess,
+}: {
+  dayKey: string;
+  user: any;
+  onClose: () => void;
+  onSuccess: (dayKey: string, questionText: string, answerText: string) => void;
+}) {
+  const [question, setQuestion] = useState<Question | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [draft, setDraft] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        if (process.env.NODE_ENV === "development" && user?.id === "dev-user") {
+          if (!cancelled) {
+            setQuestion({
+              id: "dev-question-id",
+              text: "Vraag van die dag",
+              day: dayKey,
+            });
+          }
+          setLoading(false);
+          return;
+        }
+        const supabase = createSupabaseBrowserClient();
+        const { data, error: fetchError } = await supabase
+          .from("questions")
+          .select("id, text, day")
+          .eq("day", dayKey)
+          .maybeSingle();
+        if (cancelled) return;
+        if (fetchError) {
+          setError("Vraag kon niet worden geladen.");
+          setLoading(false);
+          return;
+        }
+        if (data) {
+          setQuestion(data);
+        } else {
+          setError("Geen vraag beschikbaar voor deze dag.");
+        }
+      } catch (e) {
+        if (!cancelled) setError("Er ging iets mis.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [dayKey, user?.id]);
+
+  const handleSubmit = async () => {
+    if (!question || !draft.trim() || submitting) return;
+    const dayKeyAsDate = new Date(dayKey + "T12:00:00");
+    if (isBeforeAccountStart(dayKeyAsDate, user)) {
+      setSubmitError("Deze datum is vóór het begin van je account.");
+      return;
+    }
+    if (!canAnswerDate(dayKeyAsDate)) {
+      setSubmitError("Deze datum valt buiten de 7-dagen periode.");
+      return;
+    }
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      if (process.env.NODE_ENV === "development" && user?.id === "dev-user") {
+        try {
+          localStorage.setItem(`dev-answer-${dayKey}`, draft);
+        } catch (_) {}
+        onSuccess(dayKey, question.text, draft);
+        onClose();
+        setSubmitting(false);
+        return;
+      }
+      const supabase = createSupabaseBrowserClient();
+      await saveAnswerAndStreak({
+        supabase,
+        userId: user.id,
+        questionId: question.id,
+        draft,
+        dayKey,
+        questionText: question.text,
+        setAnswer: () => {},
+        setStreakOverlay: () => {},
+        onCalendarUpdate: null,
+        userCreatedAt: user.created_at,
+      });
+      onSuccess(dayKey, question.text, draft);
+      onClose();
+    } catch (e: any) {
+      setSubmitError(e?.message ?? "Opslaan mislukt.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: "rgba(0, 0, 0, 0.6)",
+        backdropFilter: "blur(6px)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "1.5rem",
+        zIndex: 1100,
+        animation: "fadeIn 0.2s ease-out",
+      }}
+    >
+      <div
+        style={{
+          position: "relative",
+          background: COLORS.BACKGROUND,
+          border: GLASS.BORDER,
+          boxShadow: GLASS.SHADOW,
+          borderRadius: 26,
+          padding: "1.5rem",
+          maxWidth: "28rem",
+          width: "100%",
+          maxHeight: "90vh",
+          overflow: "auto",
+          animation: "streakEnter 0.3s ease-out",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          type="button"
+          aria-label="Sluiten"
+          onClick={onClose}
+          style={{
+            position: "absolute",
+            top: "1rem",
+            right: "1rem",
+            width: 36,
+            height: 36,
+            borderRadius: "50%",
+            border: "none",
+            background: "transparent",
+            color: COLORS.TEXT_SECONDARY,
+            fontSize: "1.5rem",
+            lineHeight: 1,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          ×
+        </button>
+
+        {loading && (
+          <p style={{ color: COLORS.TEXT_SECONDARY, padding: "2rem 0" }}>Vraag laden…</p>
+        )}
+        {error && !loading && (
+          <div style={{ padding: "1rem 0" }}>
+            <p style={{ color: COLORS.TEXT_PRIMARY, marginBottom: "1rem" }}>{error}</p>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                padding: "0.5rem 1rem",
+                borderRadius: 999,
+                border: "none",
+                background: COLORS.ACCENT,
+                color: "#FFFFFF",
+                fontSize: 16,
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Sluiten
+            </button>
+          </div>
+        )}
+        {question && !loading && (
+          <div style={{ paddingTop: "2rem" }}>
+            <p
+              style={{
+                fontSize: "0.875rem",
+                color: COLORS.TEXT_SECONDARY,
+                marginBottom: "0.5rem",
+              }}
+            >
+              Vraag van die dag
+            </p>
+            <h3 style={{ fontSize: "1.25rem", marginBottom: "1rem", color: COLORS.TEXT_PRIMARY }}>
+              {question.text}
+            </h3>
+            <textarea
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              placeholder="Typ je antwoord…"
+              style={{
+                width: "100%",
+                minHeight: "8rem",
+                padding: "1rem",
+                borderRadius: 16,
+                border: "1px solid rgba(28,28,30,0.2)",
+                background: GLASS.BG,
+                fontSize: 16,
+                lineHeight: 1.45,
+                color: COLORS.TEXT_PRIMARY,
+                fontFamily: "inherit",
+                resize: "vertical",
+                boxSizing: "border-box",
+              }}
+            />
+            {submitError && (
+              <p style={{ color: COLORS.TEXT_PRIMARY, fontSize: "0.875rem", marginTop: "0.5rem" }}>
+                {submitError}
+              </p>
+            )}
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={submitting || !draft.trim()}
+              style={{
+                marginTop: "1rem",
+                width: "100%",
+                height: 54,
+                padding: "0 1.5rem",
+                borderRadius: 999,
+                border: "none",
+                background: COLORS.ACCENT,
+                color: "#FFFFFF",
+                fontSize: 16,
+                fontWeight: 600,
+                letterSpacing: "0.2px",
+                cursor: submitting ? "default" : "pointer",
+                opacity: submitting || !draft.trim() ? 0.6 : 1,
+                transition: "150ms ease",
+              }}
+            >
+              {submitting ? "Bezig…" : "Versturen"}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ============ CALENDAR VIEW ============
 function CalendarView({
   answersMap,
@@ -1602,6 +1878,7 @@ function CalendarView({
   const [closingModal, setClosingModal] = useState(false);
   const [missedDayModal, setMissedDayModal] = useState<"missed" | "closed" | null>(null);
   const [missedDayKey, setMissedDayKey] = useState<string | null>(null);
+  const [selectedDateForAnswer, setSelectedDateForAnswer] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) {
@@ -1974,8 +2251,7 @@ function CalendarView({
         >
           <div
             style={{
-              background: GLASS.BG,
-              backdropFilter: GLASS.BLUR,
+              background: COLORS.BACKGROUND,
               border: GLASS.BORDER,
               boxShadow: GLASS.SHADOW,
               borderRadius: 26,
@@ -2036,8 +2312,7 @@ function CalendarView({
         >
           <div
             style={{
-              background: GLASS.BG,
-              backdropFilter: GLASS.BLUR,
+              background: COLORS.BACKGROUND,
               border: GLASS.BORDER,
               boxShadow: GLASS.SHADOW,
               borderRadius: 26,
@@ -2048,17 +2323,17 @@ function CalendarView({
             onClick={(e) => e.stopPropagation()}
           >
             <h3 style={{ fontSize: "1.25rem", marginBottom: "0.75rem", color: COLORS.TEXT_PRIMARY }}>
-              You missed this day
+              Je hebt deze dag gemist
             </h3>
             <p style={{ fontSize: 16, lineHeight: 1.45, marginBottom: "1.5rem", color: COLORS.TEXT_SECONDARY }}>
-              Would you like to answer it now?
+              Wil je die nu alsnog beantwoorden?
             </p>
             <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
               <button
                 type="button"
                 onClick={() => {
+                  if (missedDayKey) setSelectedDateForAnswer(missedDayKey);
                   handleCloseMissedModal();
-                  onAnswerMissedDay?.(missedDayKey);
                 }}
                 style={{
                   height: 54,
@@ -2074,7 +2349,7 @@ function CalendarView({
                   transition: "150ms ease",
                 }}
               >
-                Answer now
+                Nu beantwoorden
               </button>
               <button
                 type="button"
@@ -2088,7 +2363,7 @@ function CalendarView({
                   cursor: "pointer",
                 }}
               >
-                Cancel
+                Annuleren
               </button>
             </div>
           </div>
@@ -2114,8 +2389,7 @@ function CalendarView({
         >
           <div
             style={{
-              background: GLASS.BG,
-              backdropFilter: GLASS.BLUR,
+              background: COLORS.BACKGROUND,
               border: GLASS.BORDER,
               boxShadow: GLASS.SHADOW,
               borderRadius: 26,
@@ -2126,10 +2400,10 @@ function CalendarView({
             onClick={(e) => e.stopPropagation()}
           >
             <h3 style={{ fontSize: "1.25rem", marginBottom: "0.75rem", color: COLORS.TEXT_PRIMARY }}>
-              This day is closed
+              Deze dag is gesloten
             </h3>
             <p style={{ fontSize: 16, lineHeight: 1.45, marginBottom: "1.5rem", color: COLORS.TEXT_SECONDARY }}>
-              You can only answer questions from the past 7 days.
+              Je kunt alleen vragen van de afgelopen 7 dagen beantwoorden.
             </p>
             <button
               type="button"
@@ -2152,6 +2426,22 @@ function CalendarView({
             </button>
           </div>
         </div>
+      )}
+
+      {selectedDateForAnswer && user && (
+        <MissedDayAnswerModal
+          dayKey={selectedDateForAnswer}
+          user={user}
+          onClose={() => setSelectedDateForAnswer(null)}
+          onSuccess={(dayKey, questionText, answerText) => {
+            setAnswersMap((prev) => {
+              const next = new Map(prev);
+              next.set(dayKey, { questionText, answerText });
+              return next;
+            });
+            setSelectedDateForAnswer(null);
+          }}
+        />
       )}
     </div>
   );
@@ -2213,7 +2503,7 @@ function SettingsView({ user }: { user: any }) {
         <p style={{ fontSize: 16, marginBottom: "0.5rem", color: COLORS.TEXT_PRIMARY }}>
           <strong>DailyQ</strong>
         </p>
-        <p style={{ fontSize: "0.85rem", color: COLORS.TEXT_SECONDARY }}>Versie 1.0</p>
+        <p style={{ fontSize: "0.85rem", color: COLORS.TEXT_SECONDARY }}>Versie 1.2</p>
         <p style={{ fontSize: "0.85rem", color: COLORS.TEXT_SECONDARY, marginTop: "0.5rem" }}>
           One question a day.
         </p>

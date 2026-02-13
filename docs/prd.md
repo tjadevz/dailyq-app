@@ -282,6 +282,19 @@ The Calendar tab provides a simple month-by-month view of answered days.
 - Modal appears centered with backdrop blur
 - Read-only view (no editing of past answers in MVP v1)
 
+**Missed days (rolling 7-day window)**
+
+- Days in the **past 7 calendar days** (from today) that have no answer are treated as **missed** (if on or after the user’s account-creation date).
+- Tapping a missed day opens a confirmation modal: “Je hebt deze dag gemist” with “Nu beantwoorden” and “Annuleren”.
+- Choosing **“Nu beantwoorden”** opens a **full-screen answer overlay** on top of the Calendar (no navigation to the Today tab):
+  - Background (Calendar) stays mounted and is dimmed/blurred.
+  - Overlay shows the question for that date, a text input, and a submit button.
+  - Top-right **close (X)** closes the overlay without saving and returns to the Calendar.
+  - **No** close on backdrop tap; close only via X or after successful submit.
+  - Before submit, the app validates that the date is within the 7-day window and on or after the user’s account-creation date; invalid submissions are rejected.
+  - On successful submit, the answer is saved (same backend as Today), the overlay closes, and the Calendar view is updated (dot appears for that day).
+- Days **older than 7 days** or **before account creation** are not answerable; tapping them shows “Deze dag is gesloten” (informational only).
+
 **Requirements**
 
 - Requires authentication (unauthenticated users see onboarding screen instead; Calendar and Settings receive user from app state so they work consistently with the rest of the app).
@@ -319,8 +332,8 @@ The following are **deliberately out of scope** to keep the experiment clean and
   - No AI interpretation of answers.
 - **Engagement mechanics**
   - No notifications or reminders.
-  - No catch-up mechanics (e.g., answering missed days).
   - No badges, levels, or advanced streak visualizations.
+  - **Limited catch-up:** answering a missed day is supported only within the **rolling 7-day window** and only via the **Calendar overlay** (no navigation to Today); see Section 10a.
 - **Social and sharing**
   - No comments, likes, or feeds.
   - No sharing answers to social platforms.
@@ -429,3 +442,4 @@ Any future feature must be evaluated against a single criterion:
 - **PWA:** Service worker uses aggressive update (skipWaiting, clear caches on activate, reload on new worker) to avoid stale cache after deploys.
 - **Settings:** Log Out always visible. Calendar and Settings receive user from Home (no separate user fetch) so dev mock user is respected.
 - **Mobile:** Today and Calendar use spacing (e.g. clamp) so main content sits lower on small screens for a more centered feel.
+- **Calendar – missed-day answer:** “Nu beantwoorden” opens a full-screen modal overlay on the Calendar (no route change). User answers in the overlay; validation (7-day window, account start) before submit; close via X or successful submit only; background dimmed/blurred.

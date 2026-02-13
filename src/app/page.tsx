@@ -10,13 +10,8 @@ import { LanguageProvider, useLanguage } from "./LanguageContext";
 type Question = {
   id: string;
   text: string;
-  text_en?: string;
   day: string;
 };
-
-function getQuestionDisplayText(q: { text: string; text_en?: string }, lang: string): string {
-  return (lang === "en" && q.text_en) ? q.text_en : q.text;
-}
 
 type Answer = {
   id: string;
@@ -1171,7 +1166,7 @@ function TodayView({
   onClearInitialDay?: () => void;
   onShowRecapTest?: () => void;
 }) {
-  const { t, lang } = useLanguage();
+  const { t } = useLanguage();
   const [loading, setLoading] = useState(true);
   const [question, setQuestion] = useState<Question | null>(null);
   const [answer, setAnswer] = useState<Answer | null>(null);
@@ -1247,7 +1242,7 @@ function TodayView({
           // 2 second timeout for faster feedback
           const queryPromise = supabase
             .from("questions")
-            .select("id, text, text_en, day")
+            .select("id, text, day")
             .eq("day", dayKey)
             .maybeSingle();
 
@@ -1273,7 +1268,6 @@ function TodayView({
           questionData = {
             id: 'dev-question-id',
             text: 'Waar heb je vandaag om gelachen?',
-            text_en: 'What made you laugh today?',
             day: dayKey,
           };
         }
@@ -1393,7 +1387,7 @@ function TodayView({
           id: 'dev-answer-id',
           answer_text: draft,
         });
-        if (onCalendarUpdate) onCalendarUpdate(dayKey, getQuestionDisplayText(question, lang), draft);
+        if (onCalendarUpdate) onCalendarUpdate(dayKey, question.text, draft);
         if (editingExisting) {
           setShowEditConfirmation(true);
           setEditConfirmationClosing(false);
@@ -1421,7 +1415,7 @@ function TodayView({
             questionId: question.id,
             draft,
             dayKey,
-            questionText: getQuestionDisplayText(question, lang),
+            questionText: question.text,
             setAnswer,
             setStreakOverlay,
             onCalendarUpdate,
@@ -1433,7 +1427,7 @@ function TodayView({
           if (process.env.NODE_ENV === 'development') {
             console.warn('⚠️ Database save failed in development, simulating success');
             setAnswer({ id: 'dev-answer-id', answer_text: draft });
-            if (onCalendarUpdate) onCalendarUpdate(dayKey, getQuestionDisplayText(question, lang), draft);
+            if (onCalendarUpdate) onCalendarUpdate(dayKey, question.text, draft);
             if (!editingExisting) {
               fireConfetti();
               setStreakOverlay(1);
@@ -1591,7 +1585,7 @@ function TodayView({
                   textAlign: "center",
                 }}
               >
-                {getQuestionDisplayText(question, lang)}
+                {question.text}
               </p>
             </div>
             <button
@@ -1671,7 +1665,7 @@ function TodayView({
                 lineHeight: 1.3,
               }}
             >
-              {getQuestionDisplayText(question, lang)}
+              {question.text}
             </h1>
             <textarea
               value={draft}
@@ -1836,7 +1830,7 @@ function MissedDayAnswerModal({
   onClose: () => void;
   onSuccess: (dayKey: string, questionText: string, answerText: string) => void;
 }) {
-  const { t, lang } = useLanguage();
+  const { t } = useLanguage();
   const [question, setQuestion] = useState<Question | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -1862,7 +1856,6 @@ function MissedDayAnswerModal({
             setQuestion({
               id: "dev-question-id",
               text: "Vraag van die dag",
-              text_en: "Question for that day",
               day: dayKey,
             });
           }
@@ -1872,7 +1865,7 @@ function MissedDayAnswerModal({
         const supabase = createSupabaseBrowserClient();
         const { data, error: fetchError } = await supabase
           .from("questions")
-          .select("id, text, text_en, day")
+          .select("id, text, day")
           .eq("day", dayKey)
           .maybeSingle();
         if (cancelled) return;
@@ -1918,7 +1911,7 @@ function MissedDayAnswerModal({
         } catch (_) {}
         setIsClosing(true);
         setTimeout(() => {
-          onSuccess(dayKey, getQuestionDisplayText(question, lang), draft);
+          onSuccess(dayKey, question.text, draft);
           onClose();
         }, MODAL_CLOSE_MS);
         setSubmitting(false);
@@ -1931,7 +1924,7 @@ function MissedDayAnswerModal({
         questionId: question.id,
         draft,
         dayKey,
-        questionText: getQuestionDisplayText(question, lang),
+        questionText: question.text,
         setAnswer: () => {},
         setStreakOverlay: () => {},
         onCalendarUpdate: null,
@@ -1939,7 +1932,7 @@ function MissedDayAnswerModal({
       });
       setIsClosing(true);
       setTimeout(() => {
-        onSuccess(dayKey, getQuestionDisplayText(question, lang), draft);
+        onSuccess(dayKey, question.text, draft);
         onClose();
       }, MODAL_CLOSE_MS);
     } catch (e: any) {
@@ -2044,7 +2037,7 @@ function MissedDayAnswerModal({
               {t("missed_answer_question_label")}
             </p>
             <h3 style={{ fontSize: "1.25rem", marginBottom: "1rem", color: COLORS.TEXT_PRIMARY }}>
-              {getQuestionDisplayText(question, lang)}
+              {question.text}
             </h3>
             <textarea
               value={draft}
@@ -2112,7 +2105,7 @@ function CalendarView({
   user: any;
   onAnswerMissedDay?: (dayKey: string) => void;
 }) {
-  const { t, lang } = useLanguage();
+  const { t } = useLanguage();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [displayYear, setDisplayYear] = useState(() => getNow().getFullYear());
@@ -2149,8 +2142,8 @@ function CalendarView({
               [
                 seedKey,
                 {
-                  questionText: lang === "en" ? "What made you laugh yesterday?" : "Waar heb je gisteren om gelachen?",
-                  answerText: lang === "en" ? "A sample answer to see the completed day styling." : "Een voorbeeldantwoord om de voltooide dag-styling te bekijken.",
+                  questionText: "Waar heb je gisteren om gelachen?",
+                  answerText: "Een voorbeeldantwoord om de voltooide dag-styling te bekijken.",
                 },
               ],
             ])
@@ -2165,7 +2158,7 @@ function CalendarView({
 
         const { data, error: fetchError } = await supabase
           .from("answers")
-          .select("answer_text, questions!inner(text, text_en, day)")
+          .select("answer_text, questions!inner(text, day)")
           .eq("user_id", user.id)
           .gte("questions.day", startOfMonth.toISOString().slice(0, 10))
           .lte("questions.day", endOfMonth.toISOString().slice(0, 10));
@@ -2178,10 +2171,10 @@ function CalendarView({
         >();
         if (data) {
           for (const row of data as any[]) {
-            const q = row.questions as { text: string; text_en?: string; day: string };
+            const q = row.questions as { text: string; day: string };
             if (q && q.day) {
               map.set(q.day, {
-                questionText: (lang === "en" && q.text_en) ? q.text_en : q.text,
+                questionText: q.text,
                 answerText: row.answer_text,
               });
             }
@@ -2201,7 +2194,7 @@ function CalendarView({
     };
 
     void fetchAnswers();
-  }, [user, displayYear, displayMonth, lang]);
+  }, [user, displayYear, displayMonth]);
 
   if (!user) {
     return (

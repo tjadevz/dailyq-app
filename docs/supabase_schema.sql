@@ -5,15 +5,10 @@
 create table if not exists public.questions (
   id uuid primary key default gen_random_uuid(),
   text text not null,
-  -- Optional English text; app shows text_en when user language is English, else text (e.g. Dutch).
-  text_en text,
   -- Global calendar day key; you can choose date or text, here we use date.
   day date not null unique,
   inserted_at timestamptz not null default timezone('utc'::text, now())
 );
-
--- If the table already exists, add the English column:
--- alter table public.questions add column if not exists text_en text;
 
 -- ANSWERS TABLE
 create table if not exists public.answers (

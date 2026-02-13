@@ -5,12 +5,18 @@ import { useEffect, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabaseClient";
 import { getNow } from "@/utils/dateProvider";
 import { registerServiceWorker } from "./register-sw";
+import { LanguageProvider, useLanguage } from "./LanguageContext";
 
 type Question = {
   id: string;
   text: string;
+  text_en?: string;
   day: string;
 };
+
+function getQuestionDisplayText(q: { text: string; text_en?: string }, lang: string): string {
+  return (lang === "en" && q.text_en) ? q.text_en : q.text;
+}
 
 type Answer = {
   id: string;
@@ -120,7 +126,8 @@ function getCurrentUser(supabaseUser: any): any {
   return supabaseUser;
 }
 
-export default function Home() {
+function Home() {
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState<TabType>("today");
   const [user, setUser] = useState<any>(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
@@ -128,11 +135,14 @@ export default function Home() {
     Map<string, { questionText: string; answerText: string }>
   >(new Map());
   const [currentStreak, setCurrentStreak] = useState<number>(0);
-  const [recapModal, setRecapModal] = useState<{ open: boolean; count: number | null }>({
+  const [recapModal, setRecapModal] = useState<{ open: boolean; count: number | null; total: number | null }>({
     open: false,
     count: null,
+    total: null,
   });
   const [initialQuestionDayKey, setInitialQuestionDayKey] = useState<string | null>(null);
+  const [showStreakPopup, setShowStreakPopup] = useState(false);
+  const [streakPopupClosing, setStreakPopupClosing] = useState(false);
 
   const onCalendarUpdate = (dayKey: string, questionText: string, answerText: string) => {
     setCalendarAnswersMap((prev) => {
@@ -147,13 +157,16 @@ export default function Home() {
     if (getLocalDayKey(today) !== dayKey || !isMonday(today)) return;
     if (!effectiveUser) return;
     if (!shouldShowMondayRecap(effectiveUser, today)) return;
+    const { start, end } = getPreviousWeekRange(today);
+    const total = getAnswerableDaysInRange(start, end, effectiveUser.created_at);
+    if (total === 0) return;
     let count: number;
     if (process.env.NODE_ENV === "development" && effectiveUser.id === "dev-user") {
-      count = 7;
+      count = Math.min(7, total);
     } else {
       count = await fetchPreviousWeekAnswerCount(effectiveUser.id);
     }
-    setRecapModal({ open: true, count });
+    setRecapModal({ open: true, count, total });
   };
 
   const closeRecapModal = (goToCalendar?: boolean) => {
@@ -257,7 +270,7 @@ export default function Home() {
           background: COLORS.BACKGROUND_GRADIENT,
         }}
       >
-        <p style={{ color: COLORS.TEXT_PRIMARY }}>Laden…</p>
+        <p style={{ color: COLORS.TEXT_PRIMARY }}>{t("loading")}</p>
       </div>
     );
   }
@@ -273,7 +286,7 @@ export default function Home() {
         flexDirection: "column",
         minHeight: "100dvh",
         maxHeight: "100dvh",
-        background: COLORS.BACKGROUND_GRADIENT,
+        background: COLORS.BACKGROUND,
       }}
     >
       {/* Header */}
@@ -320,7 +333,10 @@ export default function Home() {
           }}
         >
           {activeTab === "today" && (
-            <div
+            <button
+              type="button"
+              onClick={() => setShowStreakPopup(true)}
+              aria-label={t("aria_show_streak")}
               style={{
                 width: 30,
                 height: 30,
@@ -332,6 +348,8 @@ export default function Home() {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
+                cursor: "pointer",
+                padding: 0,
               }}
             >
               <span
@@ -343,7 +361,7 @@ export default function Home() {
               >
                 {currentStreak}
               </span>
-            </div>
+            </button>
           )}
         </div>
       </header>
@@ -355,6 +373,7 @@ export default function Home() {
           overflowY: "auto",
           overflowX: "hidden",
           position: "relative",
+          background: COLORS.BACKGROUND,
         }}
       >
         <div
@@ -372,7 +391,7 @@ export default function Home() {
           onClearInitialDay={() => setInitialQuestionDayKey(null)}
           onShowRecapTest={
             process.env.NODE_ENV === "development"
-              ? () => setRecapModal({ open: true, count: 3 })
+              ? () => setRecapModal({ open: true, count: 3, total: 7 })
               : undefined
           }
         />
@@ -427,31 +446,125 @@ export default function Home() {
         <TabButton
           active={activeTab === "today"}
           onClick={() => setActiveTab("today")}
-          label="Vandaag"
+          label={t("tabs_today")}
           icon={<QuestionMarkIcon />}
         />
         <TabButton
           active={activeTab === "calendar"}
           onClick={() => setActiveTab("calendar")}
-          label="Kalender"
+          label={t("tabs_calendar")}
           icon={<CalendarIcon />}
         />
         <TabButton
           active={activeTab === "settings"}
           onClick={() => setActiveTab("settings")}
-          label="Instellingen"
+          label={t("tabs_settings")}
           icon={<SettingsIcon />}
         />
       </nav>
 
-      {recapModal.open && recapModal.count !== null && (
+      {showStreakPopup && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.6)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "2rem",
+            zIndex: 2000,
+            animation: streakPopupClosing ? `fadeOut ${MODAL_CLOSE_MS}ms ease-out` : "fadeIn 0.2s ease-out forwards",
+          }}
+          onClick={() => {
+            if (streakPopupClosing) return;
+            setStreakPopupClosing(true);
+            setTimeout(() => {
+              setShowStreakPopup(false);
+              setStreakPopupClosing(false);
+            }, MODAL_CLOSE_MS);
+          }}
+        >
+          <div
+            style={{
+              position: "relative",
+              background: COLORS.BACKGROUND,
+              border: GLASS.BORDER,
+              boxShadow: GLASS.SHADOW,
+              borderRadius: 26,
+              padding: "3rem 2rem",
+              maxWidth: "24rem",
+              width: "100%",
+              textAlign: "center",
+              animation: streakPopupClosing ? `scaleOut ${MODAL_CLOSE_MS}ms ease-out` : "scaleIn 0.2s ease-out forwards",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              aria-label={t("common_close")}
+          onClick={() => {
+            if (streakPopupClosing) return;
+                setStreakPopupClosing(true);
+                setTimeout(() => {
+                  setShowStreakPopup(false);
+                  setStreakPopupClosing(false);
+                }, MODAL_CLOSE_MS);
+              }}
+              style={{
+                position: "absolute",
+                top: "1rem",
+                right: "1rem",
+                width: 36,
+                height: 36,
+                borderRadius: "50%",
+                border: "none",
+                background: "transparent",
+                color: COLORS.TEXT_SECONDARY,
+                fontSize: "1.5rem",
+                lineHeight: 1,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              ×
+            </button>
+            <p
+              style={{
+                fontSize: "1.25rem",
+                color: COLORS.TEXT_PRIMARY,
+                margin: 0,
+              }}
+            >
+              {t("streak_popup_title")} {currentStreak}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {recapModal.open && recapModal.count !== null && recapModal.total !== null && (
         <MondayRecapModal
           count={recapModal.count}
+          total={recapModal.total}
           onClose={() => closeRecapModal()}
           onAnswerMissedDay={() => closeRecapModal(true)}
         />
       )}
     </div>
+  );
+}
+
+export default function Page() {
+  return (
+    <LanguageProvider>
+      <Home />
+    </LanguageProvider>
   );
 }
 
@@ -560,6 +673,7 @@ function CheckIconSmall() {
 
 // ============ ONBOARDING SCREEN ============
 function OnboardingScreen() {
+  const { t } = useLanguage();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSignUp, setIsSignUp] = useState(true);
@@ -650,7 +764,7 @@ function OnboardingScreen() {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="Email"
+            placeholder={t("onboarding_email")}
             disabled={submitting}
             autoComplete="email"
             style={{
@@ -677,7 +791,7 @@ function OnboardingScreen() {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="Password"
+            placeholder={t("onboarding_password")}
             disabled={submitting}
             autoComplete={isSignUp ? "new-password" : "current-password"}
             style={{
@@ -720,7 +834,7 @@ function OnboardingScreen() {
               marginBottom: "1rem",
             }}
           >
-            {submitting ? (isSignUp ? "Bezig met registreren…" : "Bezig met inloggen…") : (isSignUp ? "Registreren" : "Inloggen")}
+            {submitting ? (isSignUp ? t("onboarding_signing_up") : t("onboarding_signing_in")) : (isSignUp ? t("onboarding_sign_up") : t("onboarding_sign_in"))}
           </button>
 
           <button
@@ -743,7 +857,7 @@ function OnboardingScreen() {
               textDecoration: "underline",
             }}
           >
-            {isSignUp ? "Heb je al een account? Log in" : "Nog geen account? Registreer"}
+            {isSignUp ? t("onboarding_toggle_sign_in") : t("onboarding_toggle_sign_up")}
           </button>
 
           {error && (
@@ -773,6 +887,7 @@ function fireConfetti(): void {
 }
 
 function StreakModal({ streak, onClose }: { streak: number; onClose: () => void }) {
+  const { t } = useLanguage();
   const [isClosing, setIsClosing] = useState(false);
   const handleClose = () => {
     if (isClosing) return;
@@ -815,7 +930,7 @@ function StreakModal({ streak, onClose }: { streak: number; onClose: () => void 
       >
         <button
           type="button"
-          aria-label="Sluiten"
+          aria-label={t("common_close")}
           onClick={handleClose}
           style={{
             position: "absolute",
@@ -845,7 +960,7 @@ function StreakModal({ streak, onClose }: { streak: number; onClose: () => void 
             color: COLORS.TEXT_PRIMARY,
           }}
         >
-          Yay!
+          {t("streak_modal_yay")}
         </p>
         <p
           style={{
@@ -854,7 +969,7 @@ function StreakModal({ streak, onClose }: { streak: number; onClose: () => void 
             marginBottom: "2rem",
           }}
         >
-          Je hebt nu een streak van {streak} {streak === 1 ? "dag" : "dagen"}.
+          {t("streak_modal_body", { count: String(streak), day: streak === 1 ? t("streak_modal_day") : t("streak_modal_days") })}
         </p>
         <button
           type="button"
@@ -873,7 +988,7 @@ function StreakModal({ streak, onClose }: { streak: number; onClose: () => void 
             transition: "150ms ease",
           }}
         >
-          Sluiten
+          {t("common_close")}
         </button>
       </div>
     </div>
@@ -883,14 +998,17 @@ function StreakModal({ streak, onClose }: { streak: number; onClose: () => void 
 // ============ MONDAY RECAP MODAL ============
 function MondayRecapModal({
   count,
+  total,
   onClose,
   onAnswerMissedDay,
 }: {
   count: number;
+  total: number;
   onClose: () => void;
   onAnswerMissedDay: () => void;
 }) {
-  const isPerfect = count === 7;
+  const { t } = useLanguage();
+  const isPerfect = total > 0 && count === total;
   const [isClosing, setIsClosing] = useState(false);
   const handleClose = () => {
     if (isClosing) return;
@@ -933,7 +1051,7 @@ function MondayRecapModal({
       >
         <button
           type="button"
-          aria-label="Sluiten"
+          aria-label={t("common_close")}
           onClick={handleClose}
           style={{
             position: "absolute",
@@ -963,7 +1081,7 @@ function MondayRecapModal({
             lineHeight: 1.45,
           }}
         >
-          Je hebt {count} van de 7 vragen vorige week beantwoord.
+          {t("recap_body", { count: String(count), total: String(total) })}
         </p>
         {isPerfect && (
           <p style={{ fontSize: "1.5rem", fontWeight: 600, color: COLORS.ACCENT, marginBottom: "1.5rem" }}>
@@ -989,7 +1107,7 @@ function MondayRecapModal({
                 transition: "150ms ease",
               }}
             >
-              Mooi
+              {t("recap_mooi")}
             </button>
           ) : (
             <>
@@ -1010,7 +1128,7 @@ function MondayRecapModal({
                   transition: "150ms ease",
                 }}
               >
-                Beantwoord een gemiste dag
+                {t("recap_answer_missed")}
               </button>
               <button
                 type="button"
@@ -1025,7 +1143,7 @@ function MondayRecapModal({
                   transition: "150ms ease",
                 }}
               >
-                Sluiten
+                {t("common_close")}
               </button>
             </>
           )}
@@ -1053,6 +1171,7 @@ function TodayView({
   onClearInitialDay?: () => void;
   onShowRecapTest?: () => void;
 }) {
+  const { t, lang } = useLanguage();
   const [loading, setLoading] = useState(true);
   const [question, setQuestion] = useState<Question | null>(null);
   const [answer, setAnswer] = useState<Answer | null>(null);
@@ -1128,7 +1247,7 @@ function TodayView({
           // 2 second timeout for faster feedback
           const queryPromise = supabase
             .from("questions")
-            .select("id, text, day")
+            .select("id, text, text_en, day")
             .eq("day", dayKey)
             .maybeSingle();
 
@@ -1154,6 +1273,7 @@ function TodayView({
           questionData = {
             id: 'dev-question-id',
             text: 'Waar heb je vandaag om gelachen?',
+            text_en: 'What made you laugh today?',
             day: dayKey,
           };
         }
@@ -1237,7 +1357,7 @@ function TodayView({
       const dayKey = initialQuestionDayKey ?? getLocalDayKey(today);
 
       if (!effectiveUser) {
-        setError("Log in om een antwoord te versturen.");
+        setError(t("today_login_to_submit"));
         setSubmitting(false);
         return;
       }
@@ -1273,7 +1393,7 @@ function TodayView({
           id: 'dev-answer-id',
           answer_text: draft,
         });
-        if (onCalendarUpdate) onCalendarUpdate(dayKey, question.text, draft);
+        if (onCalendarUpdate) onCalendarUpdate(dayKey, getQuestionDisplayText(question, lang), draft);
         if (editingExisting) {
           setShowEditConfirmation(true);
           setEditConfirmationClosing(false);
@@ -1301,7 +1421,7 @@ function TodayView({
             questionId: question.id,
             draft,
             dayKey,
-            questionText: question.text,
+            questionText: getQuestionDisplayText(question, lang),
             setAnswer,
             setStreakOverlay,
             onCalendarUpdate,
@@ -1313,7 +1433,7 @@ function TodayView({
           if (process.env.NODE_ENV === 'development') {
             console.warn('⚠️ Database save failed in development, simulating success');
             setAnswer({ id: 'dev-answer-id', answer_text: draft });
-            if (onCalendarUpdate) onCalendarUpdate(dayKey, question.text, draft);
+            if (onCalendarUpdate) onCalendarUpdate(dayKey, getQuestionDisplayText(question, lang), draft);
             if (!editingExisting) {
               fireConfetti();
               setStreakOverlay(1);
@@ -1341,7 +1461,7 @@ function TodayView({
         if (isMonday(today)) void onAfterAnswerSaved?.(dayKey);
       }
     } catch (e) {
-      setError("Je antwoord kon niet worden verstuurd. Probeer het opnieuw.");
+      setError(t("today_submit_error"));
       console.error(e);
     } finally {
       setSubmitting(false);
@@ -1361,7 +1481,7 @@ function TodayView({
           boxSizing: "border-box",
         }}
       >
-        <p style={{ color: COLORS.TEXT_PRIMARY }}>Vraag van vandaag laden…</p>
+        <p style={{ color: COLORS.TEXT_PRIMARY }}>{t("loading_question_today")}</p>
       </div>
     );
   }
@@ -1395,7 +1515,7 @@ function TodayView({
           boxSizing: "border-box",
         }}
       >
-        <p style={{ color: COLORS.TEXT_PRIMARY }}>Er staat geen vraag voor vandaag.</p>
+        <p style={{ color: COLORS.TEXT_PRIMARY }}>{t("today_no_question")}</p>
       </div>
     );
   }
@@ -1455,7 +1575,7 @@ function TodayView({
                   letterSpacing: "0.025em",
                 }}
               >
-                <span>Klaar voor vandaag</span>
+                <span>{t("today_ready")}</span>
                 <span style={{ display: "inline-flex", alignItems: "center", opacity: 0.9 }}>
                   <CheckIconSmall />
                 </span>
@@ -1471,7 +1591,7 @@ function TodayView({
                   textAlign: "center",
                 }}
               >
-                {question.text}
+                {getQuestionDisplayText(question, lang)}
               </p>
             </div>
             <button
@@ -1493,7 +1613,7 @@ function TodayView({
                 transition: "150ms ease",
               }}
             >
-              Antwoord bewerken
+              {t("today_edit_answer")}
             </button>
             {process.env.NODE_ENV === "development" && onShowRecapTest && (
               <button
@@ -1538,7 +1658,7 @@ function TodayView({
                 fontWeight: 500,
               }}
             >
-              Vraag van vandaag
+              {t("today_question_label")}
             </p>
             <h1
               style={{
@@ -1551,12 +1671,12 @@ function TodayView({
                 lineHeight: 1.3,
               }}
             >
-              {question.text}
+              {getQuestionDisplayText(question, lang)}
             </h1>
             <textarea
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
-              placeholder="Typ je antwoord…"
+              placeholder={t("today_placeholder")}
               style={{
                 minHeight: "12rem",
                 padding: "1.25rem",
@@ -1595,7 +1715,7 @@ function TodayView({
               }}
               disabled={submitting}
             >
-              {answer ? "Bijwerken" : "Versturen"}
+              {answer ? t("today_update") : t("today_submit")}
             </button>
             {process.env.NODE_ENV === "development" && onShowRecapTest && (
               <button
@@ -1665,7 +1785,7 @@ function TodayView({
           >
             <button
               type="button"
-              aria-label="Sluiten"
+              aria-label={t("common_close")}
               onClick={closeEditConfirmation}
               style={{
                 position: "absolute",
@@ -1695,7 +1815,7 @@ function TodayView({
                 margin: 0,
               }}
             >
-              Antwoord gewijzigd
+              {t("today_answer_changed")}
             </p>
           </div>
         </div>
@@ -1716,6 +1836,7 @@ function MissedDayAnswerModal({
   onClose: () => void;
   onSuccess: (dayKey: string, questionText: string, answerText: string) => void;
 }) {
+  const { t, lang } = useLanguage();
   const [question, setQuestion] = useState<Question | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -1741,6 +1862,7 @@ function MissedDayAnswerModal({
             setQuestion({
               id: "dev-question-id",
               text: "Vraag van die dag",
+              text_en: "Question for that day",
               day: dayKey,
             });
           }
@@ -1750,22 +1872,22 @@ function MissedDayAnswerModal({
         const supabase = createSupabaseBrowserClient();
         const { data, error: fetchError } = await supabase
           .from("questions")
-          .select("id, text, day")
+          .select("id, text, text_en, day")
           .eq("day", dayKey)
           .maybeSingle();
         if (cancelled) return;
         if (fetchError) {
-          setError("Vraag kon niet worden geladen.");
+          setError("missed_answer_error_load");
           setLoading(false);
           return;
         }
         if (data) {
           setQuestion(data);
         } else {
-          setError("Geen vraag beschikbaar voor deze dag.");
+          setError("missed_answer_error_none");
         }
       } catch (e) {
-        if (!cancelled) setError("Er ging iets mis.");
+        if (!cancelled) setError("missed_answer_error_generic");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -1780,11 +1902,11 @@ function MissedDayAnswerModal({
     if (!question || !draft.trim() || submitting) return;
     const dayKeyAsDate = new Date(dayKey + "T12:00:00");
     if (isBeforeAccountStart(dayKeyAsDate, user)) {
-      setSubmitError("Deze datum is vóór het begin van je account.");
+      setSubmitError("missed_answer_error_before_account");
       return;
     }
     if (!canAnswerDate(dayKeyAsDate)) {
-      setSubmitError("Deze datum valt buiten de 7-dagen periode.");
+      setSubmitError("missed_answer_error_outside_window");
       return;
     }
     setSubmitting(true);
@@ -1796,7 +1918,7 @@ function MissedDayAnswerModal({
         } catch (_) {}
         setIsClosing(true);
         setTimeout(() => {
-          onSuccess(dayKey, question.text, draft);
+          onSuccess(dayKey, getQuestionDisplayText(question, lang), draft);
           onClose();
         }, MODAL_CLOSE_MS);
         setSubmitting(false);
@@ -1809,7 +1931,7 @@ function MissedDayAnswerModal({
         questionId: question.id,
         draft,
         dayKey,
-        questionText: question.text,
+        questionText: getQuestionDisplayText(question, lang),
         setAnswer: () => {},
         setStreakOverlay: () => {},
         onCalendarUpdate: null,
@@ -1817,11 +1939,11 @@ function MissedDayAnswerModal({
       });
       setIsClosing(true);
       setTimeout(() => {
-        onSuccess(dayKey, question.text, draft);
+        onSuccess(dayKey, getQuestionDisplayText(question, lang), draft);
         onClose();
       }, MODAL_CLOSE_MS);
     } catch (e: any) {
-      setSubmitError(e?.message ?? "Opslaan mislukt.");
+      setSubmitError("missed_answer_error_save");
     } finally {
       setSubmitting(false);
     }
@@ -1863,7 +1985,7 @@ function MissedDayAnswerModal({
       >
         <button
           type="button"
-          aria-label="Sluiten"
+          aria-label={t("common_close")}
           onClick={handleClose}
           style={{
             position: "absolute",
@@ -1887,11 +2009,11 @@ function MissedDayAnswerModal({
         </button>
 
         {loading && (
-          <p style={{ color: COLORS.TEXT_SECONDARY, padding: "2rem 0" }}>Vraag laden…</p>
+          <p style={{ color: COLORS.TEXT_SECONDARY, padding: "2rem 0" }}>{t("loading_question")}</p>
         )}
         {error && !loading && (
           <div style={{ padding: "1rem 0" }}>
-            <p style={{ color: COLORS.TEXT_PRIMARY, marginBottom: "1rem" }}>{error}</p>
+            <p style={{ color: COLORS.TEXT_PRIMARY, marginBottom: "1rem" }}>{t(error)}</p>
             <button
               type="button"
               onClick={handleClose}
@@ -1906,7 +2028,7 @@ function MissedDayAnswerModal({
                 cursor: "pointer",
               }}
             >
-              Sluiten
+              {t("common_close")}
             </button>
           </div>
         )}
@@ -1919,15 +2041,15 @@ function MissedDayAnswerModal({
                 marginBottom: "0.5rem",
               }}
             >
-              Vraag van die dag
+              {t("missed_answer_question_label")}
             </p>
             <h3 style={{ fontSize: "1.25rem", marginBottom: "1rem", color: COLORS.TEXT_PRIMARY }}>
-              {question.text}
+              {getQuestionDisplayText(question, lang)}
             </h3>
             <textarea
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
-              placeholder="Typ je antwoord…"
+              placeholder={t("today_placeholder")}
               style={{
                 width: "100%",
                 minHeight: "8rem",
@@ -1945,7 +2067,7 @@ function MissedDayAnswerModal({
             />
             {submitError && (
               <p style={{ color: COLORS.TEXT_PRIMARY, fontSize: "0.875rem", marginTop: "0.5rem" }}>
-                {submitError}
+                {t(submitError)}
               </p>
             )}
             <button
@@ -1969,7 +2091,7 @@ function MissedDayAnswerModal({
                 transition: "150ms ease",
               }}
             >
-              {submitting ? "Bezig…" : "Versturen"}
+              {submitting ? t("missed_answer_submitting") : t("today_submit")}
             </button>
           </div>
         )}
@@ -1990,6 +2112,7 @@ function CalendarView({
   user: any;
   onAnswerMissedDay?: (dayKey: string) => void;
 }) {
+  const { t, lang } = useLanguage();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [displayYear, setDisplayYear] = useState(() => getNow().getFullYear());
@@ -2026,8 +2149,8 @@ function CalendarView({
               [
                 seedKey,
                 {
-                  questionText: "Waar heb je gisteren om gelachen?",
-                  answerText: "Een voorbeeldantwoord om de voltooide dag-styling te bekijken.",
+                  questionText: lang === "en" ? "What made you laugh yesterday?" : "Waar heb je gisteren om gelachen?",
+                  answerText: lang === "en" ? "A sample answer to see the completed day styling." : "Een voorbeeldantwoord om de voltooide dag-styling te bekijken.",
                 },
               ],
             ])
@@ -2042,7 +2165,7 @@ function CalendarView({
 
         const { data, error: fetchError } = await supabase
           .from("answers")
-          .select("answer_text, questions!inner(text, day)")
+          .select("answer_text, questions!inner(text, text_en, day)")
           .eq("user_id", user.id)
           .gte("questions.day", startOfMonth.toISOString().slice(0, 10))
           .lte("questions.day", endOfMonth.toISOString().slice(0, 10));
@@ -2055,10 +2178,10 @@ function CalendarView({
         >();
         if (data) {
           for (const row of data as any[]) {
-            const q = row.questions as { text: string; day: string };
+            const q = row.questions as { text: string; text_en?: string; day: string };
             if (q && q.day) {
               map.set(q.day, {
-                questionText: q.text,
+                questionText: (lang === "en" && q.text_en) ? q.text_en : q.text,
                 answerText: row.answer_text,
               });
             }
@@ -2070,7 +2193,7 @@ function CalendarView({
           return merged;
         });
       } catch (e) {
-        setError("Antwoorden voor deze maand konden niet worden geladen.");
+        setError("calendar_error_load");
         console.error(e);
       } finally {
         setLoading(false);
@@ -2078,7 +2201,7 @@ function CalendarView({
     };
 
     void fetchAnswers();
-  }, [user, displayYear, displayMonth]);
+  }, [user, displayYear, displayMonth, lang]);
 
   if (!user) {
     return (
@@ -2092,7 +2215,7 @@ function CalendarView({
           boxSizing: "border-box",
         }}
       >
-        <p style={{ color: COLORS.TEXT_PRIMARY }}>Log in om je antwoorden te zien.</p>
+        <p style={{ color: COLORS.TEXT_PRIMARY }}>{t("calendar_login_prompt")}</p>
       </div>
     );
   }
@@ -2109,7 +2232,7 @@ function CalendarView({
           boxSizing: "border-box",
         }}
       >
-        <p style={{ color: COLORS.TEXT_PRIMARY }}>Kalender laden…</p>
+        <p style={{ color: COLORS.TEXT_PRIMARY }}>{t("loading_calendar")}</p>
       </div>
     );
   }
@@ -2168,9 +2291,13 @@ function CalendarView({
   const daysInMonth = new Date(displayYear, displayMonth + 1, 0).getDate();
   const todayKey = getLocalDayKey(getNow());
 
+  let answerableDaysThisMonth = 0;
   let capturedThisMonth = 0;
   for (let d = 1; d <= daysInMonth; d++) {
-    const dk = getLocalDayKey(new Date(displayYear, displayMonth, d));
+    const dayDate = new Date(displayYear, displayMonth, d);
+    if (isBeforeAccountStart(dayDate, user)) continue;
+    answerableDaysThisMonth++;
+    const dk = getLocalDayKey(dayDate);
     if (answersMap.has(dk)) capturedThisMonth++;
   }
 
@@ -2304,7 +2431,7 @@ function CalendarView({
             textAlign: "center",
           }}
         >
-          {capturedThisMonth} / {daysInMonth} vragen beantwoord deze maand
+          {t("calendar_answered_this_month", { captured: capturedThisMonth, total: answerableDaysThisMonth })}
         </p>
 
         <div
@@ -2411,7 +2538,7 @@ function CalendarView({
           >
             <button
               type="button"
-              aria-label="Sluiten"
+              aria-label={t("common_close")}
               onClick={handleCloseModal}
               style={{
                 position: "absolute",
@@ -2457,7 +2584,7 @@ function CalendarView({
                 transition: "150ms ease",
               }}
             >
-              Sluiten
+              {t("calendar_view_answer_close")}
             </button>
           </div>
         </div>
@@ -2497,7 +2624,7 @@ function CalendarView({
           >
             <button
               type="button"
-              aria-label="Sluiten"
+              aria-label={t("common_close")}
               onClick={handleCloseMissedModal}
               style={{
                 position: "absolute",
@@ -2520,10 +2647,10 @@ function CalendarView({
               ×
             </button>
             <h3 style={{ fontSize: "1.25rem", marginBottom: "0.75rem", color: COLORS.TEXT_PRIMARY }}>
-              Je hebt deze dag gemist
+              {t("missed_title")}
             </h3>
             <p style={{ fontSize: 16, lineHeight: 1.45, marginBottom: "1.5rem", color: COLORS.TEXT_SECONDARY }}>
-              Wil je die nu alsnog beantwoorden?
+              {t("missed_prompt")}
             </p>
             <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
               <button
@@ -2543,7 +2670,7 @@ function CalendarView({
                   transition: "150ms ease",
                 }}
               >
-                Nu beantwoorden
+                {t("missed_answer_now")}
               </button>
               <button
                 type="button"
@@ -2557,7 +2684,7 @@ function CalendarView({
                   cursor: "pointer",
                 }}
               >
-                Annuleren
+                {t("common_cancel")}
               </button>
             </div>
           </div>
@@ -2598,7 +2725,7 @@ function CalendarView({
           >
             <button
               type="button"
-              aria-label="Sluiten"
+              aria-label={t("common_close")}
               onClick={handleCloseMissedModal}
               style={{
                 position: "absolute",
@@ -2621,10 +2748,10 @@ function CalendarView({
               ×
             </button>
             <h3 style={{ fontSize: "1.25rem", marginBottom: "0.75rem", color: COLORS.TEXT_PRIMARY }}>
-              Deze dag is gesloten
+              {t("closed_title")}
             </h3>
             <p style={{ fontSize: 16, lineHeight: 1.45, marginBottom: "1.5rem", color: COLORS.TEXT_SECONDARY }}>
-              Je kunt alleen vragen van de afgelopen 7 dagen beantwoorden.
+              {t("closed_body")}
             </p>
             <button
               type="button"
@@ -2643,7 +2770,7 @@ function CalendarView({
                 transition: "150ms ease",
               }}
             >
-              OK
+              {t("common_ok")}
             </button>
           </div>
         </div>
@@ -2670,6 +2797,7 @@ function CalendarView({
 
 // ============ SETTINGS VIEW ============
 function SettingsView({ user }: { user: any }) {
+  const { t, lang, setLang } = useLanguage();
   const [signingOut, setSigningOut] = useState(false);
 
   const handleSignOut = async () => {
@@ -2690,14 +2818,17 @@ function SettingsView({ user }: { user: any }) {
       style={{
         padding: "24px",
         width: "100%",
+        minHeight: "100%",
+        boxSizing: "border-box",
+        background: COLORS.BACKGROUND,
       }}
     >
-      <h2 style={{ fontSize: "22px", fontWeight: 600, marginBottom: "1.5rem", color: COLORS.TEXT_PRIMARY }}>Instellingen</h2>
+      <h2 style={{ fontSize: "22px", fontWeight: 600, marginBottom: "1.5rem", color: COLORS.TEXT_PRIMARY }}>{t("settings_title")}</h2>
 
       <div style={{ marginBottom: "2rem" }}>
         {user && user.email && (
           <p style={{ fontSize: 16, color: COLORS.TEXT_SECONDARY, marginBottom: "1rem" }}>
-            Ingelogd als: {user.email}
+            {t("settings_signed_in_as")} {user.email}
           </p>
         )}
         <button
@@ -2716,18 +2847,52 @@ function SettingsView({ user }: { user: any }) {
             transition: "150ms ease",
           }}
         >
-          {signingOut ? "Bezig met uitloggen…" : "Uitloggen"}
+          {signingOut ? t("settings_signing_out") : t("settings_sign_out")}
         </button>
       </div>
 
+      <div style={{ marginBottom: "2rem" }}>
+        <p style={{ fontSize: 16, fontWeight: 600, marginBottom: "0.5rem", color: COLORS.TEXT_PRIMARY }}>{t("settings_language")}</p>
+        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+          <button
+            type="button"
+            onClick={() => setLang("en")}
+            style={{
+              padding: "0.5rem 1rem",
+              borderRadius: 999,
+              border: lang === "en" ? `2px solid ${COLORS.ACCENT}` : GLASS.BORDER,
+              background: lang === "en" ? "rgba(20,49,106,0.08)" : GLASS.BG,
+              color: COLORS.TEXT_PRIMARY,
+              fontSize: 16,
+              fontWeight: lang === "en" ? 600 : 500,
+              cursor: "pointer",
+              transition: "150ms ease",
+            }}
+          >
+            {t("settings_lang_en")}
+          </button>
+          <button
+            type="button"
+            onClick={() => setLang("nl")}
+            style={{
+              padding: "0.5rem 1rem",
+              borderRadius: 999,
+              border: lang === "nl" ? `2px solid ${COLORS.ACCENT}` : GLASS.BORDER,
+              background: lang === "nl" ? "rgba(20,49,106,0.08)" : GLASS.BG,
+              color: COLORS.TEXT_PRIMARY,
+              fontSize: 16,
+              fontWeight: lang === "nl" ? 600 : 500,
+              cursor: "pointer",
+              transition: "150ms ease",
+            }}
+          >
+            {t("settings_lang_nl")}
+          </button>
+        </div>
+      </div>
+
       <div style={{ borderTop: "1px solid rgba(28,28,30,0.1)", paddingTop: "1.5rem" }}>
-        <p style={{ fontSize: 16, marginBottom: "0.5rem", color: COLORS.TEXT_PRIMARY }}>
-          <strong>DailyQ</strong>
-        </p>
-        <p style={{ fontSize: "0.85rem", color: COLORS.TEXT_SECONDARY }}>Versie 1.2</p>
-        <p style={{ fontSize: "0.85rem", color: COLORS.TEXT_SECONDARY, marginTop: "0.5rem" }}>
-          One question a day.
-        </p>
+        <p style={{ fontSize: "0.85rem", color: COLORS.TEXT_SECONDARY }}>{t("settings_version")}</p>
         <a
           href="https://instagram.com/tjadevz"
           target="_blank"
@@ -2791,6 +2956,24 @@ function getPreviousWeekRange(today: Date): { start: string; end: string } {
     start: getLocalDayKey(lastMonday),
     end: getLocalDayKey(lastSunday),
   };
+}
+
+function getAnswerableDaysInRange(
+  startDayKey: string,
+  endDayKey: string,
+  userCreatedAt: string | undefined
+): number {
+  const createdKey = userCreatedAt ? getLocalDayKey(new Date(userCreatedAt)) : null;
+  let count = 0;
+  const start = new Date(startDayKey + "T12:00:00");
+  const end = new Date(endDayKey + "T12:00:00");
+  const cur = new Date(start);
+  while (cur <= end) {
+    const dk = getLocalDayKey(cur);
+    if (!createdKey || dk >= createdKey) count++;
+    cur.setDate(cur.getDate() + 1);
+  }
+  return count;
 }
 
 function canAnswerDate(date: Date): boolean {

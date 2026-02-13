@@ -119,7 +119,7 @@ p {
   }
 }
 
-/* Streak modal animations */
+/* Modal enter/exit animations */
 @keyframes streakEnter {
   from {
     opacity: 0;

@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable no-console */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabaseClient";
 import { getNow } from "@/utils/dateProvider";
 import { registerServiceWorker } from "./register-sw";
@@ -129,15 +129,21 @@ function Home() {
   const [calendarAnswersMap, setCalendarAnswersMap] = useState<
     Map<string, { questionText: string; answerText: string }>
   >(new Map());
-  const [currentStreak, setCurrentStreak] = useState<number>(0);
   const [recapModal, setRecapModal] = useState<{ open: boolean; count: number | null; total: number | null }>({
     open: false,
     count: null,
     total: null,
   });
   const [initialQuestionDayKey, setInitialQuestionDayKey] = useState<string | null>(null);
-  const [showStreakPopup, setShowStreakPopup] = useState(false);
-  const [streakPopupClosing, setStreakPopupClosing] = useState(false);
+  const [profile, setProfile] = useState<{
+    id: string;
+    joker_balance: number;
+    last_joker_grant_month: string | null;
+  } | null>(null);
+  const [showJokerModal, setShowJokerModal] = useState(false);
+  const jokerModalCloseRef = useRef<HTMLButtonElement>(null);
+  const grantCheckedRef = useRef(false);
+  const lastGrantUserIdRef = useRef<string | null>(null);
 
   const onCalendarUpdate = (dayKey: string, questionText: string, answerText: string) => {
     setCalendarAnswersMap((prev) => {
@@ -228,31 +234,63 @@ function Home() {
 
   const effectiveUser = getCurrentUser(user);
 
-  const loadCurrentStreak = async () => {
-    if (!effectiveUser) return;
-    if (process.env.NODE_ENV === 'development' && effectiveUser.id === 'dev-user') {
-      setCurrentStreak(0);
+  useEffect(() => {
+    if (!effectiveUser?.id) {
+      grantCheckedRef.current = false;
+      lastGrantUserIdRef.current = null;
+      setProfile(null);
       return;
     }
-    try {
-      const supabase = createSupabaseBrowserClient();
-      const today = getNow();
-      const dayKey = getLocalDayKey(today);
-      const streak = await computeStreak({ supabase, userId: effectiveUser.id, dayKey });
-      setCurrentStreak(streak);
-    } catch (e) {
-      console.error('Failed to load streak:', e);
-      setCurrentStreak(0);
+    if (effectiveUser.id === "dev-user") {
+      setProfile({ id: "dev-user", joker_balance: 2, last_joker_grant_month: null });
+      return;
     }
-  };
+    if (grantCheckedRef.current && lastGrantUserIdRef.current === effectiveUser.id) return;
+    lastGrantUserIdRef.current = effectiveUser.id;
+    grantCheckedRef.current = true;
+
+    const supabase = createSupabaseBrowserClient();
+    const run = async () => {
+      const { data: prof, error: fetchErr } = await supabase
+        .from("profiles")
+        .select("id, joker_balance, last_joker_grant_month")
+        .eq("id", effectiveUser.id)
+        .maybeSingle();
+      if (fetchErr) {
+        console.error("Profile fetch error:", fetchErr);
+        grantCheckedRef.current = false;
+        return;
+      }
+      setProfile(prof ?? null);
+      const currentMonth = getNow().toISOString().slice(0, 7);
+      const lastGrant = prof?.last_joker_grant_month ?? null;
+      if (lastGrant !== currentMonth) {
+        const { error: rpcErr } = await supabase.rpc("grant_monthly_jokers");
+        if (rpcErr) {
+          console.error("grant_monthly_jokers error:", rpcErr);
+          grantCheckedRef.current = false;
+          return;
+        }
+        const { data: refetched } = await supabase
+          .from("profiles")
+          .select("id, joker_balance, last_joker_grant_month")
+          .eq("id", effectiveUser.id)
+          .single();
+        if (refetched) setProfile(refetched);
+      }
+    };
+    run();
+  }, [effectiveUser?.id]);
 
   useEffect(() => {
-    if (effectiveUser && effectiveUser.id !== 'dev-user') {
-      loadCurrentStreak();
-    } else {
-      setCurrentStreak(0);
-    }
-  }, [effectiveUser]);
+    if (!showJokerModal) return;
+    jokerModalCloseRef.current?.focus();
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setShowJokerModal(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [showJokerModal]);
 
   if (checkingAuth) {
     return (
@@ -329,35 +367,27 @@ function Home() {
             paddingRight: "0.25rem",
           }}
         >
-          {activeTab === "today" && (
+          {(activeTab === "today" || activeTab === "calendar") && (
             <button
               type="button"
-              onClick={() => setShowStreakPopup(true)}
-              aria-label={t("aria_show_streak")}
+              onClick={() => setShowJokerModal(true)}
               style={{
-                width: 30,
-                height: 30,
-                borderRadius: "999px",
-                background: GLASS.BG,
-                backdropFilter: GLASS.BLUR,
-                border: GLASS.BORDER,
-                boxShadow: GLASS.SHADOW,
                 display: "flex",
                 alignItems: "center",
-                justifyContent: "center",
+                gap: 5,
+                fontSize: "1.0625rem",
+                fontWeight: 600,
+                color: COLORS.TEXT_PRIMARY,
+                background: "transparent",
+                border: "none",
+                padding: "0.25rem",
                 cursor: "pointer",
-                padding: 0,
               }}
+              title={t("joker_tooltip")}
+              aria-label={`Jokers: ${profile?.joker_balance ?? 0}`}
             >
-              <span
-                style={{
-                  fontSize: "0.8125rem",
-                  fontWeight: 500,
-                  color: COLORS.ACCENT,
-                }}
-              >
-                {currentStreak}
-              </span>
+              <span role="img" aria-hidden style={{ fontSize: "1.0625rem" }}>⭐</span>
+              <span>{profile?.joker_balance ?? 0}</span>
             </button>
           )}
         </div>
@@ -382,7 +412,6 @@ function Home() {
           <TodayView
           user={effectiveUser}
           onCalendarUpdate={onCalendarUpdate}
-          onStreakUpdate={setCurrentStreak}
           onAfterAnswerSaved={onAfterAnswerSaved}
           initialQuestionDayKey={initialQuestionDayKey}
           onClearInitialDay={() => setInitialQuestionDayKey(null)}
@@ -404,6 +433,17 @@ function Home() {
           answersMap={calendarAnswersMap}
           setAnswersMap={setCalendarAnswersMap}
           user={effectiveUser}
+          profile={profile}
+          onProfileRefetch={async () => {
+            if (!effectiveUser?.id || effectiveUser.id === "dev-user") return;
+            const supabase = createSupabaseBrowserClient();
+            const { data } = await supabase
+              .from("profiles")
+              .select("id, joker_balance, last_joker_grant_month")
+              .eq("id", effectiveUser.id)
+              .single();
+            if (data) setProfile(data);
+          }}
           onAnswerMissedDay={(dayKey) => {
             setInitialQuestionDayKey(dayKey);
             setActiveTab("today");
@@ -460,91 +500,6 @@ function Home() {
         />
       </nav>
 
-      {showStreakPopup && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: "rgba(0, 0, 0, 0.6)",
-            backdropFilter: "blur(4px)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "2rem",
-            zIndex: 2000,
-            animation: streakPopupClosing ? `fadeOut ${MODAL_CLOSE_MS}ms ease-out` : "fadeIn 0.2s ease-out forwards",
-          }}
-          onClick={() => {
-            if (streakPopupClosing) return;
-            setStreakPopupClosing(true);
-            setTimeout(() => {
-              setShowStreakPopup(false);
-              setStreakPopupClosing(false);
-            }, MODAL_CLOSE_MS);
-          }}
-        >
-          <div
-            style={{
-              position: "relative",
-              background: COLORS.BACKGROUND,
-              border: GLASS.BORDER,
-              boxShadow: GLASS.SHADOW,
-              borderRadius: 26,
-              padding: "3rem 2rem",
-              maxWidth: "24rem",
-              width: "100%",
-              textAlign: "center",
-              animation: streakPopupClosing ? `scaleOut ${MODAL_CLOSE_MS}ms ease-out` : "scaleIn 0.2s ease-out forwards",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              type="button"
-              aria-label={t("common_close")}
-          onClick={() => {
-            if (streakPopupClosing) return;
-                setStreakPopupClosing(true);
-                setTimeout(() => {
-                  setShowStreakPopup(false);
-                  setStreakPopupClosing(false);
-                }, MODAL_CLOSE_MS);
-              }}
-              style={{
-                position: "absolute",
-                top: "1rem",
-                right: "1rem",
-                width: 36,
-                height: 36,
-                borderRadius: "50%",
-                border: "none",
-                background: "transparent",
-                color: COLORS.TEXT_SECONDARY,
-                fontSize: "1.5rem",
-                lineHeight: 1,
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              ×
-            </button>
-            <p
-              style={{
-                fontSize: "1.25rem",
-                color: COLORS.TEXT_PRIMARY,
-                margin: 0,
-              }}
-            >
-              {t("streak_popup_title")} {currentStreak}
-            </p>
-          </div>
-        </div>
-      )}
-
       {recapModal.open && recapModal.count !== null && recapModal.total !== null && (
         <MondayRecapModal
           count={recapModal.count}
@@ -553,6 +508,94 @@ function Home() {
           onAnswerMissedDay={() => closeRecapModal(true)}
         />
       )}
+
+      {showJokerModal && (() => {
+        const balance = profile?.joker_balance ?? 0;
+        const balanceStr = String(balance);
+        const bodyText = t("joker_modal_body", { joker_balance: balanceStr });
+        const bodyParts = bodyText.split(balanceStr, 2);
+        return (
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={t("joker_modal_title")}
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(0,0,0,0.45)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "1.5rem",
+              zIndex: 2000,
+            }}
+            onClick={() => setShowJokerModal(false)}
+          >
+            <div
+              style={{
+                position: "relative",
+                background: COLORS.BACKGROUND,
+                border: GLASS.BORDER,
+                boxShadow: GLASS.SHADOW,
+                borderRadius: 20,
+                padding: "1.5rem",
+                maxWidth: "20rem",
+                width: "100%",
+                textAlign: "center",
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                ref={jokerModalCloseRef}
+                type="button"
+                aria-label={t("common_close")}
+                onClick={() => setShowJokerModal(false)}
+                style={{
+                  position: "absolute",
+                  top: "0.75rem",
+                  right: "0.75rem",
+                  width: 28,
+                  height: 28,
+                  borderRadius: "50%",
+                  border: "none",
+                  background: "transparent",
+                  color: COLORS.TEXT_SECONDARY,
+                  fontSize: "1.25rem",
+                  lineHeight: 1,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                ×
+              </button>
+              <p
+                style={{
+                  fontSize: "1rem",
+                  lineHeight: 1.5,
+                  margin: 0,
+                  color: COLORS.TEXT_PRIMARY,
+                  whiteSpace: "pre-line",
+                }}
+              >
+                {bodyParts.length >= 2 ? (
+                  <>
+                    {bodyParts[0]}
+                    <span style={{ fontWeight: 700, color: COLORS.ACCENT }}>{balanceStr}</span>
+                    {bodyParts[1]}
+                  </>
+                ) : (
+                  bodyText
+                )}
+              </p>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
@@ -882,115 +925,6 @@ function fireConfetti(): void {
   });
 }
 
-function StreakModal({ streak, onClose }: { streak: number; onClose: () => void }) {
-  const { t } = useLanguage();
-  const [isClosing, setIsClosing] = useState(false);
-  const handleClose = () => {
-    if (isClosing) return;
-    setIsClosing(true);
-    setTimeout(() => onClose(), MODAL_CLOSE_MS);
-  };
-  return (
-    <div
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: "rgba(0, 0, 0, 0.6)",
-        backdropFilter: "blur(4px)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "2rem",
-        zIndex: 2000,
-        animation: isClosing ? `fadeOut ${MODAL_CLOSE_MS}ms ease-out` : "fadeIn 0.2s ease-out forwards",
-      }}
-      onClick={handleClose}
-    >
-      <div
-        style={{
-          position: "relative",
-          background: COLORS.BACKGROUND,
-          border: GLASS.BORDER,
-          boxShadow: GLASS.SHADOW,
-          borderRadius: 26,
-          padding: "3rem 2rem",
-          maxWidth: "24rem",
-          width: "100%",
-          textAlign: "center",
-          animation: isClosing ? `scaleOut ${MODAL_CLOSE_MS}ms ease-out` : "streakEnter 0.2s ease-out forwards",
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <button
-          type="button"
-          aria-label={t("common_close")}
-          onClick={handleClose}
-          style={{
-            position: "absolute",
-            top: "1rem",
-            right: "1rem",
-            width: 36,
-            height: 36,
-            borderRadius: "50%",
-            border: "none",
-            background: "transparent",
-            color: COLORS.TEXT_SECONDARY,
-            fontSize: "1.5rem",
-            lineHeight: 1,
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          ×
-        </button>
-        <p
-          style={{
-            fontSize: "2rem",
-            fontWeight: 600,
-            marginBottom: "1.5rem",
-            color: COLORS.TEXT_PRIMARY,
-          }}
-        >
-          {t("streak_modal_yay")}
-        </p>
-        <p
-          style={{
-            fontSize: "1.25rem",
-            color: COLORS.TEXT_PRIMARY,
-            marginBottom: "2rem",
-          }}
-        >
-          {t("streak_modal_body", { count: String(streak), day: streak === 1 ? t("streak_modal_day") : t("streak_modal_days") })}
-        </p>
-        <button
-          type="button"
-          onClick={handleClose}
-          style={{
-            height: 54,
-            padding: "0 2rem",
-            borderRadius: 999,
-            border: "none",
-            background: COLORS.ACCENT,
-            color: "#FFFFFF",
-            fontSize: 16,
-            fontWeight: 600,
-            letterSpacing: "0.2px",
-            cursor: "pointer",
-            transition: "150ms ease",
-          }}
-        >
-          {t("common_close")}
-        </button>
-      </div>
-    </div>
-  );
-}
-
 // ============ MONDAY RECAP MODAL ============
 function MondayRecapModal({
   count,
@@ -1153,7 +1087,6 @@ function MondayRecapModal({
 function TodayView({
   user: effectiveUser,
   onCalendarUpdate,
-  onStreakUpdate,
   onAfterAnswerSaved,
   initialQuestionDayKey,
   onClearInitialDay,
@@ -1161,7 +1094,6 @@ function TodayView({
 }: {
   user: any;
   onCalendarUpdate: ((dayKey: string, questionText: string, answerText: string) => void) | null;
-  onStreakUpdate?: (streak: number) => void;
   onAfterAnswerSaved?: (dayKey: string) => void | Promise<void>;
   initialQuestionDayKey?: string | null;
   onClearInitialDay?: () => void;
@@ -1174,7 +1106,6 @@ function TodayView({
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [streakOverlay, setStreakOverlay] = useState<number | null>(null);
   const [offline, setOffline] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [showEditConfirmation, setShowEditConfirmation] = useState(false);
@@ -1345,7 +1276,6 @@ function TodayView({
 
     setSubmitting(true);
     setError(null);
-    setStreakOverlay(null);
 
     try {
       const today = getNow();
@@ -1401,7 +1331,6 @@ function TodayView({
           }, 2000);
         } else {
           fireConfetti();
-          setStreakOverlay(1); // Show streak modal with day 1
         }
         setDraft(''); // Clear the draft
         setIsEditMode(false); // Exit edit mode
@@ -1410,7 +1339,7 @@ function TodayView({
       } else {
         const supabase = createSupabaseBrowserClient();
         try {
-          await saveAnswerAndStreak({
+          await saveAnswer({
             supabase,
             userId: effectiveUser.id,
             questionId: question.id,
@@ -1418,9 +1347,7 @@ function TodayView({
             dayKey,
             questionText: question.text,
             setAnswer,
-            setStreakOverlay,
             onCalendarUpdate,
-            onStreakUpdate,
             isEdit: editingExisting,
             userCreatedAt: effectiveUser.created_at,
           });
@@ -1429,11 +1356,7 @@ function TodayView({
             console.warn('⚠️ Database save failed in development, simulating success');
             setAnswer({ id: 'dev-answer-id', answer_text: draft });
             if (onCalendarUpdate) onCalendarUpdate(dayKey, question.text, draft);
-            if (!editingExisting) {
-              fireConfetti();
-              setStreakOverlay(1);
-            }
-            if (onStreakUpdate) onStreakUpdate(1);
+            if (!editingExisting) fireConfetti();
           } else {
             throw dbError;
           }
@@ -1448,6 +1371,8 @@ function TodayView({
               setEditConfirmationClosing(false);
             }, MODAL_CLOSE_MS);
           }, 2000);
+        } else {
+          fireConfetti();
         }
         setDraft('');
         setIsEditMode(false);
@@ -1740,10 +1665,6 @@ function TodayView({
         )}
       </section>
 
-      {streakOverlay !== null && (
-        <StreakModal streak={streakOverlay} onClose={() => setStreakOverlay(null)} />
-      )}
-
       {showEditConfirmation && (
         <div
           style={{
@@ -1919,7 +1840,7 @@ function MissedDayAnswerModal({
         return;
       }
       const supabase = createSupabaseBrowserClient();
-      await saveAnswerAndStreak({
+      await saveAnswer({
         supabase,
         userId: user.id,
         questionId: question.id,
@@ -1927,7 +1848,6 @@ function MissedDayAnswerModal({
         dayKey,
         questionText: question.text,
         setAnswer: () => {},
-        setStreakOverlay: () => {},
         onCalendarUpdate: null,
         userCreatedAt: user.created_at,
       });
@@ -2099,11 +2019,15 @@ function CalendarView({
   answersMap,
   setAnswersMap,
   user,
+  profile,
+  onProfileRefetch,
   onAnswerMissedDay,
 }: {
   answersMap: Map<string, { questionText: string; answerText: string }>;
   setAnswersMap: React.Dispatch<React.SetStateAction<Map<string, { questionText: string; answerText: string }>>>;
   user: any;
+  profile: { id: string; joker_balance: number; last_joker_grant_month: string | null } | null;
+  onProfileRefetch: () => Promise<void>;
   onAnswerMissedDay?: (dayKey: string) => void;
 }) {
   const { t } = useLanguage();
@@ -2117,10 +2041,12 @@ function CalendarView({
     answerText: string;
   } | null>(null);
   const [closingModal, setClosingModal] = useState(false);
-  const [missedDayModal, setMissedDayModal] = useState<"missed" | "closed" | null>(null);
+  const [missedDayModal, setMissedDayModal] = useState<"missed_has_joker" | "missed_no_joker" | "closed" | null>(null);
   const [missedDayKey, setMissedDayKey] = useState<string | null>(null);
   const [selectedDateForAnswer, setSelectedDateForAnswer] = useState<string | null>(null);
   const [closingMissedModal, setClosingMissedModal] = useState(false);
+  const [useJokerLoading, setUseJokerLoading] = useState(false);
+  const [useJokerError, setUseJokerError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) {
@@ -2318,12 +2244,17 @@ function CalendarView({
     }
     if (isMissedDay(dayDate, user, false)) {
       setMissedDayKey(dayKey);
-      setMissedDayModal(canAnswerDate(dayDate) ? "missed" : "closed");
+      if (!canAnswerDate(dayDate)) {
+        setMissedDayModal("closed");
+      } else {
+        setMissedDayModal((profile?.joker_balance ?? 0) > 0 ? "missed_has_joker" : "missed_no_joker");
+      }
     }
   };
 
   const handleCloseMissedModal = () => {
     if (closingMissedModal) return;
+    setUseJokerError(null);
     setClosingMissedModal(true);
     setTimeout(() => {
       setMissedDayModal(null);
@@ -2332,18 +2263,37 @@ function CalendarView({
     }, MODAL_CLOSE_MS);
   };
 
-  const handleAnswerMissedDay = () => {
-    if (closingMissedModal || !missedDayKey) return;
-    const keyToOpen = missedDayKey;
-    setClosingMissedModal(true);
-    setTimeout(() => {
-      setMissedDayModal(null);
-      setMissedDayKey(null);
-      setClosingMissedModal(false);
-      requestAnimationFrame(() => {
-        setSelectedDateForAnswer(keyToOpen);
-      });
-    }, MODAL_CLOSE_MS);
+  const handleUseJokerConfirm = async () => {
+    if (!missedDayKey || useJokerLoading) return;
+    setUseJokerError(null);
+    setUseJokerLoading(true);
+    try {
+      const supabase = createSupabaseBrowserClient();
+      const { data, error: rpcError } = await supabase.rpc("use_joker");
+      if (rpcError) {
+        setUseJokerError(t("missed_no_jokers_left_error"));
+        setUseJokerLoading(false);
+        return;
+      }
+      if (data === true) {
+        await onProfileRefetch();
+        const keyToOpen = missedDayKey;
+        setClosingMissedModal(true);
+        setTimeout(() => {
+          setMissedDayModal(null);
+          setMissedDayKey(null);
+          setClosingMissedModal(false);
+          setUseJokerLoading(false);
+          requestAnimationFrame(() => setSelectedDateForAnswer(keyToOpen));
+        }, MODAL_CLOSE_MS);
+      } else {
+        setUseJokerError(t("missed_no_jokers_left_error"));
+        setUseJokerLoading(false);
+      }
+    } catch {
+      setUseJokerError(t("missed_no_jokers_left_error"));
+      setUseJokerLoading(false);
+    }
   };
 
   const handleCloseModal = () => {
@@ -2584,7 +2534,7 @@ function CalendarView({
         </div>
       )}
 
-      {missedDayModal === "missed" && missedDayKey && (
+      {missedDayModal === "missed_has_joker" && missedDayKey && (
         <div
           style={{
             position: "fixed",
@@ -2612,6 +2562,127 @@ function CalendarView({
               padding: "1.5rem",
               maxWidth: "28rem",
               width: "100%",
+              textAlign: "center",
+              animation: closingMissedModal ? `scaleOut ${MODAL_CLOSE_MS}ms ease-out` : "scaleIn 0.2s ease-out forwards",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              aria-label={t("common_close")}
+              onClick={handleCloseMissedModal}
+              style={{
+                position: "absolute",
+                top: "1rem",
+                right: "1rem",
+                width: 36,
+                height: 36,
+                borderRadius: "50%",
+                border: "none",
+                background: "transparent",
+                color: COLORS.TEXT_SECONDARY,
+                fontSize: "1.5rem",
+                lineHeight: 1,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              ×
+            </button>
+            <p
+              style={{
+                fontSize: "1.125rem",
+                lineHeight: 1.5,
+                marginBottom: "1.25rem",
+                marginTop: 0,
+                marginLeft: "2.5rem",
+                marginRight: "2.5rem",
+                color: COLORS.TEXT_PRIMARY,
+                fontWeight: 500,
+                whiteSpace: "pre-line",
+              }}
+            >
+              {t("missed_use_joker_message")}
+            </p>
+            {useJokerError && (
+              <p style={{ fontSize: 14, color: COLORS.ACCENT, marginBottom: "0.75rem" }}>
+                {useJokerError}
+              </p>
+            )}
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", alignItems: "center" }}>
+              <button
+                type="button"
+                onClick={handleUseJokerConfirm}
+                disabled={useJokerLoading}
+                style={{
+                  height: 54,
+                  padding: "0 1.5rem",
+                  borderRadius: 999,
+                  border: "none",
+                  background: "#facc15",
+                  color: "#000000",
+                  fontSize: 16,
+                  fontWeight: 600,
+                  letterSpacing: "0.2px",
+                  cursor: useJokerLoading ? "not-allowed" : "pointer",
+                  opacity: useJokerLoading ? 0.7 : 1,
+                  transition: "150ms ease",
+                  boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1)",
+                }}
+              >
+                {useJokerLoading ? t("loading") : t("missed_use_joker_btn")}
+              </button>
+              <button
+                type="button"
+                onClick={handleCloseMissedModal}
+                disabled={useJokerLoading}
+                style={{
+                  padding: "0.75rem",
+                  fontSize: 16,
+                  border: "none",
+                  background: "transparent",
+                  color: COLORS.TEXT_SECONDARY,
+                  cursor: "pointer",
+                }}
+              >
+                {t("common_cancel")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {missedDayModal === "missed_no_joker" && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "1.5rem",
+            zIndex: 1000,
+            animation: closingMissedModal ? `fadeOut ${MODAL_CLOSE_MS}ms ease-out` : "fadeIn 0.2s ease-out forwards",
+          }}
+          onClick={handleCloseMissedModal}
+        >
+          <div
+            style={{
+              position: "relative",
+              background: COLORS.BACKGROUND,
+              border: GLASS.BORDER,
+              boxShadow: GLASS.SHADOW,
+              borderRadius: 26,
+              padding: "1.5rem",
+              maxWidth: "28rem",
+              width: "100%",
+              textAlign: "center",
               animation: closingMissedModal ? `scaleOut ${MODAL_CLOSE_MS}ms ease-out` : "scaleIn 0.2s ease-out forwards",
             }}
             onClick={(e) => e.stopPropagation()}
@@ -2644,43 +2715,27 @@ function CalendarView({
               {t("missed_title")}
             </h3>
             <p style={{ fontSize: 16, lineHeight: 1.45, marginBottom: "1.5rem", color: COLORS.TEXT_SECONDARY }}>
-              {t("missed_prompt")}
+              {t("missed_no_jokers_body")}
             </p>
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-              <button
-                type="button"
-                onClick={handleAnswerMissedDay}
-                style={{
-                  height: 54,
-                  padding: "0 1.5rem",
-                  borderRadius: 999,
-                  border: "none",
-                  background: COLORS.ACCENT,
-                  color: "#FFFFFF",
-                  fontSize: 16,
-                  fontWeight: 600,
-                  letterSpacing: "0.2px",
-                  cursor: "pointer",
-                  transition: "150ms ease",
-                }}
-              >
-                {t("missed_answer_now")}
-              </button>
-              <button
-                type="button"
-                onClick={handleCloseMissedModal}
-                style={{
-                  padding: "0.75rem",
-                  fontSize: 16,
-                  border: "none",
-                  background: "transparent",
-                  color: COLORS.TEXT_SECONDARY,
-                  cursor: "pointer",
-                }}
-              >
-                {t("common_cancel")}
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={handleCloseMissedModal}
+              style={{
+                height: 54,
+                padding: "0 1.5rem",
+                borderRadius: 999,
+                border: "none",
+                background: COLORS.ACCENT,
+                color: "#FFFFFF",
+                fontSize: 16,
+                fontWeight: 600,
+                letterSpacing: "0.2px",
+                cursor: "pointer",
+                transition: "150ms ease",
+              }}
+            >
+              {t("common_ok")}
+            </button>
           </div>
         </div>
       )}
@@ -2713,6 +2768,7 @@ function CalendarView({
               padding: "1.5rem",
               maxWidth: "28rem",
               width: "100%",
+              textAlign: "center",
               animation: closingMissedModal ? `scaleOut ${MODAL_CLOSE_MS}ms ease-out` : "scaleIn 0.2s ease-out forwards",
             }}
             onClick={(e) => e.stopPropagation()}
@@ -2997,7 +3053,7 @@ async function fetchPreviousWeekAnswerCount(userId: string): Promise<number> {
   return (data ?? []).length;
 }
 
-async function saveAnswerAndStreak(params: {
+async function saveAnswer(params: {
   supabase: ReturnType<typeof createSupabaseBrowserClient>;
   userId: string;
   questionId: string;
@@ -3005,13 +3061,11 @@ async function saveAnswerAndStreak(params: {
   dayKey: string;
   questionText: string;
   setAnswer: (a: Answer) => void;
-  setStreakOverlay: (streak: number) => void;
   onCalendarUpdate: ((dayKey: string, questionText: string, answerText: string) => void) | null;
-  onStreakUpdate?: (streak: number) => void;
   isEdit?: boolean;
   userCreatedAt?: string;
 }) {
-  const { supabase, userId, questionId, draft, dayKey, questionText, setAnswer, setStreakOverlay, onCalendarUpdate, onStreakUpdate, isEdit, userCreatedAt } =
+  const { supabase, userId, questionId, draft, dayKey, questionText, setAnswer, onCalendarUpdate, isEdit, userCreatedAt } =
     params;
 
   const dayKeyAsDate = new Date(dayKey + "T12:00:00");
@@ -3048,69 +3102,11 @@ async function saveAnswerAndStreak(params: {
   setAnswer(upserted);
   console.log('📝 Answer saved to database:', { id: upserted.id, textLength: upserted.answer_text?.length });
 
-  // Optimistically update calendar
   if (onCalendarUpdate) {
     onCalendarUpdate(dayKey, questionText, draft);
   }
 
-  const streak = await computeStreak({ supabase, userId, dayKey });
-  
-  // Only show streak modal for new answers, not edits
   if (!isEdit) {
     fireConfetti();
-    setStreakOverlay(streak);
   }
-
-  // Update header streak
-  if (onStreakUpdate) {
-    onStreakUpdate(streak);
-  }
-}
-
-async function computeStreak(params: {
-  supabase: ReturnType<typeof createSupabaseBrowserClient>;
-  userId: string;
-  dayKey: string;
-}): Promise<number> {
-  const { supabase, userId, dayKey } = params;
-
-  const { data, error } = await supabase
-    .from("answers")
-    .select(
-      `
-      id,
-      created_at,
-      questions!answers_question_id_fkey(day)
-    `,
-    )
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false });
-
-  if (error || !data) {
-    throw error ?? new Error("Could not load answers for streak");
-  }
-
-  const uniqueDays: string[] = [];
-  for (const row of data as any[]) {
-    const question = row.questions as { day: string } | null;
-    if (!question?.day) continue;
-    const d = question.day;
-    if (!uniqueDays.includes(d)) {
-      uniqueDays.push(d);
-    }
-  }
-
-  let streak = 0;
-  let currentDate = new Date(dayKey);
-
-  for (let i = 0; i < uniqueDays.length; i++) {
-    const key = getLocalDayKey(currentDate);
-    if (!uniqueDays.includes(key)) {
-      break;
-    }
-    streak += 1;
-    currentDate.setDate(currentDate.getDate() - 1);
-  }
-
-  return streak;
 }

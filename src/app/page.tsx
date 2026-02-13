@@ -49,6 +49,8 @@ const CALENDAR = {
     "repeating-linear-gradient(135deg, rgba(28,28,30,0.03), rgba(28,28,30,0.03) 6px, rgba(28,28,30,0.015) 6px, rgba(28,28,30,0.015) 12px), rgba(28,28,30,0.03)",
 };
 
+const MODAL_CLOSE_MS = 200;
+
 function getCalendarStyle({
   hasAnswer,
   isToday,
@@ -772,6 +774,12 @@ function fireConfetti(): void {
 }
 
 function StreakModal({ streak, onClose }: { streak: number; onClose: () => void }) {
+  const [isClosing, setIsClosing] = useState(false);
+  const handleClose = () => {
+    if (isClosing) return;
+    setIsClosing(true);
+    setTimeout(() => onClose(), MODAL_CLOSE_MS);
+  };
   return (
     <div
       style={{
@@ -787,12 +795,13 @@ function StreakModal({ streak, onClose }: { streak: number; onClose: () => void 
         justifyContent: "center",
         padding: "2rem",
         zIndex: 2000,
-        animation: "fadeIn 0.2s ease-out",
+        animation: isClosing ? `fadeOut ${MODAL_CLOSE_MS}ms ease-out` : "fadeIn 0.2s ease-out forwards",
       }}
-      onClick={onClose}
+      onClick={handleClose}
     >
       <div
         style={{
+          position: "relative",
           background: COLORS.BACKGROUND,
           border: GLASS.BORDER,
           boxShadow: GLASS.SHADOW,
@@ -801,10 +810,34 @@ function StreakModal({ streak, onClose }: { streak: number; onClose: () => void 
           maxWidth: "24rem",
           width: "100%",
           textAlign: "center",
-          animation: "streakEnter 0.3s ease-out",
+          animation: isClosing ? `scaleOut ${MODAL_CLOSE_MS}ms ease-out` : "streakEnter 0.2s ease-out forwards",
         }}
         onClick={(e) => e.stopPropagation()}
       >
+        <button
+          type="button"
+          aria-label="Sluiten"
+          onClick={handleClose}
+          style={{
+            position: "absolute",
+            top: "1rem",
+            right: "1rem",
+            width: 36,
+            height: 36,
+            borderRadius: "50%",
+            border: "none",
+            background: "transparent",
+            color: COLORS.TEXT_SECONDARY,
+            fontSize: "1.5rem",
+            lineHeight: 1,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          ×
+        </button>
         <p
           style={{
             fontSize: "2rem",
@@ -826,7 +859,7 @@ function StreakModal({ streak, onClose }: { streak: number; onClose: () => void 
         </p>
         <button
           type="button"
-          onClick={onClose}
+          onClick={handleClose}
           style={{
             height: 54,
             padding: "0 2rem",
@@ -859,6 +892,12 @@ function MondayRecapModal({
   onAnswerMissedDay: () => void;
 }) {
   const isPerfect = count === 7;
+  const [isClosing, setIsClosing] = useState(false);
+  const handleClose = () => {
+    if (isClosing) return;
+    setIsClosing(true);
+    setTimeout(() => onClose(), MODAL_CLOSE_MS);
+  };
   return (
     <div
       style={{
@@ -874,12 +913,13 @@ function MondayRecapModal({
         justifyContent: "center",
         padding: "2rem",
         zIndex: 2000,
-        animation: "fadeIn 0.2s ease-out",
+        animation: isClosing ? `fadeOut ${MODAL_CLOSE_MS}ms ease-out` : "fadeIn 0.2s ease-out forwards",
       }}
-      onClick={onClose}
+      onClick={handleClose}
     >
       <div
         style={{
+          position: "relative",
           background: COLORS.BACKGROUND,
           border: GLASS.BORDER,
           boxShadow: GLASS.SHADOW,
@@ -888,10 +928,34 @@ function MondayRecapModal({
           maxWidth: "24rem",
           width: "100%",
           textAlign: "center",
-          animation: "streakEnter 0.3s ease-out",
+          animation: isClosing ? `scaleOut ${MODAL_CLOSE_MS}ms ease-out` : "streakEnter 0.2s ease-out forwards",
         }}
         onClick={(e) => e.stopPropagation()}
       >
+        <button
+          type="button"
+          aria-label="Sluiten"
+          onClick={handleClose}
+          style={{
+            position: "absolute",
+            top: "1rem",
+            right: "1rem",
+            width: 36,
+            height: 36,
+            borderRadius: "50%",
+            border: "none",
+            background: "transparent",
+            color: COLORS.TEXT_SECONDARY,
+            fontSize: "1.5rem",
+            lineHeight: 1,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          ×
+        </button>
         <p
           style={{
             fontSize: "1.25rem",
@@ -911,7 +975,7 @@ function MondayRecapModal({
           {isPerfect ? (
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               style={{
                 height: 54,
                 padding: "0 2rem",
@@ -951,7 +1015,7 @@ function MondayRecapModal({
               </button>
               <button
                 type="button"
-                onClick={onClose}
+                onClick={handleClose}
                 style={{
                   padding: "0.75rem",
                   fontSize: 16,
@@ -1000,6 +1064,15 @@ function TodayView({
   const [offline, setOffline] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [showEditConfirmation, setShowEditConfirmation] = useState(false);
+  const [editConfirmationClosing, setEditConfirmationClosing] = useState(false);
+
+  const closeEditConfirmation = () => {
+    setEditConfirmationClosing(true);
+    setTimeout(() => {
+      setShowEditConfirmation(false);
+      setEditConfirmationClosing(false);
+    }, MODAL_CLOSE_MS);
+  };
 
   useEffect(() => {
     registerServiceWorker();
@@ -1204,7 +1277,14 @@ function TodayView({
         if (onCalendarUpdate) onCalendarUpdate(dayKey, question.text, draft);
         if (editingExisting) {
           setShowEditConfirmation(true);
-          setTimeout(() => setShowEditConfirmation(false), 2000);
+          setEditConfirmationClosing(false);
+          setTimeout(() => {
+            setEditConfirmationClosing(true);
+            setTimeout(() => {
+              setShowEditConfirmation(false);
+              setEditConfirmationClosing(false);
+            }, MODAL_CLOSE_MS);
+          }, 2000);
         } else {
           fireConfetti();
           setStreakOverlay(1); // Show streak modal with day 1
@@ -1246,7 +1326,14 @@ function TodayView({
         }
         if (editingExisting) {
           setShowEditConfirmation(true);
-          setTimeout(() => setShowEditConfirmation(false), 2000);
+          setEditConfirmationClosing(false);
+          setTimeout(() => {
+            setEditConfirmationClosing(true);
+            setTimeout(() => {
+              setShowEditConfirmation(false);
+              setEditConfirmationClosing(false);
+            }, MODAL_CLOSE_MS);
+          }, 2000);
         }
         setDraft('');
         setIsEditMode(false);
@@ -1558,12 +1645,13 @@ function TodayView({
             justifyContent: "center",
             padding: "2rem",
             zIndex: 2000,
-            animation: "fadeIn 0.2s ease-out",
+            animation: editConfirmationClosing ? `fadeOut ${MODAL_CLOSE_MS}ms ease-out` : "fadeIn 0.2s ease-out forwards",
           }}
-          onClick={() => setShowEditConfirmation(false)}
+          onClick={closeEditConfirmation}
         >
           <div
             style={{
+              position: "relative",
               background: COLORS.BACKGROUND,
               border: GLASS.BORDER,
               boxShadow: GLASS.SHADOW,
@@ -1572,10 +1660,34 @@ function TodayView({
               maxWidth: "24rem",
               width: "100%",
               textAlign: "center",
-              animation: "streakEnter 0.3s ease-out",
+              animation: editConfirmationClosing ? `scaleOut ${MODAL_CLOSE_MS}ms ease-out` : "streakEnter 0.2s ease-out forwards",
             }}
             onClick={(e) => e.stopPropagation()}
           >
+            <button
+              type="button"
+              aria-label="Sluiten"
+              onClick={closeEditConfirmation}
+              style={{
+                position: "absolute",
+                top: "1rem",
+                right: "1rem",
+                width: 36,
+                height: 36,
+                borderRadius: "50%",
+                border: "none",
+                background: "transparent",
+                color: COLORS.TEXT_SECONDARY,
+                fontSize: "1.5rem",
+                lineHeight: 1,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              ×
+            </button>
             <p
               style={{
                 fontSize: "1.25rem",
@@ -1611,6 +1723,13 @@ function MissedDayAnswerModal({
   const [draft, setDraft] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isClosing, setIsClosing] = useState(false);
+
+  const handleClose = () => {
+    if (isClosing) return;
+    setIsClosing(true);
+    setTimeout(() => onClose(), MODAL_CLOSE_MS);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -1676,8 +1795,11 @@ function MissedDayAnswerModal({
         try {
           localStorage.setItem(`dev-answer-${dayKey}`, draft);
         } catch (_) {}
-        onSuccess(dayKey, question.text, draft);
-        onClose();
+        setIsClosing(true);
+        setTimeout(() => {
+          onSuccess(dayKey, question.text, draft);
+          onClose();
+        }, MODAL_CLOSE_MS);
         setSubmitting(false);
         return;
       }
@@ -1694,8 +1816,11 @@ function MissedDayAnswerModal({
         onCalendarUpdate: null,
         userCreatedAt: user.created_at,
       });
-      onSuccess(dayKey, question.text, draft);
-      onClose();
+      setIsClosing(true);
+      setTimeout(() => {
+        onSuccess(dayKey, question.text, draft);
+        onClose();
+      }, MODAL_CLOSE_MS);
     } catch (e: any) {
       setSubmitError(e?.message ?? "Opslaan mislukt.");
     } finally {
@@ -1718,7 +1843,7 @@ function MissedDayAnswerModal({
         justifyContent: "center",
         padding: "1.5rem",
         zIndex: 1100,
-        animation: "fadeIn 0.2s ease-out",
+        animation: isClosing ? `fadeOut ${MODAL_CLOSE_MS}ms ease-out` : "fadeIn 0.2s ease-out forwards",
       }}
     >
       <div
@@ -1733,14 +1858,14 @@ function MissedDayAnswerModal({
           width: "100%",
           maxHeight: "90vh",
           overflow: "auto",
-          animation: "streakEnter 0.3s ease-out",
+          animation: isClosing ? `scaleOut ${MODAL_CLOSE_MS}ms ease-out` : "streakEnter 0.2s ease-out forwards",
         }}
         onClick={(e) => e.stopPropagation()}
       >
         <button
           type="button"
           aria-label="Sluiten"
-          onClick={onClose}
+          onClick={handleClose}
           style={{
             position: "absolute",
             top: "1rem",
@@ -1770,7 +1895,7 @@ function MissedDayAnswerModal({
             <p style={{ color: COLORS.TEXT_PRIMARY, marginBottom: "1rem" }}>{error}</p>
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               style={{
                 padding: "0.5rem 1rem",
                 borderRadius: 999,
@@ -1879,6 +2004,7 @@ function CalendarView({
   const [missedDayModal, setMissedDayModal] = useState<"missed" | "closed" | null>(null);
   const [missedDayKey, setMissedDayKey] = useState<string | null>(null);
   const [selectedDateForAnswer, setSelectedDateForAnswer] = useState<string | null>(null);
+  const [closingMissedModal, setClosingMissedModal] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -2077,8 +2203,27 @@ function CalendarView({
   };
 
   const handleCloseMissedModal = () => {
-    setMissedDayModal(null);
-    setMissedDayKey(null);
+    if (closingMissedModal) return;
+    setClosingMissedModal(true);
+    setTimeout(() => {
+      setMissedDayModal(null);
+      setMissedDayKey(null);
+      setClosingMissedModal(false);
+    }, MODAL_CLOSE_MS);
+  };
+
+  const handleAnswerMissedDay = () => {
+    if (closingMissedModal || !missedDayKey) return;
+    const keyToOpen = missedDayKey;
+    setClosingMissedModal(true);
+    setTimeout(() => {
+      setMissedDayModal(null);
+      setMissedDayKey(null);
+      setClosingMissedModal(false);
+      requestAnimationFrame(() => {
+        setSelectedDateForAnswer(keyToOpen);
+      });
+    }, MODAL_CLOSE_MS);
   };
 
   const handleCloseModal = () => {
@@ -2086,7 +2231,7 @@ function CalendarView({
     setTimeout(() => {
       setSelectedDay(null);
       setClosingModal(false);
-    }, 200); // Match animation duration
+    }, MODAL_CLOSE_MS);
   };
 
   return (
@@ -2245,12 +2390,13 @@ function CalendarView({
             justifyContent: "center",
             padding: "1.5rem",
             zIndex: 1000,
-            animation: closingModal ? "fadeOut 0.2s ease-out" : "fadeIn 0.2s ease-out",
+            animation: closingModal ? `fadeOut ${MODAL_CLOSE_MS}ms ease-out` : "fadeIn 0.2s ease-out forwards",
           }}
           onClick={handleCloseModal}
         >
           <div
             style={{
+              position: "relative",
               background: COLORS.BACKGROUND,
               border: GLASS.BORDER,
               boxShadow: GLASS.SHADOW,
@@ -2260,10 +2406,35 @@ function CalendarView({
               width: "100%",
               maxHeight: "80vh",
               overflow: "auto",
-              animation: closingModal ? "scaleOut 0.2s ease-out" : "scaleIn 0.2s ease-out",
+              animation: closingModal ? `scaleOut ${MODAL_CLOSE_MS}ms ease-out` : "scaleIn 0.2s ease-out forwards",
             }}
             onClick={(e) => e.stopPropagation()}
           >
+            <button
+              type="button"
+              aria-label="Sluiten"
+              onClick={handleCloseModal}
+              style={{
+                position: "absolute",
+                top: "1rem",
+                right: "1rem",
+                width: 36,
+                height: 36,
+                borderRadius: "50%",
+                border: "none",
+                background: "transparent",
+                color: COLORS.TEXT_SECONDARY,
+                fontSize: "1.5rem",
+                lineHeight: 1,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 1,
+              }}
+            >
+              ×
+            </button>
             <h3 style={{ fontSize: "1.25rem", marginBottom: "1rem", color: COLORS.TEXT_PRIMARY }}>
               {selectedDay.questionText}
             </h3>
@@ -2307,11 +2478,13 @@ function CalendarView({
             justifyContent: "center",
             padding: "1.5rem",
             zIndex: 1000,
+            animation: closingMissedModal ? `fadeOut ${MODAL_CLOSE_MS}ms ease-out` : "fadeIn 0.2s ease-out forwards",
           }}
           onClick={handleCloseMissedModal}
         >
           <div
             style={{
+              position: "relative",
               background: COLORS.BACKGROUND,
               border: GLASS.BORDER,
               boxShadow: GLASS.SHADOW,
@@ -2319,9 +2492,34 @@ function CalendarView({
               padding: "1.5rem",
               maxWidth: "28rem",
               width: "100%",
+              animation: closingMissedModal ? `scaleOut ${MODAL_CLOSE_MS}ms ease-out` : "scaleIn 0.2s ease-out forwards",
             }}
             onClick={(e) => e.stopPropagation()}
           >
+            <button
+              type="button"
+              aria-label="Sluiten"
+              onClick={handleCloseMissedModal}
+              style={{
+                position: "absolute",
+                top: "1rem",
+                right: "1rem",
+                width: 36,
+                height: 36,
+                borderRadius: "50%",
+                border: "none",
+                background: "transparent",
+                color: COLORS.TEXT_SECONDARY,
+                fontSize: "1.5rem",
+                lineHeight: 1,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              ×
+            </button>
             <h3 style={{ fontSize: "1.25rem", marginBottom: "0.75rem", color: COLORS.TEXT_PRIMARY }}>
               Je hebt deze dag gemist
             </h3>
@@ -2331,10 +2529,7 @@ function CalendarView({
             <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
               <button
                 type="button"
-                onClick={() => {
-                  if (missedDayKey) setSelectedDateForAnswer(missedDayKey);
-                  handleCloseMissedModal();
-                }}
+                onClick={handleAnswerMissedDay}
                 style={{
                   height: 54,
                   padding: "0 1.5rem",
@@ -2384,11 +2579,13 @@ function CalendarView({
             justifyContent: "center",
             padding: "1.5rem",
             zIndex: 1000,
+            animation: closingMissedModal ? `fadeOut ${MODAL_CLOSE_MS}ms ease-out` : "fadeIn 0.2s ease-out forwards",
           }}
           onClick={handleCloseMissedModal}
         >
           <div
             style={{
+              position: "relative",
               background: COLORS.BACKGROUND,
               border: GLASS.BORDER,
               boxShadow: GLASS.SHADOW,
@@ -2396,9 +2593,34 @@ function CalendarView({
               padding: "1.5rem",
               maxWidth: "28rem",
               width: "100%",
+              animation: closingMissedModal ? `scaleOut ${MODAL_CLOSE_MS}ms ease-out` : "scaleIn 0.2s ease-out forwards",
             }}
             onClick={(e) => e.stopPropagation()}
           >
+            <button
+              type="button"
+              aria-label="Sluiten"
+              onClick={handleCloseMissedModal}
+              style={{
+                position: "absolute",
+                top: "1rem",
+                right: "1rem",
+                width: 36,
+                height: 36,
+                borderRadius: "50%",
+                border: "none",
+                background: "transparent",
+                color: COLORS.TEXT_SECONDARY,
+                fontSize: "1.5rem",
+                lineHeight: 1,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              ×
+            </button>
             <h3 style={{ fontSize: "1.25rem", marginBottom: "0.75rem", color: COLORS.TEXT_PRIMARY }}>
               Deze dag is gesloten
             </h3>

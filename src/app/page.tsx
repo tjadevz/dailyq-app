@@ -42,7 +42,7 @@ const GLASS = {
 
 const CALENDAR = {
   COMPLETED_BG: "linear-gradient(to bottom, #1C3F85, #14316A)",
-  COMPLETED_SHADOW: "0 10px 24px rgba(20,49,106,0.35), inset 0 1px 0 rgba(255,255,255,0.15)",
+  COMPLETED_SHADOW: "0 4px 10px rgba(20,49,106,0.2), inset 0 1px 0 rgba(255,255,255,0.12)",
   TODAY_RING: "0 0 0 2px rgba(20,49,106,0.18)",
   TODAY_COMPLETED_RING: "0 0 0 3px rgba(20,49,106,0.25)",
   MISSED_BG:

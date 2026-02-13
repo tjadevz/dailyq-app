@@ -40,11 +40,10 @@ const GLASS = {
 };
 
 const CALENDAR = {
-  COMPLETED_BG: "linear-gradient(to bottom, #EDF2F8, #DCE6F3)",
-  COMPLETED_SHADOW: "0 6px 16px rgba(20,49,106,0.10)",
-  COMPLETED_INSET: "inset 0 1px 0 rgba(255,255,255,0.6)",
+  COMPLETED_BG: "linear-gradient(to bottom, #1C3F85, #14316A)",
+  COMPLETED_SHADOW: "0 10px 24px rgba(20,49,106,0.35), inset 0 1px 0 rgba(255,255,255,0.15)",
   TODAY_RING: "0 0 0 2px rgba(20,49,106,0.18)",
-  TODAY_COMPLETED_RING: "0 0 0 3px rgba(20,49,106,0.18)",
+  TODAY_COMPLETED_RING: "0 0 0 3px rgba(20,49,106,0.25)",
   MISSED_BG:
     "repeating-linear-gradient(135deg, rgba(28,28,30,0.03), rgba(28,28,30,0.03) 6px, rgba(28,28,30,0.015) 6px, rgba(28,28,30,0.015) 12px), rgba(28,28,30,0.03)",
 };
@@ -75,10 +74,10 @@ function getCalendarStyle({
 
   if (hasAnswer) {
     style.background = CALENDAR.COMPLETED_BG;
-    style.color = COLORS.ACCENT;
-    style.boxShadow = `${CALENDAR.COMPLETED_SHADOW}, ${CALENDAR.COMPLETED_INSET}`;
+    style.color = "#FFFFFF";
+    style.boxShadow = CALENDAR.COMPLETED_SHADOW;
     if (isToday) {
-      style.boxShadow = `${CALENDAR.COMPLETED_SHADOW}, ${CALENDAR.COMPLETED_INSET}, ${CALENDAR.TODAY_COMPLETED_RING}`;
+      style.boxShadow = `${CALENDAR.COMPLETED_SHADOW}, ${CALENDAR.TODAY_COMPLETED_RING}`;
     }
     return style;
   }
@@ -561,18 +560,27 @@ function OnboardingScreen() {
           textAlign: "center",
           position: "relative",
           zIndex: 1,
+          background: GLASS.BG,
+          backdropFilter: GLASS.BLUR,
+          border: GLASS.BORDER,
+          boxShadow: GLASS.SHADOW,
+          borderRadius: 26,
+          padding: "2.5rem 2rem",
         }}
       >
-        <h1
-          style={{
-            color: COLORS.TEXT_PRIMARY,
-            fontSize: "1.75rem",
-            fontWeight: 600,
-            marginBottom: "3rem",
-          }}
-        >
-          DailyQ
-        </h1>
+        <div style={{ marginBottom: "3rem" }}>
+          <span
+            style={{
+              fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", sans-serif',
+              fontSize: 32,
+              letterSpacing: "0.14em",
+              color: "#3C3C3E",
+            }}
+          >
+            <span style={{ fontWeight: 400 }}>Daily</span>
+            <span style={{ fontWeight: 700, color: COLORS.ACCENT }}>Q</span>
+          </span>
+        </div>
 
         <form onSubmit={handleSubmit}>
           <input
@@ -1395,8 +1403,21 @@ function CalendarView({
       try {
         // In development with mock user, show empty calendar
         if (process.env.NODE_ENV === 'development' && user.id === 'dev-user') {
-          console.log('📅 Dev mode: Showing empty calendar (no database connection)');
-          setAnswersMap(new Map());
+          console.log('📅 Dev mode: Showing calendar with one seed completed day');
+          const yesterday = new Date();
+          yesterday.setDate(yesterday.getDate() - 1);
+          const seedKey = getLocalDayKey(yesterday);
+          setAnswersMap(
+            new Map([
+              [
+                seedKey,
+                {
+                  questionText: "Waar heb je gisteren om gelachen?",
+                  answerText: "Een voorbeeldantwoord om de voltooide dag-styling te bekijken.",
+                },
+              ],
+            ])
+          );
           setLoading(false);
           return;
         }

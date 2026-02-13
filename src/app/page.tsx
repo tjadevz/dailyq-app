@@ -145,6 +145,7 @@ function Home() {
   const [jokerModalClosing, setJokerModalClosing] = useState(false);
   const jokerModalCloseRef = useRef<HTMLButtonElement>(null);
   const jokerModalClosingRef = useRef(false);
+  const modalContainerRef = useRef<HTMLDivElement>(null);
 
   const closeJokerModal = () => {
     if (jokerModalClosingRef.current) return;
@@ -184,6 +185,7 @@ function Home() {
     setRecapModal({ open: true, count, total });
   };
 
+  const [recapClosing, setRecapClosing] = useState(false);
   const closeRecapModal = (goToCalendar?: boolean) => {
     const today = getNow();
     if (typeof window !== "undefined") {
@@ -191,6 +193,13 @@ function Home() {
     }
     setRecapModal((prev) => ({ ...prev, open: false }));
     if (goToCalendar) setActiveTab("calendar");
+  };
+  const handleRecapClose = (goToCalendar?: boolean) => {
+    setRecapClosing(true);
+    setTimeout(() => {
+      closeRecapModal(goToCalendar);
+      setRecapClosing(false);
+    }, MODAL_CLOSE_MS);
   };
 
   useEffect(() => {
@@ -328,6 +337,7 @@ function Home() {
 
   return (
     <div
+      data-app-root
       style={{
         display: "flex",
         flexDirection: "column",
@@ -338,6 +348,8 @@ function Home() {
         background: COLORS.BACKGROUND,
       }}
     >
+      {/* Modal overlay container: direct child of app root so overlay covers header + main + nav */}
+      <div ref={modalContainerRef} style={{ position: "fixed", inset: 0, zIndex: 9999, pointerEvents: "none" }} aria-hidden />
       {/* Header */}
       <header
         style={{
@@ -434,6 +446,7 @@ function Home() {
               ? () => setRecapModal({ open: true, count: 3, total: 7 })
               : undefined
           }
+          modalContainerRef={modalContainerRef}
         />
         </div>
         <div
@@ -462,6 +475,7 @@ function Home() {
             setInitialQuestionDayKey(dayKey);
             setActiveTab("today");
           }}
+          modalContainerRef={modalContainerRef}
         />
         </div>
         <div
@@ -514,55 +528,83 @@ function Home() {
         />
       </nav>
 
-      {recapModal.open &&
-        recapModal.count !== null &&
-        recapModal.total !== null &&
-        typeof document !== "undefined" &&
-        createPortal(
-          <MondayRecapModal
-            count={recapModal.count}
-            total={recapModal.total}
-            onClose={() => closeRecapModal()}
-            onAnswerMissedDay={() => closeRecapModal(true)}
-          />,
-          document.body
-        )}
+      {recapModal.open && recapModal.count !== null && recapModal.total !== null && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 9999,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "2rem",
+            boxSizing: "border-box",
+            animation: recapClosing ? `fadeOut ${MODAL_CLOSE_MS}ms ease-out` : "fadeIn 0.2s ease-out forwards",
+          }}
+        >
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              backgroundColor: "rgba(0,0,0,0.4)",
+              backdropFilter: "blur(4px)",
+            }}
+            onClick={() => handleRecapClose()}
+            aria-hidden
+          />
+          <div style={{ position: "relative", zIndex: 1 }}>
+            <MondayRecapModal
+              count={recapModal.count}
+              total={recapModal.total}
+              onClose={() => handleRecapClose()}
+              onAnswerMissedDay={() => handleRecapClose(true)}
+              isClosing={recapClosing}
+            />
+          </div>
+        </div>
+      )}
 
-      {showJokerModal &&
-        typeof document !== "undefined" &&
-        createPortal(
-          (() => {
-            const balance = profile?.joker_balance ?? 0;
-            const balanceStr = String(balance);
-            const bodyText = balance === 1
-              ? t("joker_modal_body_singular")
-              : t("joker_modal_body", { joker_balance: balanceStr });
-            const bodyParts = bodyText.split(balanceStr, 2);
-            const modalTitle = balance === 1 ? t("joker_modal_title_one") : t("joker_modal_title_many");
-            return (
-              <div
+      {showJokerModal && (() => {
+        const balance = profile?.joker_balance ?? 0;
+        const balanceStr = String(balance);
+        const bodyText = balance === 1
+          ? t("joker_modal_body_singular")
+          : t("joker_modal_body", { joker_balance: balanceStr });
+        const bodyParts = bodyText.split(balanceStr, 2);
+        const modalTitle = balance === 1 ? t("joker_modal_title_one") : t("joker_modal_title_many");
+        return (
+          <div
             role="dialog"
             aria-modal="true"
             aria-label={modalTitle}
             style={{
               position: "fixed",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: "rgba(0,0,0,0.45)",
+              inset: 0,
+              zIndex: 9999,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               padding: "1.5rem",
-              zIndex: 2000,
+              boxSizing: "border-box",
               animation: jokerModalClosing ? `fadeOut ${MODAL_CLOSE_MS}ms ease-out` : "fadeIn 0.2s ease-out forwards",
             }}
-            onClick={closeJokerModal}
           >
             <div
               style={{
+                position: "absolute",
+                inset: 0,
+                backgroundColor: "rgba(0,0,0,0.4)",
+                backdropFilter: "blur(4px)",
+              }}
+              onClick={closeJokerModal}
+              aria-hidden
+            />
+            <div
+              style={{
                 position: "relative",
+                zIndex: 1,
                 background: COLORS.BACKGROUND,
                 border: GLASS.BORDER,
                 boxShadow: GLASS.SHADOW,
@@ -620,10 +662,8 @@ function Home() {
               </p>
             </div>
           </div>
-            );
-          })(),
-          document.body
-        )}
+        );
+      })()}
     </div>
   );
 }
@@ -953,64 +993,42 @@ function fireConfetti(): void {
   });
 }
 
-// ============ MONDAY RECAP MODAL ============
+// ============ MONDAY RECAP MODAL (card only; overlay wrapper is in Home) ============
 function MondayRecapModal({
   count,
   total,
   onClose,
   onAnswerMissedDay,
+  isClosing,
 }: {
   count: number;
   total: number;
   onClose: () => void;
   onAnswerMissedDay: () => void;
+  isClosing?: boolean;
 }) {
   const { t } = useLanguage();
   const isPerfect = total > 0 && count === total;
-  const [isClosing, setIsClosing] = useState(false);
-  const handleClose = () => {
-    if (isClosing) return;
-    setIsClosing(true);
-    setTimeout(() => onClose(), MODAL_CLOSE_MS);
-  };
   return (
     <div
       style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: "rgba(0, 0, 0, 0.6)",
-        backdropFilter: "blur(4px)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "2rem",
-        zIndex: 2000,
-        animation: isClosing ? `fadeOut ${MODAL_CLOSE_MS}ms ease-out` : "fadeIn 0.2s ease-out forwards",
+        position: "relative",
+        background: COLORS.BACKGROUND,
+        border: GLASS.BORDER,
+        boxShadow: GLASS.SHADOW,
+        borderRadius: 26,
+        padding: "3rem 2rem",
+        maxWidth: "24rem",
+        width: "100%",
+        textAlign: "center",
+        animation: isClosing ? "none" : "streakEnter 0.2s ease-out forwards",
       }}
-      onClick={handleClose}
+      onClick={(e) => e.stopPropagation()}
     >
-      <div
-        style={{
-          position: "relative",
-          background: COLORS.BACKGROUND,
-          border: GLASS.BORDER,
-          boxShadow: GLASS.SHADOW,
-          borderRadius: 26,
-          padding: "3rem 2rem",
-          maxWidth: "24rem",
-          width: "100%",
-          textAlign: "center",
-          animation: isClosing ? "none" : "streakEnter 0.2s ease-out forwards",
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
         <button
           type="button"
           aria-label={t("common_close")}
-          onClick={handleClose}
+          onClick={onClose}
           style={{
             position: "absolute",
             top: "1rem",
@@ -1050,7 +1068,7 @@ function MondayRecapModal({
           {isPerfect ? (
             <button
               type="button"
-              onClick={handleClose}
+              onClick={onClose}
               style={{
                 height: 54,
                 padding: "0 2rem",
@@ -1090,7 +1108,7 @@ function MondayRecapModal({
               </button>
               <button
                 type="button"
-                onClick={handleClose}
+                onClick={onClose}
                 style={{
                   padding: "0.75rem",
                   fontSize: 16,
@@ -1106,7 +1124,6 @@ function MondayRecapModal({
             </>
           )}
         </div>
-      </div>
     </div>
   );
 }
@@ -1119,6 +1136,7 @@ function TodayView({
   initialQuestionDayKey,
   onClearInitialDay,
   onShowRecapTest,
+  modalContainerRef,
 }: {
   user: any;
   onCalendarUpdate: ((dayKey: string, questionText: string, answerText: string) => void) | null;
@@ -1126,6 +1144,7 @@ function TodayView({
   initialQuestionDayKey?: string | null;
   onClearInitialDay?: () => void;
   onShowRecapTest?: () => void;
+  modalContainerRef?: React.RefObject<HTMLDivElement | null>;
 }) {
   const { t } = useLanguage();
   const [loading, setLoading] = useState(true);
@@ -1700,17 +1719,14 @@ function TodayView({
           <div
             style={{
               position: "fixed",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: "rgba(0, 0, 0, 0.6)",
+              inset: 0,
+              backgroundColor: "rgba(0, 0, 0, 0.4)",
               backdropFilter: "blur(4px)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               padding: "2rem",
-              zIndex: 2000,
+              pointerEvents: "auto",
               animation: editConfirmationClosing ? `fadeOut ${MODAL_CLOSE_MS}ms ease-out` : "fadeIn 0.2s ease-out forwards",
             }}
             onClick={closeEditConfirmation}
@@ -1766,7 +1782,7 @@ animation: editConfirmationClosing ? "none" : "streakEnter 0.2s ease-out forward
               </p>
             </div>
           </div>,
-          document.body
+          modalContainerRef?.current ?? document.body
         )}
     </div>
   );
@@ -1899,17 +1915,14 @@ function MissedDayAnswerModal({
     <div
       style={{
         position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: "rgba(0, 0, 0, 0.6)",
+        inset: 0,
+        backgroundColor: "rgba(0, 0, 0, 0.4)",
         backdropFilter: "blur(6px)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         padding: "1.5rem",
-        zIndex: 1100,
+        pointerEvents: "auto",
         animation: isClosing ? `fadeOut ${MODAL_CLOSE_MS}ms ease-out` : "fadeIn 0.2s ease-out forwards",
       }}
     >
@@ -2054,6 +2067,7 @@ function CalendarView({
   profile,
   onProfileRefetch,
   onAnswerMissedDay,
+  modalContainerRef,
 }: {
   answersMap: Map<string, { questionText: string; answerText: string }>;
   setAnswersMap: React.Dispatch<React.SetStateAction<Map<string, { questionText: string; answerText: string }>>>;
@@ -2061,6 +2075,7 @@ function CalendarView({
   profile: { id: string; joker_balance: number; last_joker_grant_month: string | null } | null;
   onProfileRefetch: () => Promise<void>;
   onAnswerMissedDay?: (dayKey: string) => void;
+  modalContainerRef?: React.RefObject<HTMLDivElement | null>;
 }) {
   const { t } = useLanguage();
   const [loading, setLoading] = useState(true);
@@ -2489,16 +2504,14 @@ function CalendarView({
           <div
             style={{
               position: "fixed",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: "rgba(0,0,0,0.5)",
+              inset: 0,
+              backgroundColor: "rgba(0,0,0,0.4)",
+              backdropFilter: "blur(4px)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               padding: "1.5rem",
-              zIndex: 1000,
+              pointerEvents: "auto",
               animation: closingModal ? `fadeOut ${MODAL_CLOSE_MS}ms ease-out` : "fadeIn 0.2s ease-out forwards",
             }}
             onClick={handleCloseModal}
@@ -2571,7 +2584,7 @@ animation: closingModal ? "none" : "scaleIn 0.2s ease-out forwards",
               </button>
             </div>
           </div>,
-          document.body
+          modalContainerRef?.current ?? document.body
         )}
 
       {missedDayModal === "missed_has_joker" &&
@@ -2581,16 +2594,14 @@ animation: closingModal ? "none" : "scaleIn 0.2s ease-out forwards",
           <div
             style={{
               position: "fixed",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: "rgba(0,0,0,0.5)",
+              inset: 0,
+              backgroundColor: "rgba(0,0,0,0.4)",
+              backdropFilter: "blur(4px)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               padding: "1.5rem",
-              zIndex: 1000,
+              pointerEvents: "auto",
               animation: closingMissedModal ? `fadeOut ${MODAL_CLOSE_MS}ms ease-out` : "fadeIn 0.2s ease-out forwards",
             }}
             onClick={handleCloseMissedModal}
@@ -2695,7 +2706,7 @@ animation: closingMissedModal ? "none" : "scaleIn 0.2s ease-out forwards",
               </div>
             </div>
           </div>,
-          document.body
+          modalContainerRef?.current ?? document.body
         )}
 
       {missedDayModal === "missed_no_joker" &&
@@ -2704,16 +2715,14 @@ animation: closingMissedModal ? "none" : "scaleIn 0.2s ease-out forwards",
           <div
             style={{
               position: "fixed",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: "rgba(0,0,0,0.5)",
+              inset: 0,
+              backgroundColor: "rgba(0,0,0,0.4)",
+              backdropFilter: "blur(4px)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               padding: "1.5rem",
-              zIndex: 1000,
+              pointerEvents: "auto",
               animation: closingMissedModal ? `fadeOut ${MODAL_CLOSE_MS}ms ease-out` : "fadeIn 0.2s ease-out forwards",
             }}
             onClick={handleCloseMissedModal}
@@ -2784,7 +2793,7 @@ animation: closingMissedModal ? "none" : "scaleIn 0.2s ease-out forwards",
               </button>
             </div>
           </div>,
-          document.body
+          modalContainerRef?.current ?? document.body
         )}
 
       {missedDayModal === "closed" &&
@@ -2793,16 +2802,14 @@ animation: closingMissedModal ? "none" : "scaleIn 0.2s ease-out forwards",
           <div
             style={{
               position: "fixed",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: "rgba(0,0,0,0.5)",
+              inset: 0,
+              backgroundColor: "rgba(0,0,0,0.4)",
+              backdropFilter: "blur(4px)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               padding: "1.5rem",
-              zIndex: 1000,
+              pointerEvents: "auto",
               animation: closingMissedModal ? `fadeOut ${MODAL_CLOSE_MS}ms ease-out` : "fadeIn 0.2s ease-out forwards",
             }}
             onClick={handleCloseMissedModal}
@@ -2873,7 +2880,7 @@ animation: closingMissedModal ? "none" : "scaleIn 0.2s ease-out forwards",
               </button>
             </div>
           </div>,
-          document.body
+          modalContainerRef?.current ?? document.body
         )}
 
       {selectedDateForAnswer &&
@@ -2893,7 +2900,7 @@ animation: closingMissedModal ? "none" : "scaleIn 0.2s ease-out forwards",
               setSelectedDateForAnswer(null);
             }}
           />,
-          document.body
+          modalContainerRef?.current ?? document.body
         )}
     </div>
   );

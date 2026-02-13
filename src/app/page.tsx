@@ -2,6 +2,7 @@
 /* eslint-disable no-console */
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { createSupabaseBrowserClient } from "@/lib/supabaseClient";
 import { getNow } from "@/utils/dateProvider";
 import { registerServiceWorker } from "./register-sw";
@@ -500,25 +501,36 @@ function Home() {
         />
       </nav>
 
-      {recapModal.open && recapModal.count !== null && recapModal.total !== null && (
-        <MondayRecapModal
-          count={recapModal.count}
-          total={recapModal.total}
-          onClose={() => closeRecapModal()}
-          onAnswerMissedDay={() => closeRecapModal(true)}
-        />
-      )}
+      {recapModal.open &&
+        recapModal.count !== null &&
+        recapModal.total !== null &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <MondayRecapModal
+            count={recapModal.count}
+            total={recapModal.total}
+            onClose={() => closeRecapModal()}
+            onAnswerMissedDay={() => closeRecapModal(true)}
+          />,
+          document.body
+        )}
 
-      {showJokerModal && (() => {
-        const balance = profile?.joker_balance ?? 0;
-        const balanceStr = String(balance);
-        const bodyText = t("joker_modal_body", { joker_balance: balanceStr });
-        const bodyParts = bodyText.split(balanceStr, 2);
-        return (
-          <div
+      {showJokerModal &&
+        typeof document !== "undefined" &&
+        createPortal(
+          (() => {
+            const balance = profile?.joker_balance ?? 0;
+            const balanceStr = String(balance);
+            const bodyText = balance === 1
+              ? t("joker_modal_body_singular")
+              : t("joker_modal_body", { joker_balance: balanceStr });
+            const bodyParts = bodyText.split(balanceStr, 2);
+            const modalTitle = balance === 1 ? t("joker_modal_title_one") : t("joker_modal_title_many");
+            return (
+              <div
             role="dialog"
             aria-modal="true"
-            aria-label={t("joker_modal_title")}
+            aria-label={modalTitle}
             style={{
               position: "fixed",
               top: 0,
@@ -594,8 +606,10 @@ function Home() {
               </p>
             </div>
           </div>
-        );
-      })()}
+            );
+          })(),
+          document.body
+        )}
     </div>
   );
 }
@@ -1666,77 +1680,80 @@ function TodayView({
         )}
       </section>
 
-      {showEditConfirmation && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: "rgba(0, 0, 0, 0.6)",
-            backdropFilter: "blur(4px)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "2rem",
-            zIndex: 2000,
-            animation: editConfirmationClosing ? `fadeOut ${MODAL_CLOSE_MS}ms ease-out` : "fadeIn 0.2s ease-out forwards",
-          }}
-          onClick={closeEditConfirmation}
-        >
+      {showEditConfirmation &&
+        typeof document !== "undefined" &&
+        createPortal(
           <div
             style={{
-              position: "relative",
-              background: COLORS.BACKGROUND,
-              border: GLASS.BORDER,
-              boxShadow: GLASS.SHADOW,
-              borderRadius: 26,
-              padding: "3rem 2rem",
-              maxWidth: "24rem",
-              width: "100%",
-              textAlign: "center",
-              animation: editConfirmationClosing ? `scaleOut ${MODAL_CLOSE_MS}ms ease-out` : "streakEnter 0.2s ease-out forwards",
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(0, 0, 0, 0.6)",
+              backdropFilter: "blur(4px)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "2rem",
+              zIndex: 2000,
+              animation: editConfirmationClosing ? `fadeOut ${MODAL_CLOSE_MS}ms ease-out` : "fadeIn 0.2s ease-out forwards",
             }}
-            onClick={(e) => e.stopPropagation()}
+            onClick={closeEditConfirmation}
           >
-            <button
-              type="button"
-              aria-label={t("common_close")}
-              onClick={closeEditConfirmation}
+            <div
               style={{
-                position: "absolute",
-                top: "1rem",
-                right: "1rem",
-                width: 36,
-                height: 36,
-                borderRadius: "50%",
-                border: "none",
-                background: "transparent",
-                color: COLORS.TEXT_SECONDARY,
-                fontSize: "1.5rem",
-                lineHeight: 1,
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
+                position: "relative",
+                background: COLORS.BACKGROUND,
+                border: GLASS.BORDER,
+                boxShadow: GLASS.SHADOW,
+                borderRadius: 26,
+                padding: "3rem 2rem",
+                maxWidth: "24rem",
+                width: "100%",
+                textAlign: "center",
+                animation: editConfirmationClosing ? `scaleOut ${MODAL_CLOSE_MS}ms ease-out` : "streakEnter 0.2s ease-out forwards",
               }}
+              onClick={(e) => e.stopPropagation()}
             >
-              ×
-            </button>
-            <p
-              style={{
-                fontSize: "1.25rem",
-                fontWeight: 600,
-                color: COLORS.TEXT_PRIMARY,
-                margin: 0,
-              }}
-            >
-              {t("today_answer_changed")}
-            </p>
-          </div>
-        </div>
-      )}
+              <button
+                type="button"
+                aria-label={t("common_close")}
+                onClick={closeEditConfirmation}
+                style={{
+                  position: "absolute",
+                  top: "1rem",
+                  right: "1rem",
+                  width: 36,
+                  height: 36,
+                  borderRadius: "50%",
+                  border: "none",
+                  background: "transparent",
+                  color: COLORS.TEXT_SECONDARY,
+                  fontSize: "1.5rem",
+                  lineHeight: 1,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                ×
+              </button>
+              <p
+                style={{
+                  fontSize: "1.25rem",
+                  fontWeight: 600,
+                  color: COLORS.TEXT_PRIMARY,
+                  margin: 0,
+                }}
+              >
+                {t("today_answer_changed")}
+              </p>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 }
@@ -2048,15 +2065,18 @@ function CalendarView({
   const [closingMissedModal, setClosingMissedModal] = useState(false);
   const [useJokerLoading, setUseJokerLoading] = useState(false);
   const [useJokerError, setUseJokerError] = useState<string | null>(null);
+  const calendarInitialLoadDoneRef = useRef(false);
 
   useEffect(() => {
     if (!user) {
       setLoading(false);
+      calendarInitialLoadDoneRef.current = false;
       return;
     }
 
     const fetchAnswers = async () => {
-      setLoading(true);
+      const isInitialLoad = !calendarInitialLoadDoneRef.current;
+      if (isInitialLoad) setLoading(true);
       setError(null);
       try {
         // In development with mock user, show empty calendar
@@ -2076,6 +2096,7 @@ function CalendarView({
               ],
             ])
           );
+          calendarInitialLoadDoneRef.current = true;
           setLoading(false);
           return;
         }
@@ -2113,11 +2134,12 @@ function CalendarView({
           for (const [k, v] of map) merged.set(k, v);
           return merged;
         });
+        calendarInitialLoadDoneRef.current = true;
       } catch (e) {
         setError("calendar_error_load");
         console.error(e);
       } finally {
-        setLoading(false);
+        if (isInitialLoad) setLoading(false);
       }
     };
 
@@ -2447,401 +2469,418 @@ function CalendarView({
         </div>
       </div>
 
-      {selectedDay && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: "rgba(0,0,0,0.5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "1.5rem",
-            zIndex: 1000,
-            animation: closingModal ? `fadeOut ${MODAL_CLOSE_MS}ms ease-out` : "fadeIn 0.2s ease-out forwards",
-          }}
-          onClick={handleCloseModal}
-        >
+      {selectedDay &&
+        typeof document !== "undefined" &&
+        createPortal(
           <div
             style={{
-              position: "relative",
-              background: COLORS.BACKGROUND,
-              border: GLASS.BORDER,
-              boxShadow: GLASS.SHADOW,
-              borderRadius: 26,
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(0,0,0,0.5)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
               padding: "1.5rem",
-              maxWidth: "28rem",
-              width: "100%",
-              maxHeight: "80vh",
-              overflow: "auto",
-              animation: closingModal ? `scaleOut ${MODAL_CLOSE_MS}ms ease-out` : "scaleIn 0.2s ease-out forwards",
+              zIndex: 1000,
+              animation: closingModal ? `fadeOut ${MODAL_CLOSE_MS}ms ease-out` : "fadeIn 0.2s ease-out forwards",
             }}
-            onClick={(e) => e.stopPropagation()}
+            onClick={handleCloseModal}
           >
-            <button
-              type="button"
-              aria-label={t("common_close")}
-              onClick={handleCloseModal}
+            <div
               style={{
-                position: "absolute",
-                top: "1rem",
-                right: "1rem",
-                width: 36,
-                height: 36,
-                borderRadius: "50%",
-                border: "none",
-                background: "transparent",
-                color: COLORS.TEXT_SECONDARY,
-                fontSize: "1.5rem",
-                lineHeight: 1,
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                zIndex: 1,
+                position: "relative",
+                background: COLORS.BACKGROUND,
+                border: GLASS.BORDER,
+                boxShadow: GLASS.SHADOW,
+                borderRadius: 26,
+                padding: "1.5rem",
+                maxWidth: "28rem",
+                width: "100%",
+                maxHeight: "80vh",
+                overflow: "auto",
+                animation: closingModal ? `scaleOut ${MODAL_CLOSE_MS}ms ease-out` : "scaleIn 0.2s ease-out forwards",
               }}
+              onClick={(e) => e.stopPropagation()}
             >
-              ×
-            </button>
-            <h3 style={{ fontSize: "1.25rem", marginBottom: "1rem", color: COLORS.TEXT_PRIMARY }}>
-              {selectedDay.questionText}
-            </h3>
-            <p style={{ fontSize: 16, lineHeight: 1.45, marginBottom: "1.5rem", color: COLORS.TEXT_PRIMARY }}>
-              {selectedDay.answerText}
-            </p>
-            <button
-              type="button"
-              onClick={handleCloseModal}
-              style={{
-                height: 54,
-                padding: "0 1.5rem",
-                borderRadius: 999,
-                border: "none",
-                background: COLORS.ACCENT,
-                color: "#FFFFFF",
-                fontSize: 16,
-                fontWeight: 600,
-                letterSpacing: "0.2px",
-                cursor: "pointer",
-                transition: "150ms ease",
-              }}
-            >
-              {t("calendar_view_answer_close")}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {missedDayModal === "missed_has_joker" && missedDayKey && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: "rgba(0,0,0,0.5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "1.5rem",
-            zIndex: 1000,
-            animation: closingMissedModal ? `fadeOut ${MODAL_CLOSE_MS}ms ease-out` : "fadeIn 0.2s ease-out forwards",
-          }}
-          onClick={handleCloseMissedModal}
-        >
-          <div
-            style={{
-              position: "relative",
-              background: COLORS.BACKGROUND,
-              border: GLASS.BORDER,
-              boxShadow: GLASS.SHADOW,
-              borderRadius: 26,
-              padding: "1.5rem",
-              maxWidth: "28rem",
-              width: "100%",
-              textAlign: "center",
-              animation: closingMissedModal ? `scaleOut ${MODAL_CLOSE_MS}ms ease-out` : "scaleIn 0.2s ease-out forwards",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              type="button"
-              aria-label={t("common_close")}
-              onClick={handleCloseMissedModal}
-              style={{
-                position: "absolute",
-                top: "1rem",
-                right: "1rem",
-                width: 36,
-                height: 36,
-                borderRadius: "50%",
-                border: "none",
-                background: "transparent",
-                color: COLORS.TEXT_SECONDARY,
-                fontSize: "1.5rem",
-                lineHeight: 1,
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              ×
-            </button>
-            <p
-              style={{
-                fontSize: "1.125rem",
-                lineHeight: 1.5,
-                marginBottom: "1.25rem",
-                marginTop: 0,
-                marginLeft: "2.5rem",
-                marginRight: "2.5rem",
-                color: COLORS.TEXT_PRIMARY,
-                fontWeight: 500,
-                whiteSpace: "pre-line",
-              }}
-            >
-              {t("missed_use_joker_message")}
-            </p>
-            {useJokerError && (
-              <p style={{ fontSize: 14, color: COLORS.ACCENT, marginBottom: "0.75rem" }}>
-                {useJokerError}
-              </p>
-            )}
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", alignItems: "center" }}>
               <button
                 type="button"
-                onClick={handleUseJokerConfirm}
-                disabled={useJokerLoading}
+                aria-label={t("common_close")}
+                onClick={handleCloseModal}
+                style={{
+                  position: "absolute",
+                  top: "1rem",
+                  right: "1rem",
+                  width: 36,
+                  height: 36,
+                  borderRadius: "50%",
+                  border: "none",
+                  background: "transparent",
+                  color: COLORS.TEXT_SECONDARY,
+                  fontSize: "1.5rem",
+                  lineHeight: 1,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  zIndex: 1,
+                }}
+              >
+                ×
+              </button>
+              <h3 style={{ fontSize: "1.25rem", marginBottom: "1rem", color: COLORS.TEXT_PRIMARY }}>
+                {selectedDay.questionText}
+              </h3>
+              <p style={{ fontSize: 16, lineHeight: 1.45, marginBottom: "1.5rem", color: COLORS.TEXT_PRIMARY }}>
+                {selectedDay.answerText}
+              </p>
+              <button
+                type="button"
+                onClick={handleCloseModal}
                 style={{
                   height: 54,
                   padding: "0 1.5rem",
                   borderRadius: 999,
                   border: "none",
-                  background: "#facc15",
-                  color: "#000000",
+                  background: COLORS.ACCENT,
+                  color: "#FFFFFF",
                   fontSize: 16,
                   fontWeight: 600,
                   letterSpacing: "0.2px",
-                  cursor: useJokerLoading ? "not-allowed" : "pointer",
-                  opacity: useJokerLoading ? 0.7 : 1,
+                  cursor: "pointer",
                   transition: "150ms ease",
-                  boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1)",
                 }}
               >
-                {useJokerLoading ? t("loading") : t("missed_use_joker_btn")}
+                {t("calendar_view_answer_close")}
               </button>
+            </div>
+          </div>,
+          document.body
+        )}
+
+      {missedDayModal === "missed_has_joker" &&
+        missedDayKey &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(0,0,0,0.5)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "1.5rem",
+              zIndex: 1000,
+              animation: closingMissedModal ? `fadeOut ${MODAL_CLOSE_MS}ms ease-out` : "fadeIn 0.2s ease-out forwards",
+            }}
+            onClick={handleCloseMissedModal}
+          >
+            <div
+              style={{
+                position: "relative",
+                background: COLORS.BACKGROUND,
+                border: GLASS.BORDER,
+                boxShadow: GLASS.SHADOW,
+                borderRadius: 26,
+                padding: "1.5rem",
+                maxWidth: "28rem",
+                width: "100%",
+                textAlign: "center",
+                animation: closingMissedModal ? `scaleOut ${MODAL_CLOSE_MS}ms ease-out` : "scaleIn 0.2s ease-out forwards",
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
               <button
                 type="button"
+                aria-label={t("common_close")}
                 onClick={handleCloseMissedModal}
-                disabled={useJokerLoading}
                 style={{
-                  padding: "0.75rem",
-                  fontSize: 16,
+                  position: "absolute",
+                  top: "1rem",
+                  right: "1rem",
+                  width: 36,
+                  height: 36,
+                  borderRadius: "50%",
                   border: "none",
                   background: "transparent",
                   color: COLORS.TEXT_SECONDARY,
+                  fontSize: "1.5rem",
+                  lineHeight: 1,
                   cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
                 }}
               >
-                {t("common_cancel")}
+                ×
+              </button>
+              <p
+                style={{
+                  fontSize: "1.125rem",
+                  lineHeight: 1.5,
+                  marginBottom: "1.25rem",
+                  marginTop: 0,
+                  marginLeft: "2.5rem",
+                  marginRight: "2.5rem",
+                  color: COLORS.TEXT_PRIMARY,
+                  fontWeight: 500,
+                  whiteSpace: "pre-line",
+                }}
+              >
+                {t("missed_use_joker_message")}
+              </p>
+              {useJokerError && (
+                <p style={{ fontSize: 14, color: COLORS.ACCENT, marginBottom: "0.75rem" }}>
+                  {useJokerError}
+                </p>
+              )}
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", alignItems: "center" }}>
+                <button
+                  type="button"
+                  onClick={handleUseJokerConfirm}
+                  disabled={useJokerLoading}
+                  style={{
+                    height: 54,
+                    padding: "0 1.5rem",
+                    borderRadius: 999,
+                    border: "none",
+                    background: "#facc15",
+                    color: "#000000",
+                    fontSize: 16,
+                    fontWeight: 600,
+                    letterSpacing: "0.2px",
+                    cursor: useJokerLoading ? "not-allowed" : "pointer",
+                    opacity: useJokerLoading ? 0.7 : 1,
+                    transition: "150ms ease",
+                    boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1)",
+                  }}
+                >
+                  {useJokerLoading ? t("loading") : t("missed_use_joker_btn")}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCloseMissedModal}
+                  disabled={useJokerLoading}
+                  style={{
+                    padding: "0.75rem",
+                    fontSize: 16,
+                    border: "none",
+                    background: "transparent",
+                    color: COLORS.TEXT_SECONDARY,
+                    cursor: "pointer",
+                  }}
+                >
+                  {t("common_cancel")}
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+
+      {missedDayModal === "missed_no_joker" &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(0,0,0,0.5)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "1.5rem",
+              zIndex: 1000,
+              animation: closingMissedModal ? `fadeOut ${MODAL_CLOSE_MS}ms ease-out` : "fadeIn 0.2s ease-out forwards",
+            }}
+            onClick={handleCloseMissedModal}
+          >
+            <div
+              style={{
+                position: "relative",
+                background: COLORS.BACKGROUND,
+                border: GLASS.BORDER,
+                boxShadow: GLASS.SHADOW,
+                borderRadius: 26,
+                padding: "1.5rem",
+                maxWidth: "28rem",
+                width: "100%",
+                textAlign: "center",
+                animation: closingMissedModal ? `scaleOut ${MODAL_CLOSE_MS}ms ease-out` : "scaleIn 0.2s ease-out forwards",
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                aria-label={t("common_close")}
+                onClick={handleCloseMissedModal}
+                style={{
+                  position: "absolute",
+                  top: "1rem",
+                  right: "1rem",
+                  width: 36,
+                  height: 36,
+                  borderRadius: "50%",
+                  border: "none",
+                  background: "transparent",
+                  color: COLORS.TEXT_SECONDARY,
+                  fontSize: "1.5rem",
+                  lineHeight: 1,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                ×
+              </button>
+              <h3 style={{ fontSize: "1.25rem", marginBottom: "0.75rem", color: COLORS.TEXT_PRIMARY }}>
+                {t("missed_title")}
+              </h3>
+              <p style={{ fontSize: 16, lineHeight: 1.45, marginBottom: "1.5rem", color: COLORS.TEXT_SECONDARY }}>
+                {t("missed_no_jokers_body")}
+              </p>
+              <button
+                type="button"
+                onClick={handleCloseMissedModal}
+                style={{
+                  height: 54,
+                  padding: "0 1.5rem",
+                  borderRadius: 999,
+                  border: "none",
+                  background: COLORS.ACCENT,
+                  color: "#FFFFFF",
+                  fontSize: 16,
+                  fontWeight: 600,
+                  letterSpacing: "0.2px",
+                  cursor: "pointer",
+                  transition: "150ms ease",
+                }}
+              >
+                {t("common_ok")}
               </button>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
 
-      {missedDayModal === "missed_no_joker" && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: "rgba(0,0,0,0.5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "1.5rem",
-            zIndex: 1000,
-            animation: closingMissedModal ? `fadeOut ${MODAL_CLOSE_MS}ms ease-out` : "fadeIn 0.2s ease-out forwards",
-          }}
-          onClick={handleCloseMissedModal}
-        >
+      {missedDayModal === "closed" &&
+        typeof document !== "undefined" &&
+        createPortal(
           <div
             style={{
-              position: "relative",
-              background: COLORS.BACKGROUND,
-              border: GLASS.BORDER,
-              boxShadow: GLASS.SHADOW,
-              borderRadius: 26,
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(0,0,0,0.5)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
               padding: "1.5rem",
-              maxWidth: "28rem",
-              width: "100%",
-              textAlign: "center",
-              animation: closingMissedModal ? `scaleOut ${MODAL_CLOSE_MS}ms ease-out` : "scaleIn 0.2s ease-out forwards",
+              zIndex: 1000,
+              animation: closingMissedModal ? `fadeOut ${MODAL_CLOSE_MS}ms ease-out` : "fadeIn 0.2s ease-out forwards",
             }}
-            onClick={(e) => e.stopPropagation()}
+            onClick={handleCloseMissedModal}
           >
-            <button
-              type="button"
-              aria-label={t("common_close")}
-              onClick={handleCloseMissedModal}
+            <div
               style={{
-                position: "absolute",
-                top: "1rem",
-                right: "1rem",
-                width: 36,
-                height: 36,
-                borderRadius: "50%",
-                border: "none",
-                background: "transparent",
-                color: COLORS.TEXT_SECONDARY,
-                fontSize: "1.5rem",
-                lineHeight: 1,
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
+                position: "relative",
+                background: COLORS.BACKGROUND,
+                border: GLASS.BORDER,
+                boxShadow: GLASS.SHADOW,
+                borderRadius: 26,
+                padding: "1.5rem",
+                maxWidth: "28rem",
+                width: "100%",
+                textAlign: "center",
+                animation: closingMissedModal ? `scaleOut ${MODAL_CLOSE_MS}ms ease-out` : "scaleIn 0.2s ease-out forwards",
               }}
+              onClick={(e) => e.stopPropagation()}
             >
-              ×
-            </button>
-            <h3 style={{ fontSize: "1.25rem", marginBottom: "0.75rem", color: COLORS.TEXT_PRIMARY }}>
-              {t("missed_title")}
-            </h3>
-            <p style={{ fontSize: 16, lineHeight: 1.45, marginBottom: "1.5rem", color: COLORS.TEXT_SECONDARY }}>
-              {t("missed_no_jokers_body")}
-            </p>
-            <button
-              type="button"
-              onClick={handleCloseMissedModal}
-              style={{
-                height: 54,
-                padding: "0 1.5rem",
-                borderRadius: 999,
-                border: "none",
-                background: COLORS.ACCENT,
-                color: "#FFFFFF",
-                fontSize: 16,
-                fontWeight: 600,
-                letterSpacing: "0.2px",
-                cursor: "pointer",
-                transition: "150ms ease",
-              }}
-            >
-              {t("common_ok")}
-            </button>
-          </div>
-        </div>
-      )}
+              <button
+                type="button"
+                aria-label={t("common_close")}
+                onClick={handleCloseMissedModal}
+                style={{
+                  position: "absolute",
+                  top: "1rem",
+                  right: "1rem",
+                  width: 36,
+                  height: 36,
+                  borderRadius: "50%",
+                  border: "none",
+                  background: "transparent",
+                  color: COLORS.TEXT_SECONDARY,
+                  fontSize: "1.5rem",
+                  lineHeight: 1,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                ×
+              </button>
+              <h3 style={{ fontSize: "1.25rem", marginBottom: "0.75rem", color: COLORS.TEXT_PRIMARY }}>
+                {t("closed_title")}
+              </h3>
+              <p style={{ fontSize: 16, lineHeight: 1.45, marginBottom: "1.5rem", color: COLORS.TEXT_SECONDARY }}>
+                {t("closed_body")}
+              </p>
+              <button
+                type="button"
+                onClick={handleCloseMissedModal}
+                style={{
+                  height: 54,
+                  padding: "0 1.5rem",
+                  borderRadius: 999,
+                  border: "none",
+                  background: COLORS.ACCENT,
+                  color: "#FFFFFF",
+                  fontSize: 16,
+                  fontWeight: 600,
+                  letterSpacing: "0.2px",
+                  cursor: "pointer",
+                  transition: "150ms ease",
+                }}
+              >
+                {t("common_ok")}
+              </button>
+            </div>
+          </div>,
+          document.body
+        )}
 
-      {missedDayModal === "closed" && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: "rgba(0,0,0,0.5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "1.5rem",
-            zIndex: 1000,
-            animation: closingMissedModal ? `fadeOut ${MODAL_CLOSE_MS}ms ease-out` : "fadeIn 0.2s ease-out forwards",
-          }}
-          onClick={handleCloseMissedModal}
-        >
-          <div
-            style={{
-              position: "relative",
-              background: COLORS.BACKGROUND,
-              border: GLASS.BORDER,
-              boxShadow: GLASS.SHADOW,
-              borderRadius: 26,
-              padding: "1.5rem",
-              maxWidth: "28rem",
-              width: "100%",
-              textAlign: "center",
-              animation: closingMissedModal ? `scaleOut ${MODAL_CLOSE_MS}ms ease-out` : "scaleIn 0.2s ease-out forwards",
+      {selectedDateForAnswer &&
+        user &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <MissedDayAnswerModal
+            dayKey={selectedDateForAnswer}
+            user={user}
+            onClose={() => setSelectedDateForAnswer(null)}
+            onSuccess={(dayKey, questionText, answerText) => {
+              setAnswersMap((prev) => {
+                const next = new Map(prev);
+                next.set(dayKey, { questionText, answerText });
+                return next;
+              });
+              setSelectedDateForAnswer(null);
             }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              type="button"
-              aria-label={t("common_close")}
-              onClick={handleCloseMissedModal}
-              style={{
-                position: "absolute",
-                top: "1rem",
-                right: "1rem",
-                width: 36,
-                height: 36,
-                borderRadius: "50%",
-                border: "none",
-                background: "transparent",
-                color: COLORS.TEXT_SECONDARY,
-                fontSize: "1.5rem",
-                lineHeight: 1,
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              ×
-            </button>
-            <h3 style={{ fontSize: "1.25rem", marginBottom: "0.75rem", color: COLORS.TEXT_PRIMARY }}>
-              {t("closed_title")}
-            </h3>
-            <p style={{ fontSize: 16, lineHeight: 1.45, marginBottom: "1.5rem", color: COLORS.TEXT_SECONDARY }}>
-              {t("closed_body")}
-            </p>
-            <button
-              type="button"
-              onClick={handleCloseMissedModal}
-              style={{
-                height: 54,
-                padding: "0 1.5rem",
-                borderRadius: 999,
-                border: "none",
-                background: COLORS.ACCENT,
-                color: "#FFFFFF",
-                fontSize: 16,
-                fontWeight: 600,
-                letterSpacing: "0.2px",
-                cursor: "pointer",
-                transition: "150ms ease",
-              }}
-            >
-              {t("common_ok")}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {selectedDateForAnswer && user && (
-        <MissedDayAnswerModal
-          dayKey={selectedDateForAnswer}
-          user={user}
-          onClose={() => setSelectedDateForAnswer(null)}
-          onSuccess={(dayKey, questionText, answerText) => {
-            setAnswersMap((prev) => {
-              const next = new Map(prev);
-              next.set(dayKey, { questionText, answerText });
-              return next;
-            });
-            setSelectedDateForAnswer(null);
-          }}
-        />
-      )}
+          />,
+          document.body
+        )}
     </div>
   );
 }

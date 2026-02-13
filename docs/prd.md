@@ -20,7 +20,7 @@ The MVP intentionally strips the product down to the **daily ritual itself**. No
 **Secondary goals**
 
 - Observe whether users return organically on multiple days.
-- See whether a **minimal streak confirmation** gently reinforces the habit **without creating pressure**.
+- See whether **light catch-up** (jokers for missed days) supports the habit **without creating pressure**.
 
 Anything that materially influences motivation beyond the question itself (e.g., gamification, strong nudges, rewards) is treated as a **potential confound** and is excluded from MVP v1.
 
@@ -29,7 +29,7 @@ Anything that materially influences motivation beyond the question itself (e.g.,
 **First-time user**
 
 1. User opens the app.
-Con2. Onboarding screen appears with warm beige background, email and password inputs.
+2. Onboarding screen appears with email and password inputs.
 3. User signs up with email + password (or signs in if they already have an account).
 4. User is authenticated and lands on Today tab with today's question.
 
@@ -39,8 +39,8 @@ Con2. Onboarding screen appears with warm beige background, email and password i
 2. Today tab shows the daily question with an empty text field (or existing answer if already submitted).
 3. User types an answer.
 4. User submits the answer.
-5. For a **new** answer: a full-screen streak modal appears with celebration and streak count. User taps to dismiss.
-6. For an **edit** (same day, changing existing answer): a brief "Answer changed" toast appears and auto-dismisses; no streak modal.
+5. For a **new** answer: optional Monday recap modal may appear (e.g. “You answered X of Y questions last week”); user can dismiss or go to Calendar to answer a missed day.
+6. For an **edit** (same day, changing existing answer): a brief “Answer changed” confirmation modal or toast appears; user dismisses.
 7. The user can browse past answers in Calendar tab or leave the app.
 
 The flow is intentionally short and repeatable, with minimal friction.
@@ -80,36 +80,15 @@ The **question itself is the product**.
 - Answers are kept **indefinitely** for MVP v1.
 - Any data-retention policy is a **future decision**.
 
-## 6. Streaks (Included in MVP)
+## 6. Jokers (Included in MVP)
 
-The MVP includes a **very light streak mechanic**.
+The MVP includes a **light catch-up mechanic** via **jokers**.
 
-- A **streak** is the number of **consecutive calendar days** on which the user has **submitted an answer** (questions answered, not app opens).
-- **Streak = 0** when the user has not answered today (or has never answered).
-- **Streak = 1** after answering today's question for the first time; **Streak = N** for N consecutive days with at least one answer, counting backward from today.
-- **Missed day:** If any day in that consecutive chain is missing an answer, the streak is broken; streak shows **0** until the user answers again today.
-- The streak is displayed in the **header** on the Today tab as "Streak: X" (including when X is 0), centered between the DailyQ title and the date.
-- After submitting a **new** answer (not an edit), a **full-screen modal overlay** appears with the streak celebration:
-
-> “Yay. This is your 2-day streak.”
-
-**Modal characteristics:**
-
-- Full-screen backdrop with blur effect
-- Centered card with warm beige background (#eee9e0), near-black text
-- Enters with a gentle scale-in animation (~300ms)
-- Celebratory but calm (no confetti, no excessive animation)
-- **Must be manually dismissed** - user taps "Done" button or backdrop to close
-- No auto-dismiss timer
-- After dismissal, the flow ends immediately with no follow-up prompts
-- **Editing an existing answer** does **not** show the streak modal; instead a brief "Answer changed" toast is shown and auto-dismisses.
-
-**Constraints:**
-
-- No badges, levels, or visual gamification beyond the modal and header streak.
-- No penalties or “you lost your streak” messaging.
-- Missing a day silently breaks the streak; the next successful submit starts a new streak at 1.
-- The streak exists purely as **soft confirmation**, not as a goal or score.
+- **Jokers** let the user answer a **missed day** within the **past 7 calendar days** (one joker per missed day).
+- Each user has a **joker balance** (stored in `profiles`). A **monthly grant** (e.g. via RPC `grant_monthly_jokers`) tops up jokers once per calendar month.
+- **Header:** On the Today and Calendar tabs, the header shows a **joker indicator** (e.g. ⭐ plus the balance). Tapping it opens a **small informational modal** (no navigation, no RPC): title “Jokers” / “Joker” (singular when balance is 1); body explains balance and that a joker lets you answer a missed day in the last 7 days; close via X, tapping outside, or Escape. The balance number in the modal is emphasized (e.g. bold, accent color). Dutch copy uses singular “Joker” when balance is 1, plural “Jokers” otherwise.
+- **Calendar – missed day:** Tapping a missed day (within 7 days, on or after account creation) opens a modal. If the user has at least one joker: message e.g. “Je hebt deze dag gemist. Met een joker kun je de vraag alsnog beantwoorden.” with **Joker inzetten** and Cancel. Choosing “Joker inzetten” calls `use_joker` RPC and opens the full-screen answer overlay for that day. If the user has no jokers: informational “Je hebt geen jokers meer” (or similar) with OK. Days older than 7 days or before account creation show “Deze dag is gesloten” (informational only).
+- **Constraints:** Jokers are for catch-up only. No gamification beyond the balance and the informational modal. No penalties or “you lost your jokers” messaging.
 
 ## 7. Accounts & Authentication
 
@@ -167,7 +146,7 @@ Multi-device behavior (e.g., phone + laptop) is **best-effort only** in MVP v1 a
   - Service worker for shell caching and aggressive update strategy on new deployments
   - PWA manifest for installability
 - **UI structure:**
-  - **Top header:** "DailyQ" (left); on Today tab only: "Streak: X" (center) and current date e.g. "Mon, Feb 10" (right). Background and text use global theme (#eee9e0, #1A1A1A).
+  - **Top header:** Centered "DailyQ" logo; on Today and Calendar tabs: **joker indicator** (e.g. ⭐ + balance) in the top-right. Background and text use app theme (e.g. #F4F6F9, navy accent #14316A).
   - Bottom tab bar with three tabs: Today, Calendar, Settings
   - Tab icons: question mark, calendar, gear
   - Client-side tab switching (no route changes, using state to hide/show content)
@@ -223,11 +202,11 @@ Supabase Auth provides the `users` table; DailyQ adds:
 - `updated_at` (timestamptz)
 - Unique constraint on `(user_id, question_id)` to ensure **one logical answer per user per day**.
 
-**Streak calculation**
+**profiles** (or equivalent)
 
-- Streaks are **derived from answers only**, not stored as a separate field and not based on app opens.
-- The app fetches the user's answers (joined with question `day`), builds the set of unique calendar days with at least one answer, and counts consecutive days backward from today. If today has no answer, streak = 0; if any day in the chain was missed, streak = 0 until they answer again today.
-- On submit, the app upserts the answer (allowing same-day edits), then recomputes streak and updates the header; after a **new** answer the streak modal is shown; after an **edit**, only an "Answer changed" toast is shown.
+- `joker_balance` (integer), `last_joker_grant_month` (e.g. date or string) for monthly joker grants.
+- RPCs: `grant_monthly_jokers` (idempotent per month), `use_joker` (consumes one joker and allows submitting an answer for a missed day within the 7-day window).
+- On submit for today, the app upserts the answer (same-day edits). After a **new** answer, Monday recap modal may show; after an **edit**, an “Answer changed” confirmation is shown. Joker balance is shown in the header and in the joker informational modal.
 
 ## 10. Behavior: Answering & Editing
 
@@ -240,7 +219,7 @@ Supabase Auth provides the `users` table; DailyQ adds:
 
 - If a user is logged in:
   - They see today’s question.
-  - On submit/update, the answer row is **updated** (or created), and the streak is recomputed.
+  - On submit/update, the answer row is **updated** (or created).
 - If a user is not logged in:
   - They see the onboarding screen (gradient background with email input).
   - After authentication, they land on Today tab and can answer.
@@ -249,7 +228,7 @@ Supabase Auth provides the `users` table; DailyQ adds:
 
 - Users can **edit their answer for the current day until local midnight**.
 - Each edit updates the existing record (no extra answers are created).
-- Streak is **not double-counted**; only the presence of an answer for that day matters.
+- Only one answer per day is stored; edits update the same record.
 
 **Multiple submissions**
 
@@ -341,8 +320,8 @@ The following are **deliberately out of scope** to keep the experiment clean and
   - No ads.
   - No premium tier or in-app purchases.
 - **Settings & customization**
-  - Settings screen is **included** but only for sign-out and app info (see Section 10b).
-  - No theme customization, language selection, or other preferences in MVP v1.
+  - Settings screen is **included** for sign-out, app info, and **language selection** (e.g. Dutch / English) (see Section 10b).
+  - No theme customization or other preferences in MVP v1 beyond language.
 
 If a feature does not **directly support the daily question ritual**, it does **not** belong in MVP v1.
 
@@ -366,24 +345,22 @@ Principles:
   - How to answer.
   - How often to return.
 - **Navigation:**
-  - Top header: "DailyQ" (left); on Today tab only: "Streak: X" (center) and date (right)
-  - Bottom tab bar with three tabs: Today, Calendar, Settings
-  - Tab icons: question mark (Today), calendar (Calendar), gear (Settings)
+  - Top header: centered "DailyQ" logo; on Today and Calendar: joker indicator (⭐ + balance) top-right
+  - Bottom tab bar: Today, Calendar, Settings; tab icons: question mark, calendar, gear
   - Client-side tab switching with fade transitions
 - **Typography:**
-  - Inter font (via `next/font/google`) system-wide
+  - System font (e.g. Inter or system UI) system-wide
   - Mobile-friendly sizing and generous spacing
 - **Visual style:**
-  - Single theme: warm beige background (#eee9e0), near-black text (#1A1A1A)
-  - No dark mode in MVP v1; consistent calm palette across the app
+  - Single theme: light background (e.g. #F4F6F9), navy accent (#14316A), near-black text
+  - No dark mode in MVP v1; consistent calm palette
   - Minimal chrome; very few elements per screen
-  - Buttons and inputs use the same palette (e.g. dark buttons with light text where appropriate)
+  - Buttons and inputs use the same palette (e.g. accent for primary actions)
 - **Feedback:**
-  - Full-screen streak modal after submitting a **new** answer (scale-in animation, blur backdrop)
-  - Brief "Answer changed" toast when **editing** an existing answer (auto-dismisses)
-  - Header streak updates immediately after save; shows "Streak: 0" when applicable
-  - Button text changes between "Submit" and "Update" based on context
-  - Subtle offline indicator when relevant
+  - **Modals and overlays** are rendered via **React portal** into `document.body` so the **entire viewport** (header, main content, tab bar) dims **together** when a popup is open; no staggered fade (backdrop and content animate as one).
+  - Monday recap modal (if shown) after a new answer; “Answer changed” confirmation when editing
+  - Joker balance in header; tapping it opens the informational joker modal (no title line; balance number emphasized; close via X, outside tap, or Escape)
+  - Button text: “Submit” / “Update” by context; subtle offline indicator when relevant
 
 The product should **never pressure** the user to return. Any return behavior should be voluntary.
 
@@ -434,14 +411,13 @@ Any future feature must be evaluated against a single criterion:
 
 ## Implementation notes (changelog)
 
-- **Auth:** Magic link removed; sign up / sign in use email + password. Session is restored on load via Supabase auth state; no hash-based redirect.
-- **UI:** Single theme (warm beige #eee9e0, text #1A1A1A); no dark mode. Header and nav use the same background.
-- **Header:** On Today tab, center shows "Streak: X" (including 0); right shows current date (e.g. "Mon, Feb 10").
-- **Streak:** Derived only from answered days; no answer today ⇒ streak 0. New answer shows streak modal; editing existing answer shows "Answer changed" toast only.
-- **Calendar:** After saving an answer, calendar updates optimistically (day shown as answered without full reload).
+- **Auth:** Sign up / sign in use email + password. Session is restored on load via Supabase auth state; no hash-based redirect.
+- **UI:** Single theme (e.g. background #F4F6F9, accent #14316A). Header and nav use the same background.
+- **Header:** On Today and Calendar tabs, top-right shows **joker indicator** (e.g. ⭐ + balance). Tapping opens informational joker modal (close: X, outside tap, Escape). Dutch: "Joker" when balance 1, "Jokers" otherwise.
+- **Jokers:** Balance and monthly grant in profiles; RPCs grant_monthly_jokers, use_joker. Calendar missed-day: has joker → "Joker inzetten" and answer overlay; no jokers → "Je hebt geen jokers meer".
+- **Calendar:** After saving an answer, calendar updates optimistically. Month change: no full-screen loading; new month grid shows immediately, data loads in background (full-screen loading only on initial load).
 - **PWA:** Service worker uses aggressive update (skipWaiting, clear caches on activate, reload on new worker) to avoid stale cache after deploys.
-- **Settings:** Log Out always visible. Calendar and Settings receive user from Home (no separate user fetch) so dev mock user is respected.
+- **Settings:** Log Out and language selection (e.g. Dutch/English) visible. Calendar and Settings receive user from Home so dev mock user is respected.
 - **Mobile:** Today and Calendar use spacing (e.g. clamp) so main content sits lower on small screens for a more centered feel.
 - **Calendar – missed-day answer:** “Nu beantwoorden” opens a full-screen modal overlay on the Calendar (no route change). User answers in the overlay; validation (7-day window, account start) before submit; close via X or successful submit only; background dimmed/blurred.
-- **Pop-up screens (modals):** All overlay modals use the same background colour as main screens (no glass). Every pop-up has a top-right **X** close button; close runs a 200 ms exit animation (fadeOut + scaleOut) before unmount. When opening the missed-day answer modal from "Nu beantwoorden", the answer modal is shown one frame after the confirmation modal closes to avoid a double-open animation.
-- **Pop-up animations:** Open: fadeIn (backdrop) and scaleIn/streakEnter (card), 0.2 s, with forwards so the end state is kept. Close: fadeOut + scaleOut, 200 ms, then unmount. Applied to streak modal, Monday recap, edit confirmation, missed-day answer overlay, Calendar view-answer and missed/closed modals.
+- **Pop-up screens (modals):** All full-screen overlay modals are rendered via **React portal** into document.body so the entire viewport (header, main, tab bar) dims together with the backdrop; no staggered fade. Every pop-up has a top-right **X**; close runs 200 ms exit animation (fadeOut + scaleOut) before unmount. - **Pop-up animations:** Open: fadeIn (backdrop) and scaleIn/streakEnter (card), 0.2 s, with forwards so the end state is kept. Close: fadeOut + scaleOut, 200 ms, then unmount. Applied to Monday recap, joker modal, edit confirmation, missed-day answer overlay, Calendar view-answer and missed/closed modals.

@@ -42,8 +42,11 @@ const GLASS = {
 const CALENDAR = {
   COMPLETED_BG: "linear-gradient(to bottom, #EDF2F8, #DCE6F3)",
   COMPLETED_SHADOW: "0 6px 16px rgba(20,49,106,0.10)",
-  TODAY_RING: "0 0 0 2px rgba(20,49,106,0.15)",
+  COMPLETED_INSET: "inset 0 1px 0 rgba(255,255,255,0.6)",
+  TODAY_RING: "0 0 0 2px rgba(20,49,106,0.18)",
   TODAY_COMPLETED_RING: "0 0 0 3px rgba(20,49,106,0.18)",
+  MISSED_BG:
+    "repeating-linear-gradient(135deg, rgba(28,28,30,0.03), rgba(28,28,30,0.03) 6px, rgba(28,28,30,0.015) 6px, rgba(28,28,30,0.015) 12px), rgba(28,28,30,0.03)",
 };
 
 function getCalendarStyle({
@@ -65,25 +68,30 @@ function getCalendarStyle({
   };
 
   if (isFuture) {
-    style.color = COLORS.TEXT_FUTURE;
+    style.color = "rgba(28,28,30,0.35)";
+    style.background = "transparent";
     return style;
   }
 
   if (hasAnswer) {
     style.background = CALENDAR.COMPLETED_BG;
     style.color = COLORS.ACCENT;
-    style.boxShadow = CALENDAR.COMPLETED_SHADOW;
+    style.boxShadow = `${CALENDAR.COMPLETED_SHADOW}, ${CALENDAR.COMPLETED_INSET}`;
     if (isToday) {
-      style.boxShadow = `${CALENDAR.COMPLETED_SHADOW}, ${CALENDAR.TODAY_COMPLETED_RING}`;
+      style.boxShadow = `${CALENDAR.COMPLETED_SHADOW}, ${CALENDAR.COMPLETED_INSET}, ${CALENDAR.TODAY_COMPLETED_RING}`;
     }
     return style;
   }
 
-  style.color = COLORS.TEXT_SECONDARY;
   if (isToday) {
+    style.color = COLORS.TEXT_PRIMARY;
+    style.background = "transparent";
     style.boxShadow = CALENDAR.TODAY_RING;
+    return style;
   }
 
+  style.color = "rgba(28,28,30,0.55)";
+  style.background = CALENDAR.MISSED_BG;
   return style;
 }
 

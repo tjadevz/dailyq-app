@@ -18,20 +18,74 @@ type Answer = {
 
 type TabType = "today" | "calendar" | "settings";
 
-// Style Constants
+// Design Tokens (Single Source of Truth)
 const COLORS = {
-  primary: '#1A1A1A',
-  secondary: '#2A2A2A',
-  tertiary: '#3A3A3A',
-  white: '#F2F0EC',
-} as const;
+  BACKGROUND: "#F4F6F9",
+  BACKGROUND_GRADIENT: "linear-gradient(to bottom, #F4F6F9, #EEF2F7)",
+  TEXT_PRIMARY: "#1C1C1E",
+  TEXT_SECONDARY: "rgba(28,28,30,0.6)",
+  TEXT_TERTIARY: "rgba(28,28,30,0.55)",
+  TEXT_MUTED: "rgba(28,28,30,0.4)",
+  TEXT_FUTURE: "rgba(28,28,30,0.22)",
+  ACCENT: "#14316A",
+};
 
-const COMMON_STYLES = {
-  pillButton: {
-    borderRadius: '999px',
-    padding: '1rem 2rem',
-  },
-} as const;
+const GLASS = {
+  BG: "rgba(255,255,255,0.75)",
+  STRONG_BG: "rgba(255,255,255,0.85)",
+  BORDER: "1px solid rgba(255,255,255,0.4)",
+  SHADOW: "0 10px 30px rgba(0,0,0,0.08)",
+  TAB_SHADOW: "0 8px 25px rgba(0,0,0,0.08)",
+  BLUR: "blur(25px)",
+};
+
+const CALENDAR = {
+  COMPLETED_BG: "linear-gradient(to bottom, #EDF2F8, #DCE6F3)",
+  COMPLETED_SHADOW: "0 6px 16px rgba(20,49,106,0.10)",
+  TODAY_RING: "0 0 0 2px rgba(20,49,106,0.15)",
+  TODAY_COMPLETED_RING: "0 0 0 3px rgba(20,49,106,0.18)",
+};
+
+function getCalendarStyle({
+  hasAnswer,
+  isToday,
+  isFuture,
+}: {
+  hasAnswer: boolean;
+  isToday: boolean;
+  isFuture: boolean;
+}): React.CSSProperties {
+  const style: React.CSSProperties = {
+    aspectRatio: "1 / 1",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 16,
+    transition: "200ms ease",
+  };
+
+  if (isFuture) {
+    style.color = COLORS.TEXT_FUTURE;
+    return style;
+  }
+
+  if (hasAnswer) {
+    style.background = CALENDAR.COMPLETED_BG;
+    style.color = COLORS.ACCENT;
+    style.boxShadow = CALENDAR.COMPLETED_SHADOW;
+    if (isToday) {
+      style.boxShadow = `${CALENDAR.COMPLETED_SHADOW}, ${CALENDAR.TODAY_COMPLETED_RING}`;
+    }
+    return style;
+  }
+
+  style.color = COLORS.TEXT_SECONDARY;
+  if (isToday) {
+    style.boxShadow = CALENDAR.TODAY_RING;
+  }
+
+  return style;
+}
 
 // Development-only: fake user when Supabase is unavailable or not used
 const DEV_USER = {
@@ -51,10 +105,18 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<TabType>("today");
   const [user, setUser] = useState<any>(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
-  const [onCalendarUpdate, setOnCalendarUpdate] = useState<
-    ((dayKey: string, questionText: string, answerText: string) => void) | null
-  >(null);
+  const [calendarAnswersMap, setCalendarAnswersMap] = useState<
+    Map<string, { questionText: string; answerText: string }>
+  >(new Map());
   const [currentStreak, setCurrentStreak] = useState<number>(0);
+
+  const onCalendarUpdate = (dayKey: string, questionText: string, answerText: string) => {
+    setCalendarAnswersMap((prev) => {
+      const next = new Map(prev);
+      next.set(dayKey, { questionText, answerText });
+      return next;
+    });
+  };
 
   useEffect(() => {
     registerServiceWorker();
@@ -145,9 +207,10 @@ export default function Home() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
+          background: COLORS.BACKGROUND_GRADIENT,
         }}
       >
-        <p>Laden…</p>
+        <p style={{ color: COLORS.TEXT_PRIMARY }}>Laden…</p>
       </div>
     );
   }
@@ -163,14 +226,14 @@ export default function Home() {
         flexDirection: "column",
         minHeight: "100dvh",
         maxHeight: "100dvh",
-        background: "#F2F0EC",
+        background: COLORS.BACKGROUND_GRADIENT,
       }}
     >
       {/* Header */}
       <header
         style={{
-          padding: "1.25rem 1.5rem",
-          background: "#F2F0EC",
+          padding: "24px",
+          background: COLORS.BACKGROUND,
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
@@ -188,20 +251,21 @@ export default function Home() {
         >
           <span
             style={{
-              fontFamily: 'var(--font-logo), "SF Pro Rounded", -apple-system, BlinkMacSystemFont, system-ui, sans-serif',
-              fontSize: "1.25rem",
-              fontWeight: 500,
-              letterSpacing: "0.03em",
-              color: "#1A1A1A",
+              fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", sans-serif',
+              fontSize: 32,
+              letterSpacing: "0.14em",
+              color: "#3C3C3E",
             }}
           >
-            DailyQ
+            <span style={{ fontWeight: 400 }}>Daily</span>
+            <span style={{ fontWeight: 700, color: COLORS.ACCENT }}>Q</span>
           </span>
         </div>
         <div
           style={{
             flex: 1,
             minWidth: 0,
+            minHeight: 30,
             display: "flex",
             alignItems: "center",
             justifyContent: "flex-end",
@@ -213,9 +277,11 @@ export default function Home() {
               style={{
                 width: 30,
                 height: 30,
-                borderRadius: "50%",
-                border: "1.5px solid rgba(0, 0, 0, 0.18)",
-                background: "transparent",
+                borderRadius: "999px",
+                background: GLASS.BG,
+                backdropFilter: GLASS.BLUR,
+                border: GLASS.BORDER,
+                boxShadow: GLASS.SHADOW,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -225,7 +291,7 @@ export default function Home() {
                 style={{
                   fontSize: "0.8125rem",
                   fontWeight: 500,
-                  color: "#5A5A5A",
+                  color: COLORS.ACCENT,
                 }}
               >
                 {currentStreak}
@@ -259,7 +325,11 @@ export default function Home() {
             width: "100%",
           }}
         >
-          <CalendarView registerCalendarUpdate={setOnCalendarUpdate} user={effectiveUser} />
+          <CalendarView
+          answersMap={calendarAnswersMap}
+          setAnswersMap={setCalendarAnswersMap}
+          user={effectiveUser}
+        />
         </div>
         <div
           style={{
@@ -278,17 +348,18 @@ export default function Home() {
           flexDirection: "row",
           justifyContent: "space-evenly",
           alignItems: "center",
-          background: "#F2F0EC",
-          borderRadius: "24px 24px 0 0",
-          borderTop: "1px solid rgba(0, 0, 0, 0.08)",
+          background: GLASS.STRONG_BG,
+          backdropFilter: GLASS.BLUR,
+          border: GLASS.BORDER,
+          borderRadius: 28,
+          boxShadow: GLASS.TAB_SHADOW,
           paddingTop: "12px",
           paddingLeft: "16px",
           paddingRight: "16px",
           paddingBottom: "max(12px, env(safe-area-inset-bottom))",
-          marginLeft: "12px",
-          marginRight: "12px",
-          marginBottom: 0,
+          margin: "0 24px",
           marginTop: "-24px",
+          marginBottom: 0,
         }}
       >
         <TabButton
@@ -341,9 +412,9 @@ function TabButton({
         border: "none",
         padding: 0,
         cursor: "pointer",
-        transition: "background 0.2s, color 0.2s",
-        background: active ? "#002E5D" : "#FFFFFF",
-        color: active ? "#FFFFFF" : "#5A5A5A",
+        transition: "150ms ease",
+        background: active ? COLORS.ACCENT : "transparent",
+        color: active ? "#FFFFFF" : "rgba(28,28,30,0.5)",
       }}
     >
       {icon}
@@ -469,8 +540,8 @@ function OnboardingScreen() {
         alignItems: "center",
         justifyContent: "center",
         position: "relative",
-        background: COLORS.white,
-        padding: "2rem 1.5rem",
+        background: COLORS.BACKGROUND_GRADIENT,
+        padding: "2rem 24px",
         overflow: "hidden",
       }}
     >
@@ -486,7 +557,7 @@ function OnboardingScreen() {
       >
         <h1
           style={{
-            color: "#1A1A1A",
+            color: COLORS.TEXT_PRIMARY,
             fontSize: "1.75rem",
             fontWeight: 600,
             marginBottom: "3rem",
@@ -506,22 +577,20 @@ function OnboardingScreen() {
             style={{
               width: "100%",
               padding: "1rem 1.25rem",
-              fontSize: "1rem",
-              border: "1px solid rgba(26, 26, 26, 0.2)",
+              fontSize: 16,
+              border: "1px solid rgba(28,28,30,0.2)",
               borderRadius: "999px",
-              background: "rgba(255, 255, 255, 0.5)",
-              color: "#1A1A1A",
+              background: GLASS.BG,
+              color: COLORS.TEXT_PRIMARY,
               marginBottom: "1rem",
               outline: "none",
-              transition: "all 0.2s",
+              transition: "150ms ease",
             }}
             onFocus={(e) => {
-              e.target.style.background = "rgba(255, 255, 255, 0.7)";
-              e.target.style.borderColor = "rgba(26, 26, 26, 0.3)";
+              e.target.style.borderColor = "rgba(20,49,106,0.2)";
             }}
             onBlur={(e) => {
-              e.target.style.background = "rgba(255, 255, 255, 0.5)";
-              e.target.style.borderColor = "rgba(26, 26, 26, 0.2)";
+              e.target.style.borderColor = "rgba(28,28,30,0.2)";
             }}
           />
 
@@ -535,22 +604,20 @@ function OnboardingScreen() {
             style={{
               width: "100%",
               padding: "1rem 1.25rem",
-              fontSize: "1rem",
-              border: "1px solid rgba(26, 26, 26, 0.2)",
+              fontSize: 16,
+              border: "1px solid rgba(28,28,30,0.2)",
               borderRadius: "999px",
-              background: "rgba(255, 255, 255, 0.5)",
-              color: "#1A1A1A",
+              background: GLASS.BG,
+              color: COLORS.TEXT_PRIMARY,
               marginBottom: "1rem",
               outline: "none",
-              transition: "all 0.2s",
+              transition: "150ms ease",
             }}
             onFocus={(e) => {
-              e.target.style.background = "rgba(255, 255, 255, 0.7)";
-              e.target.style.borderColor = "rgba(26, 26, 26, 0.3)";
+              e.target.style.borderColor = "rgba(20,49,106,0.2)";
             }}
             onBlur={(e) => {
-              e.target.style.background = "rgba(255, 255, 255, 0.5)";
-              e.target.style.borderColor = "rgba(26, 26, 26, 0.2)";
+              e.target.style.borderColor = "rgba(28,28,30,0.2)";
             }}
           />
 
@@ -559,16 +626,18 @@ function OnboardingScreen() {
             disabled={submitting || !email.trim() || !password.trim()}
             style={{
               width: "100%",
-              padding: "1rem 1.25rem",
-              fontSize: "1rem",
-              border: "none",
-              borderRadius: "999px",
-              background: "#1A1A1A",
-              color: "#FFFFFF",
+              height: 54,
+              padding: "0 1.25rem",
+              fontSize: 16,
               fontWeight: 600,
+              letterSpacing: "0.2px",
+              border: "none",
+              borderRadius: 999,
+              background: COLORS.ACCENT,
+              color: "#FFFFFF",
               cursor: submitting ? "default" : "pointer",
               opacity: submitting || !email.trim() || !password.trim() ? 0.6 : 1,
-              transition: "all 0.2s",
+              transition: "150ms ease",
               marginBottom: "1rem",
             }}
           >
@@ -585,10 +654,10 @@ function OnboardingScreen() {
             style={{
               width: "100%",
               padding: "0.75rem",
-              fontSize: "0.875rem",
+              fontSize: 16,
               border: "none",
               background: "transparent",
-              color: "#1A1A1A",
+              color: COLORS.TEXT_SECONDARY,
               fontWeight: 500,
               cursor: submitting ? "default" : "pointer",
               opacity: submitting ? 0.6 : 1,
@@ -599,7 +668,7 @@ function OnboardingScreen() {
           </button>
 
           {error && (
-            <p style={{ color: "#1A1A1A", marginTop: "1rem", fontSize: "0.875rem" }}>
+            <p style={{ color: COLORS.TEXT_PRIMARY, marginTop: "1rem", fontSize: 16 }}>
               {error}
             </p>
           )}
@@ -618,7 +687,7 @@ function fireConfetti(): void {
       spread: 55,
       origin: { y: 0.6 },
       startVelocity: 18,
-      colors: ["#1A1A1A", "#F2F0EC", "#c4b89a"],
+      colors: ["#14316A", "#EEF2F7", "#FFFFFF"],
       ticks: 100,
     });
   });
@@ -646,14 +715,16 @@ function StreakModal({ streak, onClose }: { streak: number; onClose: () => void 
     >
       <div
         style={{
-          backgroundColor: "#FFFFFF",
-          borderRadius: "1.5rem",
+          background: GLASS.BG,
+          backdropFilter: GLASS.BLUR,
+          border: GLASS.BORDER,
+          boxShadow: GLASS.SHADOW,
+          borderRadius: 26,
           padding: "3rem 2rem",
           maxWidth: "24rem",
           width: "100%",
           textAlign: "center",
           animation: "streakEnter 0.3s ease-out",
-          boxShadow: "0 4px 24px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04)",
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -662,7 +733,7 @@ function StreakModal({ streak, onClose }: { streak: number; onClose: () => void 
             fontSize: "2rem",
             fontWeight: 600,
             marginBottom: "1.5rem",
-            color: "#1A1A1A",
+            color: COLORS.TEXT_PRIMARY,
           }}
         >
           Yay!
@@ -670,7 +741,7 @@ function StreakModal({ streak, onClose }: { streak: number; onClose: () => void 
         <p
           style={{
             fontSize: "1.25rem",
-            color: "#1A1A1A",
+            color: COLORS.TEXT_PRIMARY,
             marginBottom: "2rem",
           }}
         >
@@ -680,14 +751,17 @@ function StreakModal({ streak, onClose }: { streak: number; onClose: () => void 
           type="button"
           onClick={onClose}
           style={{
-            padding: "0.75rem 2rem",
-            borderRadius: "999px",
+            height: 54,
+            padding: "0 2rem",
+            borderRadius: 999,
             border: "none",
-            backgroundColor: "#1A1A1A",
+            background: COLORS.ACCENT,
             color: "#FFFFFF",
-            fontSize: "1rem",
+            fontSize: 16,
             fontWeight: 600,
+            letterSpacing: "0.2px",
             cursor: "pointer",
+            transition: "150ms ease",
           }}
         >
           Sluiten
@@ -907,7 +981,7 @@ function TodayView({
           id: 'dev-answer-id',
           answer_text: draft,
         });
-        
+        if (onCalendarUpdate) onCalendarUpdate(dayKey, question.text, draft);
         if (editingExisting) {
           setShowEditConfirmation(true);
           setTimeout(() => setShowEditConfirmation(false), 2000);
@@ -915,7 +989,6 @@ function TodayView({
           fireConfetti();
           setStreakOverlay(1); // Show streak modal with day 1
         }
-        
         setDraft(''); // Clear the draft
         setIsEditMode(false); // Exit edit mode
       } else {
@@ -973,11 +1046,11 @@ function TodayView({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          padding: "1.5rem",
+          padding: "24px",
           boxSizing: "border-box",
         }}
       >
-        <p>Vraag van vandaag laden…</p>
+        <p style={{ color: COLORS.TEXT_PRIMARY }}>Vraag van vandaag laden…</p>
       </div>
     );
   }
@@ -990,11 +1063,11 @@ function TodayView({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          padding: "1.5rem",
+          padding: "24px",
           boxSizing: "border-box",
         }}
       >
-        <p>{error}</p>
+        <p style={{ color: COLORS.TEXT_PRIMARY }}>{error}</p>
       </div>
     );
   }
@@ -1007,11 +1080,11 @@ function TodayView({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          padding: "1.5rem",
+          padding: "24px",
           boxSizing: "border-box",
         }}
       >
-        <p>Er staat geen vraag voor vandaag.</p>
+        <p style={{ color: COLORS.TEXT_PRIMARY }}>Er staat geen vraag voor vandaag.</p>
       </div>
     );
   }
@@ -1021,10 +1094,10 @@ function TodayView({
       style={{
         display: "flex",
         flexDirection: "column",
-        padding: "2rem 1.5rem",
+        padding: "2rem 24px",
         height: "100%",
         width: "100%",
-        backgroundColor: "#F2F0EC",
+        backgroundColor: COLORS.BACKGROUND,
         boxSizing: "border-box",
         overflow: "auto",
       }}
@@ -1038,7 +1111,7 @@ function TodayView({
               flexDirection: "column",
               alignItems: "center",
               justifyContent: "center",
-              padding: "clamp(2rem, 10vh, 5rem) 1.5rem",
+              padding: "clamp(2rem, 10vh, 5rem) 24px",
               marginTop: "4rem",
             }}
           >
@@ -1047,10 +1120,11 @@ function TodayView({
                 width: "100%",
                 maxWidth: "28rem",
                 padding: "2.5rem 2rem",
-                borderRadius: "1.75rem",
-                background: "#FFFFFF",
-                border: "none",
-                boxShadow: "0 2px 12px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04)",
+                borderRadius: 26,
+                background: GLASS.BG,
+                backdropFilter: GLASS.BLUR,
+                border: GLASS.BORDER,
+                boxShadow: GLASS.SHADOW,
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
@@ -1065,7 +1139,7 @@ function TodayView({
                   alignItems: "center",
                   justifyContent: "center",
                   gap: "0.5rem",
-                  color: "#292524",
+                  color: COLORS.TEXT_PRIMARY,
                   fontWeight: 500,
                   fontSize: "1.125rem",
                   letterSpacing: "0.025em",
@@ -1082,7 +1156,7 @@ function TodayView({
                   marginTop: "1.25rem",
                   fontSize: "1.125rem",
                   lineHeight: 1.625,
-                  color: "#9ca3af",
+                  color: COLORS.TEXT_SECONDARY,
                   fontWeight: 500,
                   textAlign: "center",
                 }}
@@ -1097,23 +1171,16 @@ function TodayView({
                 setDraft(answer.answer_text);
               }}
               style={{
-                ...COMMON_STYLES.pillButton,
                 marginTop: "3rem",
-                border: "1px solid #d6d3d1",
-                background: "transparent",
-                color: "#78716c",
-                fontSize: "0.9375rem",
-                fontWeight: 500,
+                padding: "1rem 2rem",
+                borderRadius: 999,
+                border: GLASS.BORDER,
+                background: GLASS.BG,
+                color: COLORS.ACCENT,
+                fontSize: 16,
+                fontWeight: 600,
                 cursor: "pointer",
-                transition: "background 0.2s, border-color 0.2s, color 0.2s",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = "rgba(0, 0, 0, 0.03)";
-                e.currentTarget.style.borderColor = "#a8a29e";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "transparent";
-                e.currentTarget.style.borderColor = "#d6d3d1";
+                transition: "150ms ease",
               }}
             >
               Antwoord bewerken
@@ -1133,7 +1200,7 @@ function TodayView({
             <p
               style={{
                 fontSize: "0.875rem",
-                color: "#8A8A8A",
+                color: COLORS.TEXT_SECONDARY,
                 textAlign: "center",
                 marginTop: 0,
                 marginBottom: "0.75rem",
@@ -1151,7 +1218,7 @@ function TodayView({
                 textAlign: "center",
                 marginBottom: "3.5rem",
                 marginTop: 0,
-                color: "#1A1A1A",
+                color: COLORS.TEXT_PRIMARY,
                 lineHeight: 1.3,
               }}
             >
@@ -1164,14 +1231,20 @@ function TodayView({
               style={{
                 minHeight: "12rem",
                 padding: "1.25rem",
-                borderRadius: "1rem",
-                border: "2px solid #1A1A1A",
-                background: "rgba(255, 255, 255, 0.5)",
+                borderRadius: 16,
+                border: "1px solid rgba(28,28,30,0.2)",
+                background: GLASS.BG,
                 resize: "vertical",
                 fontFamily: "inherit",
-                fontSize: "1rem",
-                lineHeight: 1.6,
-                color: "#1A1A1A",
+                fontSize: 16,
+                lineHeight: 1.45,
+                color: COLORS.TEXT_PRIMARY,
+              }}
+              onFocus={(e) => {
+                e.target.style.borderColor = "rgba(20,49,106,0.2)";
+              }}
+              onBlur={(e) => {
+                e.target.style.borderColor = "rgba(28,28,30,0.2)";
               }}
             />
             <button
@@ -1179,15 +1252,17 @@ function TodayView({
               onClick={handleSubmit}
               style={{
                 marginTop: "1.5rem",
-                ...COMMON_STYLES.pillButton,
+                height: 54,
+                padding: "0 2rem",
+                borderRadius: 999,
                 border: "none",
-                background: "#002E5D",
+                background: COLORS.ACCENT,
                 color: "#FFFFFF",
-                fontSize: "1rem",
+                fontSize: 16,
                 fontWeight: 600,
+                letterSpacing: "0.2px",
                 cursor: "pointer",
-                boxShadow: "0 4px 14px rgba(26, 26, 26, 0.3)",
-                transition: "transform 0.2s, box-shadow 0.2s",
+                transition: "150ms ease",
               }}
               disabled={submitting}
             >
@@ -1204,9 +1279,9 @@ function TodayView({
                   marginTop: "0.5rem",
                   padding: "0.35rem 0.75rem",
                   fontSize: "0.75rem",
-                  color: "#1A1A1A",
+                  color: COLORS.TEXT_PRIMARY,
                   background: "transparent",
-                  border: "1px dashed #1A1A1A",
+                  border: `1px dashed ${COLORS.TEXT_TERTIARY}`,
                   borderRadius: "999px",
                   cursor: "pointer",
                   opacity: 0.7,
@@ -1218,7 +1293,7 @@ function TodayView({
           </div>
         )}
         {offline && (
-          <p style={{ marginTop: "0.5rem", fontSize: "0.85rem", opacity: 0.7 }}>
+          <p style={{ marginTop: "0.5rem", fontSize: "0.85rem", color: COLORS.TEXT_SECONDARY }}>
             Je bent offline. Je antwoord wordt gesynchroniseerd zodra je weer online bent.
           </p>
         )}
@@ -1249,14 +1324,16 @@ function TodayView({
         >
           <div
             style={{
-              backgroundColor: "#FFFFFF",
-              borderRadius: "1.5rem",
+              background: GLASS.BG,
+              backdropFilter: GLASS.BLUR,
+              border: GLASS.BORDER,
+              boxShadow: GLASS.SHADOW,
+              borderRadius: 26,
               padding: "3rem 2rem",
               maxWidth: "24rem",
               width: "100%",
               textAlign: "center",
               animation: "streakEnter 0.3s ease-out",
-              boxShadow: "0 4px 24px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04)",
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -1264,7 +1341,7 @@ function TodayView({
               style={{
                 fontSize: "1.25rem",
                 fontWeight: 600,
-                color: "#1A1A1A",
+                color: COLORS.TEXT_PRIMARY,
                 margin: 0,
               }}
             >
@@ -1278,38 +1355,25 @@ function TodayView({
 }
 
 // ============ CALENDAR VIEW ============
-function CalendarView({ 
-  registerCalendarUpdate,
-  user
-}: { 
-  registerCalendarUpdate: (callback: (dayKey: string, questionText: string, answerText: string) => void) => void;
+function CalendarView({
+  answersMap,
+  setAnswersMap,
+  user,
+}: {
+  answersMap: Map<string, { questionText: string; answerText: string }>;
+  setAnswersMap: React.Dispatch<React.SetStateAction<Map<string, { questionText: string; answerText: string }>>>;
   user: any;
 }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [displayYear, setDisplayYear] = useState(() => new Date().getFullYear());
   const [displayMonth, setDisplayMonth] = useState(() => new Date().getMonth());
-  const [answersMap, setAnswersMap] = useState<
-    Map<string, { questionText: string; answerText: string }>
-  >(new Map());
   const [selectedDay, setSelectedDay] = useState<{
     day: string;
     questionText: string;
     answerText: string;
   } | null>(null);
   const [closingModal, setClosingModal] = useState(false);
-
-  useEffect(() => {
-    const updateFunction = (dayKey: string, questionText: string, answerText: string) => {
-      setAnswersMap(prev => {
-        const newMap = new Map(prev);
-        newMap.set(dayKey, { questionText, answerText });
-        return newMap;
-      });
-    };
-    
-    registerCalendarUpdate(updateFunction);
-  }, [registerCalendarUpdate]);
 
   useEffect(() => {
     if (!user) {
@@ -1381,11 +1445,11 @@ function CalendarView({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          padding: "1.5rem",
+          padding: "24px",
           boxSizing: "border-box",
         }}
       >
-        <p>Log in om je antwoorden te zien.</p>
+        <p style={{ color: COLORS.TEXT_PRIMARY }}>Log in om je antwoorden te zien.</p>
       </div>
     );
   }
@@ -1398,11 +1462,11 @@ function CalendarView({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          padding: "1.5rem",
+          padding: "24px",
           boxSizing: "border-box",
         }}
       >
-        <p>Kalender laden…</p>
+        <p style={{ color: COLORS.TEXT_PRIMARY }}>Kalender laden…</p>
       </div>
     );
   }
@@ -1415,11 +1479,11 @@ function CalendarView({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          padding: "1.5rem",
+          padding: "24px",
           boxSizing: "border-box",
         }}
       >
-        <p>{error}</p>
+        <p style={{ color: COLORS.TEXT_PRIMARY }}>{error}</p>
       </div>
     );
   }
@@ -1505,16 +1569,16 @@ function CalendarView({
         overflowY: "auto",
         overflowX: "hidden",
         boxSizing: "border-box",
-        background: "#F2F0EC",
+        background: COLORS.BACKGROUND,
       }}
     >
       <div 
         style={{ 
-          padding: "0 1rem", 
+          padding: "0 24px", 
           width: "100%", 
           boxSizing: "border-box",
           paddingTop: "clamp(1rem, 12vh, 5rem)",
-          background: "#F2F0EC",
+          background: COLORS.BACKGROUND,
         }}
       >
         <div
@@ -1534,12 +1598,12 @@ function CalendarView({
               background: "transparent",
               cursor: "pointer",
               fontSize: "1.25rem",
-              color: "#1A1A1A",
+              color: COLORS.TEXT_PRIMARY,
             }}
           >
             ‹
           </button>
-          <h2 style={{ fontSize: "1.25rem", fontWeight: 600, color: "#1A1A1A" }}>
+          <h2 style={{ fontSize: "22px", fontWeight: 600, color: COLORS.TEXT_PRIMARY }}>
             {monthNames[displayMonth]} {displayYear}
           </h2>
           <button
@@ -1551,7 +1615,7 @@ function CalendarView({
               background: "transparent",
               cursor: "pointer",
               fontSize: "1.25rem",
-              color: "#1A1A1A",
+              color: COLORS.TEXT_PRIMARY,
             }}
           >
             ›
@@ -1561,7 +1625,7 @@ function CalendarView({
         <p
           style={{
             fontSize: "0.8125rem",
-            color: "#6b7280",
+            color: COLORS.TEXT_SECONDARY,
             marginBottom: "1rem",
             textAlign: "center",
           }}
@@ -1585,9 +1649,8 @@ function CalendarView({
                 textAlign: "center",
                 fontSize: "0.875rem",
                 fontWeight: 600,
-                opacity: 0.8,
                 padding: "0.5rem",
-                color: "#1A1A1A",
+                color: COLORS.TEXT_SECONDARY,
                 minWidth: 0,
                 boxSizing: "border-box",
               }}
@@ -1604,28 +1667,21 @@ function CalendarView({
             const isToday = dayKey === todayKey;
             const isFuture = dayKey > todayKey;
 
-            const baseClasses =
-              "aspect-square flex items-center justify-center rounded-full relative p-0 min-w-0 box-border transition-all duration-[180ms] text-[0.9375rem] font-medium";
-
-            let cellClasses = baseClasses;
-            if (isFuture) {
-              cellClasses += " border border-gray-200 bg-transparent cursor-default text-gray-400 opacity-50";
-            } else if (hasAnswer) {
-              cellClasses +=
-                " bg-emerald-200 text-gray-900 cursor-pointer hover:bg-emerald-300 border-none" +
-                (isToday ? " ring-2 ring-emerald-400 ring-offset-2 ring-offset-[#F2F0EC]" : "");
-            } else {
-              cellClasses +=
-                " bg-transparent border border-gray-300 text-gray-700 cursor-default hover:border-gray-400" +
-                (isToday ? " ring-2 ring-emerald-400 ring-offset-2 ring-offset-[#F2F0EC]" : "");
-            }
-
             return (
               <button
                 key={day}
                 type="button"
                 onClick={() => hasAnswer && handleDayClick(day)}
-                className={cellClasses}
+                style={{
+                  ...getCalendarStyle({ hasAnswer, isToday, isFuture }),
+                  cursor: hasAnswer ? "pointer" : "default",
+                  padding: 0,
+                  minWidth: 0,
+                  border: "none",
+                  fontFamily: "inherit",
+                  fontSize: "0.9375rem",
+                  fontWeight: 500,
+                }}
               >
                 {day}
               </button>
@@ -1654,8 +1710,11 @@ function CalendarView({
         >
           <div
             style={{
-              backgroundColor: "var(--background)",
-              borderRadius: "1rem",
+              background: GLASS.BG,
+              backdropFilter: GLASS.BLUR,
+              border: GLASS.BORDER,
+              boxShadow: GLASS.SHADOW,
+              borderRadius: 26,
               padding: "1.5rem",
               maxWidth: "28rem",
               width: "100%",
@@ -1665,23 +1724,27 @@ function CalendarView({
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 style={{ fontSize: "1.25rem", marginBottom: "1rem" }}>
+            <h3 style={{ fontSize: "1.25rem", marginBottom: "1rem", color: COLORS.TEXT_PRIMARY }}>
               {selectedDay.questionText}
             </h3>
-            <p style={{ fontSize: "1rem", lineHeight: 1.5, marginBottom: "1.5rem" }}>
+            <p style={{ fontSize: 16, lineHeight: 1.45, marginBottom: "1.5rem", color: COLORS.TEXT_PRIMARY }}>
               {selectedDay.answerText}
             </p>
             <button
               type="button"
               onClick={handleCloseModal}
               style={{
-                padding: "0.5rem 1rem",
-                borderRadius: "999px",
+                height: 54,
+                padding: "0 1.5rem",
+                borderRadius: 999,
                 border: "none",
-                backgroundColor: "var(--accent)",
-                color: "#fff",
-                fontSize: "0.9rem",
+                background: COLORS.ACCENT,
+                color: "#FFFFFF",
+                fontSize: 16,
+                fontWeight: 600,
+                letterSpacing: "0.2px",
                 cursor: "pointer",
+                transition: "150ms ease",
               }}
             >
               Sluiten
@@ -1713,15 +1776,15 @@ function SettingsView({ user }: { user: any }) {
   return (
     <div
       style={{
-        padding: "1.5rem",
+        padding: "24px",
         width: "100%",
       }}
     >
-      <h2 style={{ fontSize: "1.5rem", marginBottom: "1.5rem" }}>Instellingen</h2>
+      <h2 style={{ fontSize: "22px", fontWeight: 600, marginBottom: "1.5rem", color: COLORS.TEXT_PRIMARY }}>Instellingen</h2>
 
       <div style={{ marginBottom: "2rem" }}>
         {user && user.email && (
-          <p style={{ fontSize: "0.9rem", opacity: 0.7, marginBottom: "1rem" }}>
+          <p style={{ fontSize: 16, color: COLORS.TEXT_SECONDARY, marginBottom: "1rem" }}>
             Ingelogd als: {user.email}
           </p>
         )}
@@ -1731,24 +1794,26 @@ function SettingsView({ user }: { user: any }) {
           disabled={signingOut}
           style={{
             padding: "0.75rem 1.5rem",
-            borderRadius: "999px",
-            border: "1px solid rgba(128, 128, 128, 0.3)",
-            background: "transparent",
-            color: "var(--foreground)",
-            fontSize: "1rem",
+            borderRadius: 999,
+            border: GLASS.BORDER,
+            background: GLASS.BG,
+            color: COLORS.ACCENT,
+            fontSize: 16,
+            fontWeight: 600,
             cursor: "pointer",
+            transition: "150ms ease",
           }}
         >
           {signingOut ? "Bezig met uitloggen…" : "Uitloggen"}
         </button>
       </div>
 
-      <div style={{ borderTop: "1px solid rgba(128, 128, 128, 0.2)", paddingTop: "1.5rem" }}>
-        <p style={{ fontSize: "0.9rem", marginBottom: "0.5rem" }}>
+      <div style={{ borderTop: "1px solid rgba(28,28,30,0.1)", paddingTop: "1.5rem" }}>
+        <p style={{ fontSize: 16, marginBottom: "0.5rem", color: COLORS.TEXT_PRIMARY }}>
           <strong>DailyQ</strong>
         </p>
-        <p style={{ fontSize: "0.85rem", opacity: 0.6 }}>Versie 1.0</p>
-        <p style={{ fontSize: "0.85rem", opacity: 0.6, marginTop: "0.5rem" }}>
+        <p style={{ fontSize: "0.85rem", color: COLORS.TEXT_SECONDARY }}>Versie 1.0</p>
+        <p style={{ fontSize: "0.85rem", color: COLORS.TEXT_SECONDARY, marginTop: "0.5rem" }}>
           One question a day.
         </p>
         <a
@@ -1759,7 +1824,7 @@ function SettingsView({ user }: { user: any }) {
             display: "inline-block",
             marginTop: "1rem",
             fontSize: "0.85rem",
-            color: "#1A1A1A",
+            color: COLORS.ACCENT,
             textDecoration: "underline",
           }}
         >

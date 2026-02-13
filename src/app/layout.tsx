@@ -1,12 +1,5 @@
 import type { Metadata } from "next";
-import { Nunito } from "next/font/google";
 import "./globals.css";
-
-const nunito = Nunito({
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-logo",
-});
 
 export const metadata: Metadata = {
   title: "DailyQ",
@@ -23,7 +16,7 @@ export default function RootLayout({
       <head>
         <link rel="manifest" href="/manifest.webmanifest" />
       </head>
-      <body className={nunito.variable}>{children}</body>
+      <body>{children}</body>
     </html>
   );
 }

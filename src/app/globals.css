@@ -1,10 +1,14 @@
 @import "tailwindcss";
 
 :root {
-  --background: #F2F0EC; /* warm greige — light, neutral, airy */
-  --foreground: #1A1A1A; /* near-black text */
-  --accent: #4F86C6; /* calm blue accent */
-  --accent-soft: #d4dce6;
+  --background: #F4F6F9;
+  --foreground: #1C1C1E;
+  --accent: #14316A;
+
+  --glass-bg: rgba(255, 255, 255, 0.75);
+  --glass-strong-bg: rgba(255, 255, 255, 0.85);
+  --glass-border: 1px solid rgba(255, 255, 255, 0.4);
+  --glass-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
 }
 
 html,
@@ -14,13 +18,14 @@ body {
 }
 
 body {
-  color: var(--foreground);
-  background: var(--background);
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
     system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.45;
+  color: #1C1C1E;
+  background: #F4F6F9;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  line-height: 1.5;
 }
 
 * {

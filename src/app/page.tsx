@@ -422,7 +422,7 @@ export default function Home() {
           paddingBottom: "max(12px, env(safe-area-inset-bottom))",
           margin: "0 24px",
           marginTop: "-24px",
-          marginBottom: 0,
+          marginBottom: "24px",
         }}
       >
         <TabButton

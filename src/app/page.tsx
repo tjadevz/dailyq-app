@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabaseClient";
+import { getNow } from "@/utils/dateProvider";
 import { registerServiceWorker } from "./register-sw";
 
 type Question = {
@@ -52,10 +53,14 @@ function getCalendarStyle({
   hasAnswer,
   isToday,
   isFuture,
+  isTooOld,
+  isBeforeAccountStart,
 }: {
   hasAnswer: boolean;
   isToday: boolean;
   isFuture: boolean;
+  isTooOld: boolean;
+  isBeforeAccountStart: boolean;
 }): React.CSSProperties {
   const style: React.CSSProperties = {
     aspectRatio: "1 / 1",
@@ -68,6 +73,11 @@ function getCalendarStyle({
 
   if (isFuture) {
     style.color = "rgba(28,28,30,0.35)";
+    style.background = "transparent";
+    return style;
+  }
+  if (isTooOld || isBeforeAccountStart) {
+    style.color = "rgba(28,28,30,0.22)";
     style.background = "transparent";
     return style;
   }
@@ -116,6 +126,11 @@ export default function Home() {
     Map<string, { questionText: string; answerText: string }>
   >(new Map());
   const [currentStreak, setCurrentStreak] = useState<number>(0);
+  const [recapModal, setRecapModal] = useState<{ open: boolean; count: number | null }>({
+    open: false,
+    count: null,
+  });
+  const [initialQuestionDayKey, setInitialQuestionDayKey] = useState<string | null>(null);
 
   const onCalendarUpdate = (dayKey: string, questionText: string, answerText: string) => {
     setCalendarAnswersMap((prev) => {
@@ -123,6 +138,29 @@ export default function Home() {
       next.set(dayKey, { questionText, answerText });
       return next;
     });
+  };
+
+  const onAfterAnswerSaved = async (dayKey: string) => {
+    const today = getNow();
+    if (getLocalDayKey(today) !== dayKey || !isMonday(today)) return;
+    if (!effectiveUser) return;
+    if (!shouldShowMondayRecap(effectiveUser, today)) return;
+    let count: number;
+    if (process.env.NODE_ENV === "development" && effectiveUser.id === "dev-user") {
+      count = 7;
+    } else {
+      count = await fetchPreviousWeekAnswerCount(effectiveUser.id);
+    }
+    setRecapModal({ open: true, count });
+  };
+
+  const closeRecapModal = (goToCalendar?: boolean) => {
+    const today = getNow();
+    if (typeof window !== "undefined") {
+      localStorage.setItem("dailyq_recap_" + getLocalDayKey(today), "1");
+    }
+    setRecapModal((prev) => ({ ...prev, open: false }));
+    if (goToCalendar) setActiveTab("calendar");
   };
 
   useEffect(() => {
@@ -188,7 +226,7 @@ export default function Home() {
     }
     try {
       const supabase = createSupabaseBrowserClient();
-      const today = new Date();
+      const today = getNow();
       const dayKey = getLocalDayKey(today);
       const streak = await computeStreak({ supabase, userId: effectiveUser.id, dayKey });
       setCurrentStreak(streak);
@@ -323,7 +361,19 @@ export default function Home() {
             height: "100%",
           }}
         >
-          <TodayView user={effectiveUser} onCalendarUpdate={onCalendarUpdate} onStreakUpdate={setCurrentStreak} />
+          <TodayView
+          user={effectiveUser}
+          onCalendarUpdate={onCalendarUpdate}
+          onStreakUpdate={setCurrentStreak}
+          onAfterAnswerSaved={onAfterAnswerSaved}
+          initialQuestionDayKey={initialQuestionDayKey}
+          onClearInitialDay={() => setInitialQuestionDayKey(null)}
+          onShowRecapTest={
+            process.env.NODE_ENV === "development"
+              ? () => setRecapModal({ open: true, count: 7 })
+              : undefined
+          }
+        />
         </div>
         <div
           style={{
@@ -336,6 +386,10 @@ export default function Home() {
           answersMap={calendarAnswersMap}
           setAnswersMap={setCalendarAnswersMap}
           user={effectiveUser}
+          onAnswerMissedDay={(dayKey) => {
+            setInitialQuestionDayKey(dayKey);
+            setActiveTab("today");
+          }}
         />
         </div>
         <div
@@ -388,6 +442,14 @@ export default function Home() {
           icon={<SettingsIcon />}
         />
       </nav>
+
+      {recapModal.open && recapModal.count !== null && (
+        <MondayRecapModal
+          count={recapModal.count}
+          onClose={() => closeRecapModal()}
+          onAnswerMissedDay={() => closeRecapModal(true)}
+        />
+      )}
     </div>
   );
 }
@@ -787,15 +849,148 @@ function StreakModal({ streak, onClose }: { streak: number; onClose: () => void 
   );
 }
 
+// ============ MONDAY RECAP MODAL ============
+function MondayRecapModal({
+  count,
+  onClose,
+  onAnswerMissedDay,
+}: {
+  count: number;
+  onClose: () => void;
+  onAnswerMissedDay: () => void;
+}) {
+  const isPerfect = count === 7;
+  return (
+    <div
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: "rgba(0, 0, 0, 0.6)",
+        backdropFilter: "blur(4px)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "2rem",
+        zIndex: 2000,
+        animation: "fadeIn 0.2s ease-out",
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          background: GLASS.BG,
+          backdropFilter: GLASS.BLUR,
+          border: GLASS.BORDER,
+          boxShadow: GLASS.SHADOW,
+          borderRadius: 26,
+          padding: "3rem 2rem",
+          maxWidth: "24rem",
+          width: "100%",
+          textAlign: "center",
+          animation: "streakEnter 0.3s ease-out",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <p
+          style={{
+            fontSize: "1.25rem",
+            color: COLORS.TEXT_PRIMARY,
+            marginBottom: "2rem",
+            lineHeight: 1.45,
+          }}
+        >
+          You answered {count} out of 7 last week
+        </p>
+        {isPerfect && (
+          <p style={{ fontSize: "1.5rem", fontWeight: 600, color: COLORS.ACCENT, marginBottom: "1.5rem" }}>
+            🎉
+          </p>
+        )}
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+          {isPerfect ? (
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                height: 54,
+                padding: "0 2rem",
+                borderRadius: 999,
+                border: "none",
+                background: COLORS.ACCENT,
+                color: "#FFFFFF",
+                fontSize: 16,
+                fontWeight: 600,
+                letterSpacing: "0.2px",
+                cursor: "pointer",
+                transition: "150ms ease",
+              }}
+            >
+              Yay
+            </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={onAnswerMissedDay}
+                style={{
+                  height: 54,
+                  padding: "0 2rem",
+                  borderRadius: 999,
+                  border: "none",
+                  background: COLORS.ACCENT,
+                  color: "#FFFFFF",
+                  fontSize: 16,
+                  fontWeight: 600,
+                  letterSpacing: "0.2px",
+                  cursor: "pointer",
+                  transition: "150ms ease",
+                }}
+              >
+                Answer a missed day
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                style={{
+                  padding: "0.75rem",
+                  fontSize: 16,
+                  border: "none",
+                  background: "transparent",
+                  color: COLORS.TEXT_SECONDARY,
+                  cursor: "pointer",
+                  transition: "150ms ease",
+                }}
+              >
+                Close
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ============ TODAY VIEW ============
 function TodayView({
   user: effectiveUser,
   onCalendarUpdate,
   onStreakUpdate,
+  onAfterAnswerSaved,
+  initialQuestionDayKey,
+  onClearInitialDay,
+  onShowRecapTest,
 }: {
   user: any;
   onCalendarUpdate: ((dayKey: string, questionText: string, answerText: string) => void) | null;
   onStreakUpdate?: (streak: number) => void;
+  onAfterAnswerSaved?: (dayKey: string) => void | Promise<void>;
+  initialQuestionDayKey?: string | null;
+  onClearInitialDay?: () => void;
+  onShowRecapTest?: () => void;
 }) {
   const [loading, setLoading] = useState(true);
   const [question, setQuestion] = useState<Question | null>(null);
@@ -822,8 +1017,7 @@ function TodayView({
           setOffline(true);
         }
 
-        const today = new Date();
-        const dayKey = getLocalDayKey(today);
+        const dayKey = initialQuestionDayKey ?? getLocalDayKey(getNow());
 
         // In development with dev user, skip database and use mock data
         if (effectiveUser?.id === 'dev-user') {
@@ -957,7 +1151,7 @@ function TodayView({
     }
 
     return undefined;
-  }, []);
+  }, [initialQuestionDayKey]);
 
   const handleSubmit = async () => {
     if (!question || !draft.trim() || submitting) {
@@ -969,11 +1163,23 @@ function TodayView({
     setStreakOverlay(null);
 
     try {
-      const today = new Date();
-      const dayKey = getLocalDayKey(today);
+      const today = getNow();
+      const dayKey = initialQuestionDayKey ?? getLocalDayKey(today);
 
       if (!effectiveUser) {
         setError("Log in om een antwoord te versturen.");
+        setSubmitting(false);
+        return;
+      }
+
+      const dayKeyAsDate = new Date(dayKey + "T12:00:00");
+      if (isBeforeAccountStart(dayKeyAsDate, effectiveUser)) {
+        setError("Deze datum is vóór het begin van je account.");
+        setSubmitting(false);
+        return;
+      }
+      if (!canAnswerDate(dayKeyAsDate)) {
+        setError("Deze datum valt buiten de 7-dagen periode.");
         setSubmitting(false);
         return;
       }
@@ -1007,6 +1213,8 @@ function TodayView({
         }
         setDraft(''); // Clear the draft
         setIsEditMode(false); // Exit edit mode
+        if (initialQuestionDayKey) onClearInitialDay?.();
+        if (isMonday(today)) void onAfterAnswerSaved?.(dayKey);
       } else {
         const supabase = createSupabaseBrowserClient();
         try {
@@ -1022,6 +1230,7 @@ function TodayView({
             onCalendarUpdate,
             onStreakUpdate,
             isEdit: editingExisting,
+            userCreatedAt: effectiveUser.created_at,
           });
         } catch (dbError) {
           if (process.env.NODE_ENV === 'development') {
@@ -1044,6 +1253,8 @@ function TodayView({
         setDraft('');
         setIsEditMode(false);
         console.log('✅ Real user submission complete - answer set, draft cleared, edit mode off');
+        if (initialQuestionDayKey) onClearInitialDay?.();
+        if (isMonday(today)) void onAfterAnswerSaved?.(dayKey);
       }
     } catch (e) {
       setError("Je antwoord kon niet worden verstuurd. Probeer het opnieuw.");
@@ -1284,13 +1495,10 @@ function TodayView({
             >
               {answer ? "Bijwerken" : "Versturen"}
             </button>
-            {process.env.NODE_ENV === "development" && (
+            {process.env.NODE_ENV === "development" && onShowRecapTest && (
               <button
                 type="button"
-                onClick={() => {
-                fireConfetti();
-                setStreakOverlay(1);
-              }}
+                onClick={onShowRecapTest}
                 style={{
                   marginTop: "0.5rem",
                   padding: "0.35rem 0.75rem",
@@ -1303,7 +1511,7 @@ function TodayView({
                   opacity: 0.7,
                 }}
               >
-                Test confetti
+                Show Monday Recap
               </button>
             )}
           </div>
@@ -1375,21 +1583,25 @@ function CalendarView({
   answersMap,
   setAnswersMap,
   user,
+  onAnswerMissedDay,
 }: {
   answersMap: Map<string, { questionText: string; answerText: string }>;
   setAnswersMap: React.Dispatch<React.SetStateAction<Map<string, { questionText: string; answerText: string }>>>;
   user: any;
+  onAnswerMissedDay?: (dayKey: string) => void;
 }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [displayYear, setDisplayYear] = useState(() => new Date().getFullYear());
-  const [displayMonth, setDisplayMonth] = useState(() => new Date().getMonth());
+  const [displayYear, setDisplayYear] = useState(() => getNow().getFullYear());
+  const [displayMonth, setDisplayMonth] = useState(() => getNow().getMonth());
   const [selectedDay, setSelectedDay] = useState<{
     day: string;
     questionText: string;
     answerText: string;
   } | null>(null);
   const [closingModal, setClosingModal] = useState(false);
+  const [missedDayModal, setMissedDayModal] = useState<"missed" | "closed" | null>(null);
+  const [missedDayKey, setMissedDayKey] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) {
@@ -1404,7 +1616,7 @@ function CalendarView({
         // In development with mock user, show empty calendar
         if (process.env.NODE_ENV === 'development' && user.id === 'dev-user') {
           console.log('📅 Dev mode: Showing calendar with one seed completed day');
-          const yesterday = new Date();
+          const yesterday = new Date(getNow());
           yesterday.setDate(yesterday.getDate() - 1);
           const seedKey = getLocalDayKey(yesterday);
           setAnswersMap(
@@ -1552,7 +1764,7 @@ function CalendarView({
 
   const firstDay = new Date(displayYear, displayMonth, 1).getDay();
   const daysInMonth = new Date(displayYear, displayMonth + 1, 0).getDate();
-  const todayKey = getLocalDayKey(new Date());
+  const todayKey = getLocalDayKey(getNow());
 
   let capturedThisMonth = 0;
   for (let d = 1; d <= daysInMonth; d++) {
@@ -1568,8 +1780,10 @@ function CalendarView({
     days.push(d);
   }
 
-  const handleDayClick = (day: number) => {
-    const dayKey = getLocalDayKey(new Date(displayYear, displayMonth, day));
+  const handleDayTap = (day: number) => {
+    const dayDate = new Date(displayYear, displayMonth, day);
+    const dayKey = getLocalDayKey(dayDate);
+    if (isBeforeAccountStart(dayDate, user)) return;
     const entry = answersMap.get(dayKey);
     if (entry) {
       setSelectedDay({
@@ -1577,7 +1791,17 @@ function CalendarView({
         questionText: entry.questionText,
         answerText: entry.answerText,
       });
+      return;
     }
+    if (isMissedDay(dayDate, user, false)) {
+      setMissedDayKey(dayKey);
+      setMissedDayModal(canAnswerDate(dayDate) ? "missed" : "closed");
+    }
+  };
+
+  const handleCloseMissedModal = () => {
+    setMissedDayModal(null);
+    setMissedDayKey(null);
   };
 
   const handleCloseModal = () => {
@@ -1691,19 +1915,30 @@ function CalendarView({
             if (day === null) {
               return <div key={`empty-${idx}`} />;
             }
-            const dayKey = getLocalDayKey(new Date(displayYear, displayMonth, day));
+            const dayDate = new Date(displayYear, displayMonth, day);
+            const dayKey = getLocalDayKey(dayDate);
             const hasAnswer = answersMap.has(dayKey);
             const isToday = dayKey === todayKey;
             const isFuture = dayKey > todayKey;
+            const isTooOld = !canAnswerDate(dayDate);
+            const beforeStart = isBeforeAccountStart(dayDate, user);
+            const isMissed = isMissedDay(dayDate, user, hasAnswer);
+            const tappable = !beforeStart && (hasAnswer || isMissed);
 
             return (
               <button
                 key={day}
                 type="button"
-                onClick={() => hasAnswer && handleDayClick(day)}
+                onClick={() => tappable && handleDayTap(day)}
                 style={{
-                  ...getCalendarStyle({ hasAnswer, isToday, isFuture }),
-                  cursor: hasAnswer ? "pointer" : "default",
+                  ...getCalendarStyle({
+                    hasAnswer,
+                    isToday,
+                    isFuture,
+                    isTooOld,
+                    isBeforeAccountStart: beforeStart,
+                  }),
+                  cursor: tappable ? "pointer" : "default",
                   padding: 0,
                   minWidth: 0,
                   border: "none",
@@ -1777,6 +2012,143 @@ function CalendarView({
               }}
             >
               Sluiten
+            </button>
+          </div>
+        </div>
+      )}
+
+      {missedDayModal === "missed" && missedDayKey && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "1.5rem",
+            zIndex: 1000,
+          }}
+          onClick={handleCloseMissedModal}
+        >
+          <div
+            style={{
+              background: GLASS.BG,
+              backdropFilter: GLASS.BLUR,
+              border: GLASS.BORDER,
+              boxShadow: GLASS.SHADOW,
+              borderRadius: 26,
+              padding: "1.5rem",
+              maxWidth: "28rem",
+              width: "100%",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ fontSize: "1.25rem", marginBottom: "0.75rem", color: COLORS.TEXT_PRIMARY }}>
+              You missed this day
+            </h3>
+            <p style={{ fontSize: 16, lineHeight: 1.45, marginBottom: "1.5rem", color: COLORS.TEXT_SECONDARY }}>
+              Would you like to answer it now?
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+              <button
+                type="button"
+                onClick={() => {
+                  handleCloseMissedModal();
+                  onAnswerMissedDay?.(missedDayKey);
+                }}
+                style={{
+                  height: 54,
+                  padding: "0 1.5rem",
+                  borderRadius: 999,
+                  border: "none",
+                  background: COLORS.ACCENT,
+                  color: "#FFFFFF",
+                  fontSize: 16,
+                  fontWeight: 600,
+                  letterSpacing: "0.2px",
+                  cursor: "pointer",
+                  transition: "150ms ease",
+                }}
+              >
+                Answer now
+              </button>
+              <button
+                type="button"
+                onClick={handleCloseMissedModal}
+                style={{
+                  padding: "0.75rem",
+                  fontSize: 16,
+                  border: "none",
+                  background: "transparent",
+                  color: COLORS.TEXT_SECONDARY,
+                  cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {missedDayModal === "closed" && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "1.5rem",
+            zIndex: 1000,
+          }}
+          onClick={handleCloseMissedModal}
+        >
+          <div
+            style={{
+              background: GLASS.BG,
+              backdropFilter: GLASS.BLUR,
+              border: GLASS.BORDER,
+              boxShadow: GLASS.SHADOW,
+              borderRadius: 26,
+              padding: "1.5rem",
+              maxWidth: "28rem",
+              width: "100%",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ fontSize: "1.25rem", marginBottom: "0.75rem", color: COLORS.TEXT_PRIMARY }}>
+              This day is closed
+            </h3>
+            <p style={{ fontSize: 16, lineHeight: 1.45, marginBottom: "1.5rem", color: COLORS.TEXT_SECONDARY }}>
+              You can only answer questions from the past 7 days.
+            </p>
+            <button
+              type="button"
+              onClick={handleCloseMissedModal}
+              style={{
+                height: 54,
+                padding: "0 1.5rem",
+                borderRadius: 999,
+                border: "none",
+                background: COLORS.ACCENT,
+                color: "#FFFFFF",
+                fontSize: 16,
+                fontWeight: 600,
+                letterSpacing: "0.2px",
+                cursor: "pointer",
+                transition: "150ms ease",
+              }}
+            >
+              OK
             </button>
           </div>
         </div>
@@ -1872,6 +2244,70 @@ function getLocalDayKey(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
+declare global {
+  // eslint-disable-next-line no-var
+  var __FORCE_MONDAY__: boolean | undefined;
+}
+
+function isMonday(date: Date): boolean {
+  if (process.env.NODE_ENV === "development" && globalThis.__FORCE_MONDAY__ === true) {
+    return true;
+  }
+  return date.getDay() === 1;
+}
+
+function isBeforeAccountStart(date: Date, user: any): boolean {
+  const created = user?.created_at;
+  if (!created) return false;
+  const createdDate = new Date(created);
+  return getLocalDayKey(date) < getLocalDayKey(createdDate);
+}
+
+function isMissedDay(date: Date, user: any, hasAnswer: boolean): boolean {
+  if (hasAnswer) return false;
+  if (isBeforeAccountStart(date, user)) return false;
+  const now = getNow();
+  return getLocalDayKey(date) < getLocalDayKey(now);
+}
+
+function getPreviousWeekRange(today: Date): { start: string; end: string } {
+  const daysSinceMonday = (today.getDay() + 6) % 7;
+  const lastMonday = new Date(today);
+  lastMonday.setDate(lastMonday.getDate() - 7 - daysSinceMonday);
+  const lastSunday = new Date(lastMonday);
+  lastSunday.setDate(lastSunday.getDate() + 6);
+  return {
+    start: getLocalDayKey(lastMonday),
+    end: getLocalDayKey(lastSunday),
+  };
+}
+
+function canAnswerDate(date: Date): boolean {
+  const now = getNow();
+  const cutoff = new Date(now);
+  cutoff.setDate(cutoff.getDate() - 7);
+  return getLocalDayKey(date) >= getLocalDayKey(cutoff);
+}
+
+function shouldShowMondayRecap(_user: any, today: Date): boolean {
+  if (!isMonday(today)) return false;
+  const key = "dailyq_recap_" + getLocalDayKey(today);
+  return typeof window !== "undefined" && localStorage.getItem(key) !== "1";
+}
+
+async function fetchPreviousWeekAnswerCount(userId: string): Promise<number> {
+  const supabase = createSupabaseBrowserClient();
+  const today = getNow();
+  const { start, end } = getPreviousWeekRange(today);
+  const { data, error } = await supabase
+    .from("answers")
+    .select("id, questions!inner(day)")
+    .eq("user_id", userId)
+    .gte("questions.day", start)
+    .lte("questions.day", end);
+  if (error) return 0;
+  return (data ?? []).length;
+}
 
 async function saveAnswerAndStreak(params: {
   supabase: ReturnType<typeof createSupabaseBrowserClient>;
@@ -1885,9 +2321,21 @@ async function saveAnswerAndStreak(params: {
   onCalendarUpdate: ((dayKey: string, questionText: string, answerText: string) => void) | null;
   onStreakUpdate?: (streak: number) => void;
   isEdit?: boolean;
+  userCreatedAt?: string;
 }) {
-  const { supabase, userId, questionId, draft, dayKey, questionText, setAnswer, setStreakOverlay, onCalendarUpdate, onStreakUpdate, isEdit } =
+  const { supabase, userId, questionId, draft, dayKey, questionText, setAnswer, setStreakOverlay, onCalendarUpdate, onStreakUpdate, isEdit, userCreatedAt } =
     params;
+
+  const dayKeyAsDate = new Date(dayKey + "T12:00:00");
+  if (userCreatedAt) {
+    const createdDate = new Date(userCreatedAt);
+    if (getLocalDayKey(dayKeyAsDate) < getLocalDayKey(createdDate)) {
+      throw new Error("Cannot submit: this date is before your account start.");
+    }
+  }
+  if (!canAnswerDate(dayKeyAsDate)) {
+    throw new Error("Cannot submit: this date is outside the 7-day window.");
+  }
 
   const { data: upserted, error: upsertError } = await supabase
     .from("answers")

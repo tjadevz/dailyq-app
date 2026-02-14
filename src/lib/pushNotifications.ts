@@ -31,7 +31,7 @@ function hasPushSupport(): boolean {
   return (
     typeof navigator !== "undefined" &&
     "serviceWorker" in navigator &&
-    "PushManager" in navigator &&
+    "PushManager" in globalThis &&
     "Notification" in globalThis
   );
 }

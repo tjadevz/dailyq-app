@@ -13,7 +13,7 @@ export function urlBase64ToUint8Array(base64String: string): Uint8Array {
   for (let i = 0; i < rawData.length; ++i) {
     output[i] = rawData.charCodeAt(i);
   }
-  return output;
+  return output as Uint8Array;
 }
 
 export type PushSubscriptionRow = {
@@ -67,7 +67,7 @@ export async function subscribeUserToPush(): Promise<void> {
 
   const subscription = await registration.pushManager.subscribe({
     userVisibleOnly: true,
-    applicationServerKey: urlBase64ToUint8Array(vapidKey),
+    applicationServerKey: urlBase64ToUint8Array(vapidKey) as BufferSource,
   });
 
   const json = subscription.toJSON();

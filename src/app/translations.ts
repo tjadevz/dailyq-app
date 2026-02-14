@@ -87,10 +87,6 @@ export const translations: Record<
     settings_language: "Language",
     settings_lang_en: "English",
     settings_lang_nl: "Dutch",
-    settings_push_enable: "Enable Daily Notifications",
-    settings_push_enabling: "Enabling…",
-    settings_push_enabled: "Notifications enabled",
-    settings_push_error: "Could not enable. Try again.",
   },
   nl: {
     tabs_today: "Vandaag",
@@ -164,10 +160,6 @@ export const translations: Record<
     settings_language: "Taal",
     settings_lang_en: "English",
     settings_lang_nl: "Nederlands",
-    settings_push_enable: "Dagelijkse notificaties aan",
-    settings_push_enabling: "Bezig…",
-    settings_push_enabled: "Notificaties aan",
-    settings_push_error: "Kon niet inschakelen. Probeer het opnieuw.",
   },
 };
 

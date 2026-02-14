@@ -204,6 +204,7 @@ function Home() {
 
   useEffect(() => {
     registerServiceWorker();
+    console.log("VAPID KEY:", process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY);
 
     const initAuth = async () => {
       try {

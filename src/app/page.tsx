@@ -4,6 +4,10 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { createSupabaseBrowserClient } from "@/lib/supabaseClient";
+import {
+  subscribeUserToPush,
+  hasPushSubscription,
+} from "@/lib/pushNotifications";
 import { getNow } from "@/utils/dateProvider";
 import { registerServiceWorker } from "./register-sw";
 import { LanguageProvider, useLanguage } from "./LanguageContext";
@@ -204,7 +208,6 @@ function Home() {
 
   useEffect(() => {
     registerServiceWorker();
-    console.log("VAPID KEY:", process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY);
 
     const initAuth = async () => {
       try {
@@ -2912,6 +2915,34 @@ animation: closingMissedModal ? "none" : "scaleIn 0.2s ease-out forwards",
 function SettingsView({ user }: { user: any }) {
   const { t, lang, setLang } = useLanguage();
   const [signingOut, setSigningOut] = useState(false);
+  const [pushLoading, setPushLoading] = useState(false);
+  const [pushSuccess, setPushSuccess] = useState(false);
+  const [pushError, setPushError] = useState<string | null>(null);
+  const [isPushSubscribed, setIsPushSubscribed] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    hasPushSubscription().then((yes) => {
+      if (!cancelled) setIsPushSubscribed(yes);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [pushSuccess]);
+
+  const handleEnablePush = async () => {
+    setPushError(null);
+    setPushLoading(true);
+    try {
+      await subscribeUserToPush();
+      setIsPushSubscribed(true);
+      setPushSuccess(true);
+    } catch (e) {
+      setPushError(e instanceof Error ? e.message : t("settings_push_error"));
+    } finally {
+      setPushLoading(false);
+    }
+  };
 
   const handleSignOut = async () => {
     setSigningOut(true);
@@ -3003,6 +3034,39 @@ function SettingsView({ user }: { user: any }) {
           </button>
         </div>
       </div>
+
+      {user && isPushSubscribed === false && (
+        <div style={{ marginBottom: "2rem" }}>
+          <button
+            type="button"
+            onClick={handleEnablePush}
+            disabled={pushLoading}
+            style={{
+              padding: "0.75rem 1.5rem",
+              borderRadius: 999,
+              border: GLASS.BORDER,
+              background: GLASS.BG,
+              color: COLORS.ACCENT,
+              fontSize: 16,
+              fontWeight: 600,
+              cursor: pushLoading ? "wait" : "pointer",
+              transition: "150ms ease",
+            }}
+          >
+            {pushLoading ? t("settings_push_enabling") : t("settings_push_enable")}
+          </button>
+          {pushSuccess && (
+            <p style={{ marginTop: "0.5rem", fontSize: 14, color: COLORS.ACCENT }}>
+              {t("settings_push_enabled")}
+            </p>
+          )}
+          {pushError && (
+            <p style={{ marginTop: "0.5rem", fontSize: 14, color: "#c00" }}>
+              {pushError}
+            </p>
+          )}
+        </div>
+      )}
 
       <div style={{ borderTop: "1px solid rgba(28,28,30,0.1)", paddingTop: "1.5rem" }}>
         <p style={{ fontSize: "0.85rem", color: COLORS.TEXT_SECONDARY }}>{t("settings_version")}</p>

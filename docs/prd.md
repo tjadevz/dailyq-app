@@ -140,10 +140,10 @@ Multi-device behavior (e.g., phone + laptop) is **best-effort only** in MVP v1 a
 
 - **Mobile-first PWA** built with **Next.js** (App Router).
 - **Technical stack:**
-  - Next.js 15+ with React
+  - Next.js 16+ with React
   - Inter font via `next/font/google`
   - Supabase client SDK (`@supabase/ssr`, `@supabase/supabase-js`)
-  - Service worker for shell caching and aggressive update strategy on new deployments
+  - Single service worker (`sw.js`) for shell caching, aggressive update strategy on new deployments, and Web Push (push + notificationclick)
   - PWA manifest for installability
 - **UI structure:**
   - **Top header:** Centered "DailyQ" logo; on Today and Calendar tabs: **joker indicator** (e.g. ⭐ + balance) in the top-right. Background and text use app theme (e.g. #F4F6F9, navy accent #14316A).
@@ -289,6 +289,7 @@ The Settings tab provides minimal app controls and information.
 
 - User's email address when available (read-only, displayed as "Signed in as: user@example.com")
 - **Log Out** button (always visible when the tab is shown; logs user out, returns to onboarding screen)
+- **Enable Daily Notifications** button (opt-in Web Push; subscribes the user for a daily reminder; stored in `push_subscriptions`)
 - App version info: "DailyQ Version 1.0"
 - Tagline: "One question a day."
 - Optional link to creator (e.g. @handle)
@@ -310,8 +311,7 @@ The following are **deliberately out of scope** to keep the experiment clean and
   - No charts, trends, or insights.
   - No AI interpretation of answers.
 - **Engagement mechanics**
-  - No notifications or reminders.
-  - No badges, levels, or advanced streak visualizations.
+  - **Optional opt-in only:** Users may enable a single daily push notification (e.g. reminder) via Settings; no other notifications or reminders. No badges, levels, or advanced streak visualizations.
   - **Limited catch-up:** answering a missed day is supported only within the **rolling 7-day window** and only via the **Calendar overlay** (no navigation to Today); see Section 10a.
 - **Social and sharing**
   - No comments, likes, or feeds.

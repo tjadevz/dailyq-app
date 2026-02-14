@@ -140,10 +140,10 @@ Multi-device behavior (e.g., phone + laptop) is **best-effort only** in MVP v1 a
 
 - **Mobile-first PWA** built with **Next.js** (App Router).
 - **Technical stack:**
-  - Next.js 15+ with React
+  - Next.js 16+ with React
   - Inter font via `next/font/google`
   - Supabase client SDK (`@supabase/ssr`, `@supabase/supabase-js`)
-  - Service worker for shell caching and aggressive update strategy on new deployments
+  - Single service worker (`sw.js`) for shell caching, aggressive update strategy on new deployments, and Web Push (push + notificationclick)
   - PWA manifest for installability
 - **UI structure:**
   - **Top header:** Centered "DailyQ" logo; on Today and Calendar tabs: **joker indicator** (e.g. ⭐ + balance) in the top-right. Background and text use app theme (e.g. #F4F6F9, navy accent #14316A).
@@ -167,10 +167,16 @@ Multi-device behavior (e.g., phone + laptop) is **best-effort only** in MVP v1 a
   - Row-level security (RLS) so users can only access their own answers.
   - Simple APIs via Supabase JS client.
 
+**Web Push (opt-in daily reminder)**
+
+- A single service worker (`public/sw.js`) handles both PWA caching and Web Push.
+- Push subscriptions are stored in `push_subscriptions`; users opt in via the "Enable Daily Notifications" button in Settings.
+- A Supabase Edge Function (e.g. `send-daily-push`) can send one daily push per subscriber (title/body/url); invocation is via cron or external trigger. VAPID keys are used for Web Push.
+
 **Offline behavior**
 
 - The PWA includes:
-  - A minimal **service worker**.
+  - A single **service worker** (`sw.js`), registered as `/sw.js`.
   - Caching of:
     - The app shell.
     - Today’s question (when previously loaded).
@@ -207,6 +213,12 @@ Supabase Auth provides the `users` table; DailyQ adds:
 - `joker_balance` (integer), `last_joker_grant_month` (e.g. date or string) for monthly joker grants.
 - RPCs: `grant_monthly_jokers` (idempotent per month), `use_joker` (consumes one joker and allows submitting an answer for a missed day within the 7-day window).
 - On submit for today, the app upserts the answer (same-day edits). After a **new** answer, Monday recap modal may show; after an **edit**, an “Answer changed” confirmation is shown. Joker balance is shown in the header and in the joker informational modal.
+
+**push_subscriptions** (Web Push)
+
+- `user_id` (uuid, FK to `auth.users.id`)
+- `subscription` (jsonb) – Web Push subscription object from the browser
+- Used by the "Enable Daily Notifications" flow and by the send-daily-push Edge Function to deliver one optional daily reminder per user (opt-in only).
 
 ## 10. Behavior: Answering & Editing
 
@@ -289,6 +301,7 @@ The Settings tab provides minimal app controls and information.
 
 - User's email address when available (read-only, displayed as "Signed in as: user@example.com")
 - **Log Out** button (always visible when the tab is shown; logs user out, returns to onboarding screen)
+- **Enable Daily Notifications** button (opt-in Web Push; subscribes the user for a daily reminder; stored in `push_subscriptions`)
 - App version info: "DailyQ Version 1.0"
 - Tagline: "One question a day."
 - Optional link to creator (e.g. @handle)
@@ -310,8 +323,7 @@ The following are **deliberately out of scope** to keep the experiment clean and
   - No charts, trends, or insights.
   - No AI interpretation of answers.
 - **Engagement mechanics**
-  - No notifications or reminders.
-  - No badges, levels, or advanced streak visualizations.
+  - **Optional opt-in only:** Users may enable a single daily push notification (e.g. reminder) via Settings; no other notifications or reminders. No badges, levels, or advanced streak visualizations.
   - **Limited catch-up:** answering a missed day is supported only within the **rolling 7-day window** and only via the **Calendar overlay** (no navigation to Today); see Section 10a.
 - **Social and sharing**
   - No comments, likes, or feeds.
@@ -421,3 +433,4 @@ Any future feature must be evaluated against a single criterion:
 - **Mobile:** Today and Calendar use spacing (e.g. clamp) so main content sits lower on small screens for a more centered feel.
 - **Calendar – missed-day answer (see Jokers):** “Nu beantwoorden” opens a full-screen modal overlay on the Calendar (no route change). User answers in the overlay; validation (7-day window, account start) before submit; close via X or successful submit only; background dimmed/blurred.
 - **Pop-up screens (modals):** All full-screen overlay modals are rendered via **React portal** into document.body so the entire viewport (header, main, tab bar) dims together with the backdrop; no staggered fade. Every pop-up has a top-right **X**; close runs 200 ms exit animation (fadeOut + scaleOut) before unmount. - **Pop-up animations:** Open: fadeIn (backdrop) and scaleIn/streakEnter (card), 0.2 s, with forwards so the end state is kept. Close: fadeOut + scaleOut, 200 ms, then unmount. Applied to Monday recap, joker modal, edit confirmation, missed-day answer overlay, Calendar view-answer and missed/closed modals.
+- **Web Push:** Single service worker at `public/sw.js`; push and notificationclick listeners appended (no second worker). Registration remains `register-sw.ts` → `/sw.js`. `pushNotifications.ts` provides VAPID + subscribeUserToPush (upsert to `push_subscriptions`). Settings includes "Enable Daily Notifications" button. Edge Function `send-daily-push` sends daily payload to all subscribers (cron/external trigger).

@@ -2259,7 +2259,8 @@ function CalendarView({
     }
   };
 
-  const firstDay = new Date(displayYear, displayMonth, 1).getDay();
+  // Week starts Monday: 0 = Monday, 6 = Sunday
+  const firstDay = (new Date(displayYear, displayMonth, 1).getDay() + 6) % 7;
   const daysInMonth = new Date(displayYear, displayMonth + 1, 0).getDate();
   const todayKey = getLocalDayKey(getNow());
 
@@ -2439,7 +2440,7 @@ function CalendarView({
             boxSizing: "border-box",
           }}
         >
-          {["zo", "ma", "di", "wo", "do", "vr", "za"].map((dow) => (
+          {["ma", "di", "wo", "do", "vr", "za", "zo"].map((dow) => (
             <div
               key={dow}
               style={{

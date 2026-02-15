@@ -486,21 +486,36 @@ function Home() {
               border: GLASS.BORDER,
               boxShadow: `${GLASS.SHADOW}, 0 0 48px rgba(139,92,246,0.08)`,
               borderRadius: 32,
-              padding: "2rem 1.5rem",
+              padding: "2.5rem 1.5rem",
             }}
           >
-            <div style={{ marginBottom: "1.5rem" }}>
-              <span style={{ fontSize: 22, letterSpacing: "0.12em", textTransform: "uppercase", fontWeight: 700 }}>
-                <span style={{ color: "#7C7A9E" }}>Daily</span>
-                <span style={{ color: COLORS.HEADER_Q }}>Q</span>
+            <button
+              type="button"
+              disabled
+              aria-hidden
+              style={{
+                display: "inline-block",
+                padding: "0.75rem 1.75rem",
+                background: `linear-gradient(135deg, ${COLORS.ACCENT_LIGHT}, ${COLORS.ACCENT})`,
+                border: "none",
+                borderRadius: 9999,
+                boxShadow: "0 4px 16px rgba(139,92,246,0.35)",
+                cursor: "default",
+              }}
+            >
+              <span style={{ fontSize: 20, letterSpacing: "0.14em", textTransform: "uppercase", fontWeight: 700, color: "#FFFFFF" }}>
+                DailyQ
               </span>
-            </div>
+            </button>
             <p
               style={{
-                margin: 0,
-                fontSize: 15,
-                color: "rgba(124,122,158,0.95)",
-                lineHeight: 1.4,
+                margin: "1.25rem 0 0",
+                fontSize: 13,
+                fontWeight: 500,
+                letterSpacing: "0.06em",
+                color: "rgba(124,122,158,0.9)",
+                lineHeight: 1.5,
+                textTransform: "none",
               }}
             >
               The easiest way to watch yourself change.
@@ -1587,7 +1602,14 @@ function TodayView({
             }, MODAL_CLOSE_MS);
           }, 2000);
         } else {
+          delaySubmitSuccessRef.current = true;
+          setShowSubmitSuccess(true);
           fireConfetti();
+          setTimeout(() => {
+            setShowSubmitSuccess(false);
+            delaySubmitSuccessRef.current = false;
+            setSubmitting(false);
+          }, 1100);
         }
         setDraft('');
         setIsEditMode(false);

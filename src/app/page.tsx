@@ -69,7 +69,7 @@ const CALENDAR = {
   /** Current day edge: outer purple, small white spacing, then cell with number */
   TODAY_EDGE: "0 0 0 2px #FFFFFF, 0 0 0 5px #8B5CF6",
   /** Current day edge drawn inside cell so it does not make the day look bigger (white inner + purple ring) */
-  TODAY_EDGE_INSET: "inset 0 0 0 8px #8B5CF6, inset 0 0 0 2px #FFFFFF",
+  TODAY_EDGE_INSET: "inset 0 0 0 3px #8B5CF6, inset 0 0 0 1px #FFFFFF",
   /** Subtle shadow for current day cell */
   CELL_SHADOW: "0 2px 6px rgba(139,92,246,0.25)",
   /** Missed days: edge only, no fill (reference image) */
@@ -215,10 +215,10 @@ function getCalendarStyle({
     return style;
   }
 
-  /* Current day (no answer yet): completely filled purple, same size as others */
+  /* Current day (no answer yet): edge only, no fill – white inner + purple ring */
   if (isToday) {
-    style.color = "#FFFFFF";
-    style.background = CALENDAR.TODAY_AND_ANSWERED_BG;
+    style.color = CALENDAR.TODAY_AND_ANSWERED_BG;
+    style.background = "#FFFFFF";
     style.boxShadow = CALENDAR.TODAY_EDGE_INSET;
     return style;
   }
@@ -1475,7 +1475,7 @@ function TodayView({
               .from("answers")
               .select("id, answer_text")
               .eq("user_id", effectiveUser.id)
-              .eq("question_id", questionData.id)
+              .eq("question_date", dayKey)
               .maybeSingle();
 
             if (answerError) {
@@ -1596,7 +1596,6 @@ function TodayView({
           await saveAnswer({
             supabase,
             userId: effectiveUser.id,
-            questionId: question.id,
             draft,
             dayKey,
             questionText: question.text,
@@ -2174,7 +2173,6 @@ function MissedDayAnswerModal({
       await saveAnswer({
         supabase,
         userId: user.id,
-        questionId: question.id,
         draft,
         dayKey,
         questionText: question.text,
@@ -2382,27 +2380,46 @@ function CalendarView({
         const supabase = createSupabaseBrowserClient();
         const startOfMonth = new Date(displayYear, displayMonth, 1);
         const endOfMonth = new Date(displayYear, displayMonth + 1, 0);
+        const startStr = startOfMonth.toISOString().slice(0, 10);
+        const endStr = endOfMonth.toISOString().slice(0, 10);
 
-        const { data, error: fetchError } = await supabase
+        const { data: answersData, error: answersError } = await supabase
           .from("answers")
-          .select("answer_text, questions!inner(text, day)")
+          .select("answer_text, question_date")
           .eq("user_id", user.id)
-          .gte("questions.day", startOfMonth.toISOString().slice(0, 10))
-          .lte("questions.day", endOfMonth.toISOString().slice(0, 10));
+          .gte("question_date", startStr)
+          .lte("question_date", endStr);
 
-        if (fetchError) throw fetchError;
+        if (answersError) throw answersError;
+
+        const questionTable = lang === "en" ? "daily_questions_en" : "questions";
+        const questionDateCol = lang === "en" ? "question_date" : "day";
+        const questionTextCol = lang === "en" ? "question_text" : "text";
+        const { data: questionsData } = await supabase
+          .from(questionTable)
+          .select(`${questionDateCol}, ${questionTextCol}`)
+          .gte(questionDateCol, startStr)
+          .lte(questionDateCol, endStr);
+
+        const dayToText = new Map<string, string>();
+        if (questionsData) {
+          for (const row of questionsData as { question_date?: string; day?: string; question_text?: string; text?: string }[]) {
+            const day = questionDateCol === "question_date" ? row.question_date : row.day;
+            const text = questionTextCol === "question_text" ? row.question_text : row.text;
+            if (day) dayToText.set(day, text ?? "");
+          }
+        }
 
         const map = new Map<
           string,
           { questionText: string; answerText: string }
         >();
-        if (data) {
-          for (const row of data as any[]) {
-            const q = row.questions as { text: string; day: string };
-            if (q && q.day) {
-              map.set(q.day, {
-                questionText: q.text,
-                answerText: row.answer_text,
+        if (answersData) {
+          for (const row of answersData) {
+            if (row.question_date) {
+              map.set(row.question_date, {
+                questionText: dayToText.get(row.question_date) ?? "",
+                answerText: row.answer_text ?? "",
               });
             }
           }
@@ -3372,10 +3389,10 @@ async function fetchPreviousWeekAnswerCount(userId: string): Promise<number> {
   const { start, end } = getPreviousWeekRange(today);
   const { data, error } = await supabase
     .from("answers")
-    .select("id, questions!inner(day)")
+    .select("id")
     .eq("user_id", userId)
-    .gte("questions.day", start)
-    .lte("questions.day", end);
+    .gte("question_date", start)
+    .lte("question_date", end);
   if (error) return 0;
   return (data ?? []).length;
 }
@@ -3383,7 +3400,6 @@ async function fetchPreviousWeekAnswerCount(userId: string): Promise<number> {
 async function saveAnswer(params: {
   supabase: ReturnType<typeof createSupabaseBrowserClient>;
   userId: string;
-  questionId: string;
   draft: string;
   dayKey: string;
   questionText: string;
@@ -3392,7 +3408,7 @@ async function saveAnswer(params: {
   isEdit?: boolean;
   userCreatedAt?: string;
 }) {
-  const { supabase, userId, questionId, draft, dayKey, questionText, setAnswer, onCalendarUpdate, isEdit, userCreatedAt } =
+  const { supabase, userId, draft, dayKey, questionText, setAnswer, onCalendarUpdate, isEdit, userCreatedAt } =
     params;
 
   const dayKeyAsDate = new Date(dayKey + "T12:00:00");
@@ -3411,11 +3427,11 @@ async function saveAnswer(params: {
     .upsert(
       {
         user_id: userId,
-        question_id: questionId,
+        question_date: dayKey,
         answer_text: draft,
       },
       {
-        onConflict: "user_id,question_id",
+        onConflict: "user_id,question_date",
         ignoreDuplicates: false,
       },
     )

@@ -213,10 +213,10 @@ function getCalendarStyle({
     return style;
   }
 
-  /* Current day (no answer yet): full purple + outer purple edge with white spacing */
+  /* Current day (no answer yet): white inner circle + purple edge */
   if (isToday) {
-    style.color = "#FFFFFF";
-    style.background = CALENDAR.TODAY_AND_ANSWERED_BG;
+    style.color = CALENDAR.TODAY_AND_ANSWERED_BG;
+    style.background = "#FFFFFF";
     style.boxShadow = CALENDAR.TODAY_EDGE;
     return style;
   }

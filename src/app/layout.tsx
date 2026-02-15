@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { PwaStandaloneDetector } from "./PwaStandaloneDetector";
 
 export const metadata: Metadata = {
   title: "DailyQ",
@@ -16,8 +17,17 @@ export default function RootLayout({
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <link rel="manifest" href="/manifest.webmanifest" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap"
+          rel="stylesheet"
+        />
       </head>
-      <body>{children}</body>
+      <body>
+        <PwaStandaloneDetector />
+        <div className="app-outer">
+          <div className="app-phone">{children}</div>
+        </div>
+      </body>
     </html>
   );
 }

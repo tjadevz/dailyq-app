@@ -1564,7 +1564,7 @@ function TodayView({
             setShowSubmitSuccess(false);
             delaySubmitSuccessRef.current = false;
             setSubmitting(false);
-          }, 1100);
+          }, 1500);
         }
       } else {
         const supabase = createSupabaseBrowserClient();
@@ -1609,7 +1609,7 @@ function TodayView({
             setShowSubmitSuccess(false);
             delaySubmitSuccessRef.current = false;
             setSubmitting(false);
-          }, 1100);
+          }, 1500);
         }
         setDraft('');
         setIsEditMode(false);

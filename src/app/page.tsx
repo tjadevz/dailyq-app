@@ -1401,28 +1401,36 @@ function TodayView({
           const supabase = createSupabaseBrowserClient();
           const tableName = lang === 'en' ? 'daily_questions_en' : 'daily_questions';
 
-          // 2 second timeout for faster feedback
-          const queryPromise = supabase
-            .from(tableName)
-            .select("id, text, day")
-            .eq("day", dayKey)
-            .maybeSingle();
+          const queryPromise =
+            tableName === 'daily_questions_en'
+              ? supabase
+                  .from(tableName)
+                  .select('id, question_text, question_date')
+                  .eq('question_date', dayKey)
+                  .maybeSingle()
+              : supabase
+                  .from(tableName)
+                  .select('id, text, day')
+                  .eq('day', dayKey)
+                  .maybeSingle();
 
           const timeoutPromise = new Promise((_, reject) =>
             setTimeout(() => reject(new Error('Query timeout')), 2000)
           );
-          
           const result: any = await Promise.race([queryPromise, timeoutPromise]);
-          
-          console.log('✅ Successfully fetched question from Supabase');
-
           const { data, error: questionError } = result;
 
           if (questionError) {
             throw questionError;
           }
 
-          questionData = data;
+          if (tableName === 'daily_questions_en' && data) {
+            questionData = { id: data.id, text: data.question_text, day: data.question_date };
+          } else {
+            questionData = data;
+          }
+
+          console.log('✅ Successfully fetched question from Supabase');
         } catch (dbError) {
           // Fallback to mock data on any error
           console.warn('⚠️ Database query failed, using mock data');
@@ -2066,11 +2074,25 @@ function MissedDayAnswerModal({
         }
         const supabase = createSupabaseBrowserClient();
         const tableName = lang === 'en' ? 'daily_questions_en' : 'daily_questions';
-        const { data, error: fetchError } = await supabase
-          .from(tableName)
-          .select("id, text, day")
-          .eq("day", dayKey)
-          .maybeSingle();
+        let data: { id: string; text?: string; day?: string; question_text?: string; question_date?: string } | null;
+        let fetchError: any;
+        if (tableName === 'daily_questions_en') {
+          const res = await supabase
+            .from(tableName)
+            .select('id, question_text, question_date')
+            .eq('question_date', dayKey)
+            .maybeSingle();
+          data = res.data;
+          fetchError = res.error;
+        } else {
+          const res = await supabase
+            .from(tableName)
+            .select('id, text, day')
+            .eq('day', dayKey)
+            .maybeSingle();
+          data = res.data;
+          fetchError = res.error;
+        }
         if (cancelled) return;
         if (fetchError) {
           setError("missed_answer_error_load");
@@ -2078,7 +2100,11 @@ function MissedDayAnswerModal({
           return;
         }
         if (data) {
-          setQuestion(data);
+          const question =
+            tableName === 'daily_questions_en'
+              ? { id: data.id, text: data.question_text!, day: data.question_date! }
+              : data;
+          setQuestion(question);
         } else {
           setError("missed_answer_error_none");
         }
@@ -2623,7 +2649,7 @@ function CalendarView({
           style={{
             padding: "6px 14px",
             borderRadius: 8,
-            border: "none",
+            border: "1px solid rgba(0,0,0,0.06)",
             background: "transparent",
             cursor: "pointer",
             fontSize: "1rem",
@@ -2655,7 +2681,7 @@ function CalendarView({
           style={{
             padding: "6px 12px",
             borderRadius: 8,
-            border: "none",
+            border: "1px solid rgba(0,0,0,0.06)",
             background: "transparent",
             cursor: "pointer",
             fontSize: "0.9375rem",
@@ -3065,8 +3091,7 @@ function SettingsView({ user, onShowLoadingScreen, onShowOnboardingScreen }: { u
         background: "transparent",
       }}
     >
-      <h2 style={{ fontSize: "1.875rem", fontWeight: 600, marginBottom: 4, color: COLORS.TEXT_PRIMARY }}>{t("settings_title")}</h2>
-      <p style={{ fontSize: 14, color: COLORS.TEXT_SECONDARY, marginBottom: "2rem", marginTop: 0 }}>{t("settings_subtitle")}</p>
+      <h2 style={{ fontSize: "1.875rem", fontWeight: 600, marginBottom: "2rem", color: COLORS.TEXT_PRIMARY }}>{t("settings_title")}</h2>
 
       <div style={{ ...settingsCardStyle, opacity: 0.5, pointerEvents: "none" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>

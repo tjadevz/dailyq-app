@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { PwaStandaloneDetector } from "./PwaStandaloneDetector";
 
 export const metadata: Metadata = {
   title: "DailyQ",
@@ -22,6 +23,7 @@ export default function RootLayout({
         />
       </head>
       <body>
+        <PwaStandaloneDetector />
         <div className="app-outer">
           <div className="app-phone">{children}</div>
         </div>

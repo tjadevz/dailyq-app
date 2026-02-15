@@ -1399,7 +1399,7 @@ function TodayView({
           console.log('📡 Fetching question from Supabase...');
 
           const supabase = createSupabaseBrowserClient();
-          const tableName = lang === 'en' ? 'daily_questions_en' : 'daily_questions';
+          const tableName = lang === 'en' ? 'daily_questions_en' : 'questions';
 
           const queryPromise =
             tableName === 'daily_questions_en'
@@ -2085,7 +2085,7 @@ function MissedDayAnswerModal({
           return;
         }
         const supabase = createSupabaseBrowserClient();
-        const tableName = lang === 'en' ? 'daily_questions_en' : 'daily_questions';
+        const tableName = lang === 'en' ? 'daily_questions_en' : 'questions';
         let data: { id: string; text?: string; day?: string; question_text?: string; question_date?: string } | null;
         let fetchError: any;
         if (tableName === 'daily_questions_en') {

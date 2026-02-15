@@ -68,6 +68,8 @@ const CALENDAR = {
   ANSWERED_FADED_BG: "rgba(139,92,246,0.5)",
   /** Current day edge: outer purple, small white spacing, then cell with number */
   TODAY_EDGE: "0 0 0 2px #FFFFFF, 0 0 0 5px #8B5CF6",
+  /** Current day edge drawn inside cell so it does not make the day look bigger (white inner + purple ring) */
+  TODAY_EDGE_INSET: "inset 0 0 0 8px #8B5CF6, inset 0 0 0 2px #FFFFFF",
   /** Subtle shadow for current day cell */
   CELL_SHADOW: "0 2px 6px rgba(139,92,246,0.25)",
   /** Missed days: edge only, no fill (reference image) */
@@ -124,8 +126,8 @@ const MODAL: {
     boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
     borderRadius: 32,
     padding: "2rem",
-    width: "85%",
-    maxWidth: "20rem",
+    width: "90%",
+    maxWidth: "24rem",
   },
   CARD_WIDE: {
     position: "relative",
@@ -137,8 +139,8 @@ const MODAL: {
     boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
     borderRadius: 32,
     padding: "2rem",
-    width: "85%",
-    maxWidth: "28rem",
+    width: "90%",
+    maxWidth: "32rem",
   },
   CLOSE_BUTTON: {
     position: "absolute",
@@ -205,7 +207,7 @@ function getCalendarStyle({
     style.color = "#FFFFFF";
     if (isToday) {
       style.background = CALENDAR.TODAY_AND_ANSWERED_BG;
-      style.boxShadow = `${CALENDAR.CELL_SHADOW}, ${CALENDAR.TODAY_EDGE}`;
+      style.boxShadow = `${CALENDAR.CELL_SHADOW}, ${CALENDAR.TODAY_EDGE_INSET}`;
     } else {
       style.background = CALENDAR.ANSWERED_FADED_BG;
       style.boxShadow = CALENDAR.CELL_SHADOW;
@@ -213,11 +215,11 @@ function getCalendarStyle({
     return style;
   }
 
-  /* Current day (no answer yet): full purple + outer purple edge with white spacing */
+  /* Current day (no answer yet): completely filled purple, same size as others */
   if (isToday) {
     style.color = "#FFFFFF";
     style.background = CALENDAR.TODAY_AND_ANSWERED_BG;
-    style.boxShadow = CALENDAR.TODAY_EDGE;
+    style.boxShadow = CALENDAR.TODAY_EDGE_INSET;
     return style;
   }
 
@@ -610,7 +612,7 @@ function Home() {
           </div>
         )}
 
-        {/* Header */}
+        {/* Header: hide DailyQ + date on calendar tab */}
         <header
           style={{
             padding: "24px",
@@ -623,31 +625,32 @@ function Home() {
           }}
         >
           <div style={{ flex: 1, minWidth: 0 }} />
-          <div
-            style={{
-              position: "absolute",
-              left: "50%",
-              top: "50%",
-              transform: "translate(-50%, -50%)",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 4,
-            }}
-          >
-            <span
+          {activeTab !== "calendar" && (
+            <div
               style={{
-                fontSize: 18,
-                letterSpacing: "0.12em",
-                textTransform: "uppercase",
-                fontWeight: 700,
+                position: "absolute",
+                left: "50%",
+                top: "50%",
+                transform: "translate(-50%, -50%)",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 6,
               }}
             >
-              <span style={{ color: "#4B5563" }}>Daily</span>
-              <span style={{ color: COLORS.HEADER_Q }}>Q</span>
-            </span>
-            <span style={{ fontSize: 12, fontWeight: 500, color: COLORS.TEXT_MUTED }}>{headerDateLabel}</span>
-          </div>
+              <span
+                style={{
+                  fontSize: "1.125rem",
+                  letterSpacing: "0.12em",
+                  fontWeight: 700,
+                  color: "#18181B",
+                }}
+              >
+                DailyQ
+              </span>
+              <span style={{ fontSize: 12, fontWeight: 500, color: "#71717A" }}>{headerDateLabel}</span>
+            </div>
+          )}
           <div style={{ flex: 1, minWidth: 0, minHeight: 30 }} />
         </header>
 
@@ -1205,7 +1208,7 @@ function MondayRecapModal({
       style={{
         ...MODAL.CARD,
         textAlign: "center",
-        maxWidth: "18rem",
+        maxWidth: "22rem",
         padding: "1.5rem 1.25rem",
       }}
       onClick={(e) => e.stopPropagation()}
@@ -1312,7 +1315,7 @@ function TodayView({
   onShowRecapTest?: () => void;
   modalContainerRef?: React.RefObject<HTMLDivElement | null>;
 }) {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const [loading, setLoading] = useState(true);
   const [question, setQuestion] = useState<Question | null>(null);
   const [answer, setAnswer] = useState<Answer | null>(null);
@@ -1396,29 +1399,50 @@ function TodayView({
           console.log('📡 Fetching question from Supabase...');
 
           const supabase = createSupabaseBrowserClient();
-          
-          // 2 second timeout for faster feedback
-          const queryPromise = supabase
-            .from("questions")
-            .select("id, text, day")
-            .eq("day", dayKey)
-            .maybeSingle();
+          const tableName = lang === 'en' ? 'daily_questions_en' : 'daily_questions';
+
+          const queryPromise =
+            tableName === 'daily_questions_en'
+              ? supabase
+                  .from(tableName)
+                  .select('id, question_text, question_date')
+                  .eq('question_date', dayKey)
+                  .maybeSingle()
+              : supabase
+                  .from(tableName)
+                  .select('id, text, day')
+                  .eq('day', dayKey)
+                  .maybeSingle();
 
           const timeoutPromise = new Promise((_, reject) =>
             setTimeout(() => reject(new Error('Query timeout')), 2000)
           );
-          
           const result: any = await Promise.race([queryPromise, timeoutPromise]);
-          
-          console.log('✅ Successfully fetched question from Supabase');
-
           const { data, error: questionError } = result;
 
           if (questionError) {
             throw questionError;
           }
 
-          questionData = data;
+          let normalizedQuestion: Question | null = null;
+          if (data) {
+            if (tableName === 'daily_questions_en') {
+              normalizedQuestion = {
+                id: data.id,
+                text: data.question_text ?? '',
+                day: data.question_date ?? ''
+              };
+            } else {
+              normalizedQuestion = {
+                id: data.id,
+                text: data.text ?? '',
+                day: data.day ?? ''
+              };
+            }
+          }
+          questionData = normalizedQuestion;
+
+          console.log('✅ Successfully fetched question from Supabase');
         } catch (dbError) {
           // Fallback to mock data on any error
           console.warn('⚠️ Database query failed, using mock data');
@@ -1697,7 +1721,7 @@ function TodayView({
       style={{
         display: "flex",
         flexDirection: "column",
-        padding: "1.5rem 28px 2rem",
+        padding: "1.5rem 16px 2rem",
         height: "100%",
         width: "100%",
         background: "transparent",
@@ -1756,22 +1780,6 @@ function TodayView({
               padding: "clamp(2rem, 10vh, 5rem) 0",
             }}
           >
-            <div style={{ display: "flex", justifyContent: "center", marginBottom: "2rem" }}>
-              <div
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 8,
-                  padding: "8px 16px",
-                  borderRadius: 9999,
-                  background: `linear-gradient(to right, ${COLORS.ACCENT_LIGHT}, ${COLORS.ACCENT})`,
-                  boxShadow: "0 4px 12px rgba(139,92,246,0.3)",
-                }}
-              >
-                <Check size={16} strokeWidth={2} color="#FFFFFF" />
-                <span style={{ fontSize: 14, fontWeight: 600, color: "#FFFFFF" }}>{t("today_ready")}</span>
-              </div>
-            </div>
             <div
               style={{
                 width: "100%",
@@ -1786,6 +1794,22 @@ function TodayView({
                 boxShadow: "0 4px 16px rgba(0,0,0,0.06)",
               }}
             >
+              <div style={{ display: "flex", justifyContent: "center", marginBottom: "1.25rem" }}>
+                <div
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "8px 16px",
+                    borderRadius: 9999,
+                    background: `linear-gradient(to right, ${COLORS.ACCENT_LIGHT}, ${COLORS.ACCENT})`,
+                    boxShadow: "0 4px 12px rgba(139,92,246,0.3)",
+                  }}
+                >
+                  <Check size={16} strokeWidth={2} color="#FFFFFF" />
+                  <span style={{ fontSize: 14, fontWeight: 600, color: "#FFFFFF" }}>{t("today_ready")}</span>
+                </div>
+              </div>
               <p
                 style={{
                   margin: 0,
@@ -1870,25 +1894,10 @@ function TodayView({
               padding: "1rem 0",
             }}
           >
-            <div style={{ display: "flex", justifyContent: "center", marginBottom: "2rem" }}>
-              <div
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 8,
-                  padding: "8px 16px",
-                  borderRadius: 9999,
-                  background: `linear-gradient(to right, ${COLORS.ACCENT_LIGHT}, ${COLORS.ACCENT})`,
-                  boxShadow: "0 4px 12px rgba(139,92,246,0.3)",
-                }}
-              >
-                <span style={{ fontSize: 14, fontWeight: 600, color: "#FFFFFF" }}>{t("today_question_label")}</span>
-              </div>
-            </div>
             <div
               style={{
                 width: "100%",
-                padding: "2.5rem 2rem",
+                padding: "2.5rem 1.25rem",
                 marginBottom: "2rem",
                 borderRadius: 28,
                 background: "rgba(255,255,255,0.4)",
@@ -2043,7 +2052,7 @@ function MissedDayAnswerModal({
   onClose: () => void;
   onSuccess: (dayKey: string, questionText: string, answerText: string) => void;
 }) {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const [question, setQuestion] = useState<Question | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -2076,19 +2085,50 @@ function MissedDayAnswerModal({
           return;
         }
         const supabase = createSupabaseBrowserClient();
-        const { data, error: fetchError } = await supabase
-          .from("questions")
-          .select("id, text, day")
-          .eq("day", dayKey)
-          .maybeSingle();
+        const tableName = lang === 'en' ? 'daily_questions_en' : 'daily_questions';
+        let data: { id: string; text?: string; day?: string; question_text?: string; question_date?: string } | null;
+        let fetchError: any;
+        if (tableName === 'daily_questions_en') {
+          const res = await supabase
+            .from(tableName)
+            .select('id, question_text, question_date')
+            .eq('question_date', dayKey)
+            .maybeSingle();
+          data = res.data;
+          fetchError = res.error;
+        } else {
+          const res = await supabase
+            .from(tableName)
+            .select('id, text, day')
+            .eq('day', dayKey)
+            .maybeSingle();
+          data = res.data;
+          fetchError = res.error;
+        }
         if (cancelled) return;
         if (fetchError) {
           setError("missed_answer_error_load");
           setLoading(false);
           return;
         }
+        let normalizedQuestion: Question | null = null;
         if (data) {
-          setQuestion(data);
+          if (tableName === 'daily_questions_en') {
+            normalizedQuestion = {
+              id: data.id,
+              text: data.question_text ?? '',
+              day: data.question_date ?? ''
+            };
+          } else {
+            normalizedQuestion = {
+              id: data.id,
+              text: data.text ?? '',
+              day: data.day ?? ''
+            };
+          }
+        }
+        if (normalizedQuestion) {
+          setQuestion(normalizedQuestion);
         } else {
           setError("missed_answer_error_none");
         }
@@ -2600,13 +2640,13 @@ function CalendarView({
   const yearButtonStyle = {
     width: 36,
     height: 36,
-    borderRadius: 8,
-    border: "1px solid rgba(255,255,255,0.4)",
-    background: "rgba(255,255,255,0.6)",
-    backdropFilter: GLASS.BLUR,
+    borderRadius: 12,
+    border: "none",
+    background: "#FFFFFF",
+    boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
     cursor: "pointer" as const,
     fontSize: "1.125rem",
-    color: COLORS.TEXT_SECONDARY,
+    color: "#3F3F46",
     display: "flex" as const,
     alignItems: "center" as const,
     justifyContent: "center" as const,
@@ -2617,12 +2657,12 @@ function CalendarView({
       style={{ 
         height: "100%",
         width: "100%",
-        padding: "1rem 24px 1.5rem",
+        padding: "0.5rem 24px 1.5rem",
         position: "relative",
         overflowY: "auto",
         overflowX: "hidden",
         boxSizing: "border-box",
-        background: "transparent",
+        background: "#F8FAFC",
       }}
     >
       {/* Year above month: tap to open year picker */}
@@ -2633,13 +2673,12 @@ function CalendarView({
           style={{
             padding: "6px 14px",
             borderRadius: 8,
-            border: "1px solid rgba(255,255,255,0.5)",
-            background: "rgba(255,255,255,0.5)",
-            backdropFilter: GLASS.BLUR,
+            border: "1px solid rgba(0,0,0,0.06)",
+            background: "transparent",
             cursor: "pointer",
             fontSize: "1rem",
-            fontWeight: 600,
-            color: COLORS.TEXT_PRIMARY,
+            fontWeight: 500,
+            color: "#71717A",
           }}
           aria-label={t("calendar_select_year")}
         >
@@ -2647,30 +2686,31 @@ function CalendarView({
         </button>
       </div>
 
-      {/* Month nav: month + Today */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 24, marginBottom: "1.5rem", flexWrap: "wrap" }}>
-        <button type="button" onClick={prevMonth} style={yearButtonStyle} aria-label={t("calendar_prev")}>
-          ‹
-        </button>
-        <h2 style={{ fontSize: "1.5rem", fontWeight: 600, color: COLORS.TEXT_PRIMARY, margin: 0 }}>
-          {monthNames[displayMonth]}
-        </h2>
-        <button type="button" onClick={nextMonth} style={yearButtonStyle} aria-label={t("calendar_next")}>
-          ›
-        </button>
+      {/* Month nav: month on top, Today underneath */}
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, marginBottom: "1.5rem" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 24 }}>
+          <button type="button" onClick={prevMonth} style={yearButtonStyle} aria-label={t("calendar_prev")}>
+            ‹
+          </button>
+          <h2 style={{ fontSize: "1.5rem", fontWeight: 700, color: "#18181B", margin: 0 }}>
+            {monthNames[displayMonth]}
+          </h2>
+          <button type="button" onClick={nextMonth} style={yearButtonStyle} aria-label={t("calendar_next")}>
+            ›
+          </button>
+        </div>
         <button
           type="button"
           onClick={goToToday}
           style={{
-            padding: "8px 14px",
+            padding: "6px 12px",
             borderRadius: 8,
-            border: "1px solid rgba(255,255,255,0.4)",
-            background: isViewingCurrentMonth ? "rgba(139,92,246,0.2)" : "rgba(255,255,255,0.6)",
-            backdropFilter: GLASS.BLUR,
+            border: "1px solid rgba(0,0,0,0.06)",
+            background: "transparent",
             cursor: "pointer",
-            fontSize: 14,
-            fontWeight: 600,
-            color: isViewingCurrentMonth ? COLORS.ACCENT : COLORS.TEXT_SECONDARY,
+            fontSize: "0.9375rem",
+            fontWeight: 500,
+            color: isViewingCurrentMonth ? "#8B5CF6" : "#71717A",
           }}
         >
           {t("calendar_today")}
@@ -3075,8 +3115,7 @@ function SettingsView({ user, onShowLoadingScreen, onShowOnboardingScreen }: { u
         background: "transparent",
       }}
     >
-      <h2 style={{ fontSize: "1.875rem", fontWeight: 600, marginBottom: 4, color: COLORS.TEXT_PRIMARY }}>{t("settings_title")}</h2>
-      <p style={{ fontSize: 14, color: COLORS.TEXT_SECONDARY, marginBottom: "2rem", marginTop: 0 }}>{t("settings_subtitle")}</p>
+      <h2 style={{ fontSize: "1.875rem", fontWeight: 600, marginBottom: "2rem", color: COLORS.TEXT_PRIMARY }}>{t("settings_title")}</h2>
 
       <div style={{ ...settingsCardStyle, opacity: 0.5, pointerEvents: "none" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>

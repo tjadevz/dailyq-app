@@ -449,33 +449,63 @@ function Home() {
     return (
       <div
         style={{
-          minHeight: "100vh",
+          minHeight: "100%",
           display: "flex",
           flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          background: COLORS.BACKGROUND_GRADIENT,
-          padding: "2rem",
+          paddingTop: "env(safe-area-inset-top)",
           boxSizing: "border-box",
+          background: COLORS.BACKGROUND_GRADIENT,
+          position: "relative",
+          overflow: "hidden",
         }}
       >
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "1rem" }}>
-          <span style={{ fontSize: 28, letterSpacing: "0.12em", textTransform: "uppercase", fontWeight: 700 }}>
-            <span style={{ color: "#4B5563" }}>Daily</span>
-            <span style={{ color: COLORS.HEADER_Q }}>Q</span>
-          </span>
-          <p
+        {/* Decorative blur orbs – same as onboarding */}
+        <div style={{ position: "absolute", top: 64, right: 40, width: 160, height: 160, background: "linear-gradient(to bottom right, rgba(219,234,254,0.4), rgba(221,214,254,0.35))", borderRadius: "50%", filter: "blur(40px)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", bottom: "40%", left: 40, width: 192, height: 192, background: "linear-gradient(to top right, rgba(251,207,232,0.25), rgba(224,231,255,0.3))", borderRadius: "50%", filter: "blur(40px)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", width: 224, height: 224, background: "linear-gradient(to bottom right, rgba(250,232,255,0.25), rgba(219,234,254,0.2))", borderRadius: "50%", filter: "blur(40px)", pointerEvents: "none" }} />
+
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "16px 24px",
+            position: "relative",
+            zIndex: 1,
+          }}
+        >
+          <div
             style={{
-              margin: 0,
-              fontSize: 15,
-              color: COLORS.TEXT_SECONDARY,
+              maxWidth: "24rem",
+              width: "100%",
               textAlign: "center",
-              lineHeight: 1.4,
-              maxWidth: 280,
+              background: GLASS.CARD_BG,
+              backdropFilter: GLASS.BLUR,
+              WebkitBackdropFilter: GLASS.BLUR,
+              border: GLASS.BORDER,
+              boxShadow: `${GLASS.SHADOW}, 0 0 48px rgba(139,92,246,0.08)`,
+              borderRadius: 32,
+              padding: "2rem 1.5rem",
             }}
           >
-            The easiest way to watch yourself change.
-          </p>
+            <div style={{ marginBottom: "1.5rem" }}>
+              <span style={{ fontSize: 22, letterSpacing: "0.12em", textTransform: "uppercase", fontWeight: 700 }}>
+                <span style={{ color: "#7C7A9E" }}>Daily</span>
+                <span style={{ color: COLORS.HEADER_Q }}>Q</span>
+              </span>
+            </div>
+            <p
+              style={{
+                margin: 0,
+                fontSize: 15,
+                color: "rgba(124,122,158,0.95)",
+                lineHeight: 1.4,
+              }}
+            >
+              The easiest way to watch yourself change.
+            </p>
+          </div>
         </div>
       </div>
     );

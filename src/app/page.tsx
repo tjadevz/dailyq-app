@@ -3422,6 +3422,12 @@ async function saveAnswer(params: {
     throw new Error("Cannot submit: this date is outside the 7-day window.");
   }
 
+  console.log("Saving answer payload:", {
+    user_id: userId,
+    question_date: dayKey,
+    answer_text: draft,
+  });
+
   const { data: upserted, error: upsertError } = await supabase
     .from("answers")
     .upsert(

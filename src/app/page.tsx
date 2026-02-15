@@ -126,8 +126,8 @@ const MODAL: {
     boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
     borderRadius: 32,
     padding: "2rem",
-    width: "85%",
-    maxWidth: "20rem",
+    width: "90%",
+    maxWidth: "24rem",
   },
   CARD_WIDE: {
     position: "relative",
@@ -139,8 +139,8 @@ const MODAL: {
     boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
     borderRadius: 32,
     padding: "2rem",
-    width: "85%",
-    maxWidth: "28rem",
+    width: "90%",
+    maxWidth: "32rem",
   },
   CLOSE_BUTTON: {
     position: "absolute",
@@ -1208,7 +1208,7 @@ function MondayRecapModal({
       style={{
         ...MODAL.CARD,
         textAlign: "center",
-        maxWidth: "18rem",
+        maxWidth: "22rem",
         padding: "1.5rem 1.25rem",
       }}
       onClick={(e) => e.stopPropagation()}
@@ -1315,7 +1315,7 @@ function TodayView({
   onShowRecapTest?: () => void;
   modalContainerRef?: React.RefObject<HTMLDivElement | null>;
 }) {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const [loading, setLoading] = useState(true);
   const [question, setQuestion] = useState<Question | null>(null);
   const [answer, setAnswer] = useState<Answer | null>(null);
@@ -1399,10 +1399,11 @@ function TodayView({
           console.log('📡 Fetching question from Supabase...');
 
           const supabase = createSupabaseBrowserClient();
-          
+          const tableName = lang === 'en' ? 'daily_questions_en' : 'daily_questions';
+
           // 2 second timeout for faster feedback
           const queryPromise = supabase
-            .from("questions")
+            .from(tableName)
             .select("id, text, day")
             .eq("day", dayKey)
             .maybeSingle();
@@ -1759,22 +1760,6 @@ function TodayView({
               padding: "clamp(2rem, 10vh, 5rem) 0",
             }}
           >
-            <div style={{ display: "flex", justifyContent: "center", marginBottom: "2rem" }}>
-              <div
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 8,
-                  padding: "8px 16px",
-                  borderRadius: 9999,
-                  background: `linear-gradient(to right, ${COLORS.ACCENT_LIGHT}, ${COLORS.ACCENT})`,
-                  boxShadow: "0 4px 12px rgba(139,92,246,0.3)",
-                }}
-              >
-                <Check size={16} strokeWidth={2} color="#FFFFFF" />
-                <span style={{ fontSize: 14, fontWeight: 600, color: "#FFFFFF" }}>{t("today_ready")}</span>
-              </div>
-            </div>
             <div
               style={{
                 width: "100%",
@@ -1789,6 +1774,22 @@ function TodayView({
                 boxShadow: "0 4px 16px rgba(0,0,0,0.06)",
               }}
             >
+              <div style={{ display: "flex", justifyContent: "center", marginBottom: "1.25rem" }}>
+                <div
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "8px 16px",
+                    borderRadius: 9999,
+                    background: `linear-gradient(to right, ${COLORS.ACCENT_LIGHT}, ${COLORS.ACCENT})`,
+                    boxShadow: "0 4px 12px rgba(139,92,246,0.3)",
+                  }}
+                >
+                  <Check size={16} strokeWidth={2} color="#FFFFFF" />
+                  <span style={{ fontSize: 14, fontWeight: 600, color: "#FFFFFF" }}>{t("today_ready")}</span>
+                </div>
+              </div>
               <p
                 style={{
                   margin: 0,
@@ -2031,7 +2032,7 @@ function MissedDayAnswerModal({
   onClose: () => void;
   onSuccess: (dayKey: string, questionText: string, answerText: string) => void;
 }) {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const [question, setQuestion] = useState<Question | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -2064,8 +2065,9 @@ function MissedDayAnswerModal({
           return;
         }
         const supabase = createSupabaseBrowserClient();
+        const tableName = lang === 'en' ? 'daily_questions_en' : 'daily_questions';
         const { data, error: fetchError } = await supabase
-          .from("questions")
+          .from(tableName)
           .select("id, text, day")
           .eq("day", dayKey)
           .maybeSingle();

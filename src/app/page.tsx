@@ -1424,11 +1424,23 @@ function TodayView({
             throw questionError;
           }
 
-          if (tableName === 'daily_questions_en' && data) {
-            questionData = { id: data.id, text: data.question_text, day: data.question_date };
-          } else {
-            questionData = data;
+          let normalizedQuestion: Question | null = null;
+          if (data) {
+            if (tableName === 'daily_questions_en') {
+              normalizedQuestion = {
+                id: data.id,
+                text: data.question_text ?? '',
+                day: data.question_date ?? ''
+              };
+            } else {
+              normalizedQuestion = {
+                id: data.id,
+                text: data.text ?? '',
+                day: data.day ?? ''
+              };
+            }
           }
+          questionData = normalizedQuestion;
 
           console.log('✅ Successfully fetched question from Supabase');
         } catch (dbError) {
@@ -2099,12 +2111,24 @@ function MissedDayAnswerModal({
           setLoading(false);
           return;
         }
+        let normalizedQuestion: Question | null = null;
         if (data) {
-          const question =
-            tableName === 'daily_questions_en'
-              ? { id: data.id, text: data.question_text!, day: data.question_date! }
-              : data;
-          setQuestion(question);
+          if (tableName === 'daily_questions_en') {
+            normalizedQuestion = {
+              id: data.id,
+              text: data.question_text ?? '',
+              day: data.question_date ?? ''
+            };
+          } else {
+            normalizedQuestion = {
+              id: data.id,
+              text: data.text ?? '',
+              day: data.day ?? ''
+            };
+          }
+        }
+        if (normalizedQuestion) {
+          setQuestion(normalizedQuestion);
         } else {
           setError("missed_answer_error_none");
         }
@@ -2633,7 +2657,7 @@ function CalendarView({
       style={{ 
         height: "100%",
         width: "100%",
-        padding: "1rem 24px 1.5rem",
+        padding: "0.5rem 24px 1.5rem",
         position: "relative",
         overflowY: "auto",
         overflowX: "hidden",

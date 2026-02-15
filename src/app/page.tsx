@@ -1697,7 +1697,7 @@ function TodayView({
       style={{
         display: "flex",
         flexDirection: "column",
-        padding: "1.5rem 28px 2rem",
+        padding: "1.5rem 16px 2rem",
         height: "100%",
         width: "100%",
         background: "transparent",
@@ -1870,25 +1870,10 @@ function TodayView({
               padding: "1rem 0",
             }}
           >
-            <div style={{ display: "flex", justifyContent: "center", marginBottom: "2rem" }}>
-              <div
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 8,
-                  padding: "8px 16px",
-                  borderRadius: 9999,
-                  background: `linear-gradient(to right, ${COLORS.ACCENT_LIGHT}, ${COLORS.ACCENT})`,
-                  boxShadow: "0 4px 12px rgba(139,92,246,0.3)",
-                }}
-              >
-                <span style={{ fontSize: 14, fontWeight: 600, color: "#FFFFFF" }}>{t("today_question_label")}</span>
-              </div>
-            </div>
             <div
               style={{
                 width: "100%",
-                padding: "2.5rem 2rem",
+                padding: "2.5rem 1.25rem",
                 marginBottom: "2rem",
                 borderRadius: 28,
                 background: "rgba(255,255,255,0.4)",
@@ -1898,6 +1883,22 @@ function TodayView({
                 boxShadow: "0 4px 16px rgba(0,0,0,0.06)",
               }}
             >
+              <div style={{ display: "flex", justifyContent: "center", marginBottom: "1.25rem" }}>
+                <span
+                  style={{
+                    display: "inline-block",
+                    padding: "8px 16px",
+                    borderRadius: 9999,
+                    background: `linear-gradient(to right, ${COLORS.ACCENT_LIGHT}, ${COLORS.ACCENT})`,
+                    boxShadow: "0 4px 12px rgba(139,92,246,0.3)",
+                    fontSize: 14,
+                    fontWeight: 600,
+                    color: "#FFFFFF",
+                  }}
+                >
+                  {t("today_question_label")}
+                </span>
+              </div>
               <p
                 style={{
                   margin: 0,

@@ -2,6 +2,7 @@
 /* eslint-disable no-console */
 
 import { useEffect, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "motion/react";
 import {
@@ -89,9 +90,15 @@ const JOKER = {
 const MODAL_CLOSE_MS = 200;
 
 /** Shared modal styles to match joker popup (design + spacing) */
-const MODAL = {
+const MODAL: {
+  WRAPPER: CSSProperties;
+  BACKDROP: CSSProperties;
+  CARD: CSSProperties;
+  CARD_WIDE: CSSProperties;
+  CLOSE_BUTTON: CSSProperties;
+} = {
   WRAPPER: {
-    position: "fixed" as const,
+    position: "fixed",
     inset: 0,
     zIndex: 9999,
     display: "flex",
@@ -101,14 +108,14 @@ const MODAL = {
     boxSizing: "border-box",
   },
   BACKDROP: {
-    position: "absolute" as const,
+    position: "absolute",
     inset: 0,
     backgroundColor: "rgba(0,0,0,0.4)",
     backdropFilter: "blur(4px)",
     borderRadius: 48,
   },
   CARD: {
-    position: "relative" as const,
+    position: "relative",
     zIndex: 1,
     background: "rgba(255,255,255,0.95)",
     backdropFilter: "blur(40px)",
@@ -121,7 +128,7 @@ const MODAL = {
     maxWidth: "20rem",
   },
   CARD_WIDE: {
-    position: "relative" as const,
+    position: "relative",
     zIndex: 1,
     background: "rgba(255,255,255,0.95)",
     backdropFilter: "blur(40px)",
@@ -134,16 +141,16 @@ const MODAL = {
     maxWidth: "28rem",
   },
   CLOSE_BUTTON: {
-    position: "absolute" as const,
+    position: "absolute",
     top: 16,
     right: 16,
     width: 32,
     height: 32,
-    borderRadius: "50%" as const,
+    borderRadius: "50%",
     border: "none",
     background: "rgba(243,244,246,0.8)",
     color: COLORS.TEXT_SECONDARY,
-    cursor: "pointer" as const,
+    cursor: "pointer",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -262,6 +269,7 @@ function Home() {
   const loadingScreenShownAtRef = useRef<number>(Date.now());
   const LOADING_SCREEN_MIN_MS = 2200;
   const [showLoadingScreen, setShowLoadingScreen] = useState(false);
+  const [showOnboardingOverlay, setShowOnboardingOverlay] = useState(false);
 
   const closeJokerModal = () => {
     if (jokerModalClosingRef.current) return;
@@ -673,6 +681,9 @@ function Home() {
                   }
                 : undefined
             }
+            onShowOnboardingScreen={
+              process.env.NODE_ENV === "development" ? () => setShowOnboardingOverlay(true) : undefined
+            }
           />
         </div>
       </main>
@@ -818,6 +829,13 @@ function Home() {
           </div>
         );
       })()}
+
+      {showOnboardingOverlay && typeof document !== "undefined" && createPortal(
+        <div style={{ position: "fixed", inset: 0, zIndex: 10000, background: COLORS.BACKGROUND_GRADIENT }}>
+          <OnboardingScreen onClose={() => setShowOnboardingOverlay(false)} />
+        </div>,
+        document.body
+      )}
     </div>
   );
 }
@@ -868,11 +886,11 @@ function TabButton({
 }
 
 // ============ ONBOARDING SCREEN ============
-function OnboardingScreen() {
+function OnboardingScreen({ onClose }: { onClose?: () => void }) {
   const { t } = useLanguage();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [isSignUp, setIsSignUp] = useState(true);
+  const [isSignUp, setIsSignUp] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -925,6 +943,31 @@ function OnboardingScreen() {
         overflow: "hidden",
       }}
     >
+      {onClose && (
+        <button
+          type="button"
+          aria-label={t("common_close")}
+          onClick={onClose}
+          style={{
+            position: "absolute",
+            top: 16,
+            right: 16,
+            zIndex: 10,
+            width: 36,
+            height: 36,
+            borderRadius: "50%",
+            border: "none",
+            background: "rgba(243,244,246,0.9)",
+            color: COLORS.TEXT_SECONDARY,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <X size={18} strokeWidth={2.5} />
+        </button>
+      )}
       {/* Decorative blur orbs – same as main app */}
       <div style={{ position: "absolute", top: 64, right: 40, width: 160, height: 160, background: "linear-gradient(to bottom right, rgba(219,234,254,0.4), rgba(221,214,254,0.35))", borderRadius: "50%", filter: "blur(40px)", pointerEvents: "none" }} />
       <div style={{ position: "absolute", bottom: "40%", left: 40, width: 192, height: 192, background: "linear-gradient(to top right, rgba(251,207,232,0.25), rgba(224,231,255,0.3))", borderRadius: "50%", filter: "blur(40px)", pointerEvents: "none" }} />
@@ -2941,7 +2984,7 @@ function CalendarView({
 }
 
 // ============ SETTINGS VIEW ============
-function SettingsView({ user, onShowLoadingScreen }: { user: any; onShowLoadingScreen?: () => void }) {
+function SettingsView({ user, onShowLoadingScreen, onShowOnboardingScreen }: { user: any; onShowLoadingScreen?: () => void; onShowOnboardingScreen?: () => void }) {
   const { t, lang, setLang } = useLanguage();
   const [signingOut, setSigningOut] = useState(false);
   const [showLanguageModal, setShowLanguageModal] = useState(false);
@@ -3116,6 +3159,24 @@ function SettingsView({ user, onShowLoadingScreen }: { user: any; onShowLoadingS
           }}
         >
           Show loading screen
+        </button>
+      )}
+      {onShowOnboardingScreen && (
+        <button
+          type="button"
+          onClick={onShowOnboardingScreen}
+          style={{
+            marginTop: "0.5rem",
+            padding: "0.5rem 1rem",
+            fontSize: "0.8rem",
+            color: COLORS.TEXT_SECONDARY,
+            background: "transparent",
+            border: "1px dashed rgba(156,163,175,0.5)",
+            borderRadius: 999,
+            cursor: "pointer",
+          }}
+        >
+          Show onboarding screen
         </button>
       )}
 

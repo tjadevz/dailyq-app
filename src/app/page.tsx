@@ -917,147 +917,162 @@ function OnboardingScreen() {
       style={{
         minHeight: "100%",
         display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
+        flexDirection: "column",
+        paddingTop: "env(safe-area-inset-top)",
+        boxSizing: "border-box",
+        background: COLORS.BACKGROUND_GRADIENT,
         position: "relative",
-        padding: "2rem 24px",
         overflow: "hidden",
       }}
     >
-      {/* Main content */}
+      {/* Decorative blur orbs – same as main app */}
+      <div style={{ position: "absolute", top: 64, right: 40, width: 160, height: 160, background: "linear-gradient(to bottom right, rgba(219,234,254,0.4), rgba(221,214,254,0.35))", borderRadius: "50%", filter: "blur(40px)", pointerEvents: "none" }} />
+      <div style={{ position: "absolute", bottom: "40%", left: 40, width: 192, height: 192, background: "linear-gradient(to top right, rgba(251,207,232,0.25), rgba(224,231,255,0.3))", borderRadius: "50%", filter: "blur(40px)", pointerEvents: "none" }} />
+      <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", width: 224, height: 224, background: "linear-gradient(to bottom right, rgba(250,232,255,0.25), rgba(219,234,254,0.2))", borderRadius: "50%", filter: "blur(40px)", pointerEvents: "none" }} />
+
       <div
         style={{
-          maxWidth: "24rem",
-          width: "100%",
-          textAlign: "center",
+          flex: 1,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "16px 24px",
           position: "relative",
           zIndex: 1,
-          background: "rgba(255,255,255,0.5)",
-          backdropFilter: GLASS.BLUR,
-          WebkitBackdropFilter: GLASS.BLUR,
-          border: GLASS.BORDER,
-          boxShadow: GLASS.SHADOW,
-          borderRadius: 32,
-          padding: "2.5rem 2rem",
         }}
       >
-        <div style={{ marginBottom: "3rem" }}>
-          <span style={{ fontSize: 18, letterSpacing: "0.12em", textTransform: "uppercase", fontWeight: 700 }}>
-            <span style={{ color: "#4B5563" }}>Daily</span>
-            <span style={{ color: COLORS.HEADER_Q }}>Q</span>
-          </span>
+        <div
+          style={{
+            maxWidth: "24rem",
+            width: "100%",
+            textAlign: "center",
+            background: GLASS.CARD_BG,
+            backdropFilter: GLASS.BLUR,
+            WebkitBackdropFilter: GLASS.BLUR,
+            border: GLASS.BORDER,
+            boxShadow: GLASS.SHADOW,
+            borderRadius: 32,
+            padding: "2rem 1.5rem",
+          }}
+        >
+          <div style={{ marginBottom: "2.5rem" }}>
+            <span style={{ fontSize: 22, letterSpacing: "0.12em", textTransform: "uppercase", fontWeight: 700 }}>
+              <span style={{ color: COLORS.TEXT_SECONDARY }}>Daily</span>
+              <span style={{ color: COLORS.HEADER_Q }}>Q</span>
+            </span>
+          </div>
+
+          <form onSubmit={handleSubmit}>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder={t("onboarding_email")}
+              disabled={submitting}
+              autoComplete="email"
+              style={{
+                width: "100%",
+                padding: "1rem 1.25rem",
+                fontSize: 16,
+                border: "1px solid rgba(255,255,255,0.6)",
+                borderRadius: 24,
+                background: "rgba(255,254,249,0.75)",
+                color: COLORS.TEXT_PRIMARY,
+                marginBottom: "1rem",
+                outline: "none",
+                transition: "150ms ease",
+                boxSizing: "border-box",
+              }}
+              onFocus={(e) => {
+                e.target.style.borderColor = "rgba(196,181,253,0.5)";
+              }}
+              onBlur={(e) => {
+                e.target.style.borderColor = "rgba(255,255,255,0.6)";
+              }}
+            />
+
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder={t("onboarding_password")}
+              disabled={submitting}
+              autoComplete={isSignUp ? "new-password" : "current-password"}
+              style={{
+                width: "100%",
+                padding: "1rem 1.25rem",
+                fontSize: 16,
+                border: "1px solid rgba(255,255,255,0.6)",
+                borderRadius: 24,
+                background: "rgba(255,254,249,0.75)",
+                color: COLORS.TEXT_PRIMARY,
+                marginBottom: "1.25rem",
+                outline: "none",
+                transition: "150ms ease",
+                boxSizing: "border-box",
+              }}
+              onFocus={(e) => {
+                e.target.style.borderColor = "rgba(196,181,253,0.5)";
+              }}
+              onBlur={(e) => {
+                e.target.style.borderColor = "rgba(255,255,255,0.6)";
+              }}
+            />
+
+            <button
+              type="submit"
+              disabled={submitting || !email.trim() || !password.trim()}
+              style={{
+                width: "100%",
+                height: 54,
+                padding: "0 1.5rem",
+                fontSize: 16,
+                fontWeight: 600,
+                letterSpacing: "0.2px",
+                border: "none",
+                borderRadius: 9999,
+                background: `linear-gradient(to right, ${COLORS.ACCENT_LIGHT}, ${COLORS.ACCENT})`,
+                color: "#FFFFFF",
+                cursor: submitting ? "default" : "pointer",
+                opacity: submitting || !email.trim() || !password.trim() ? 0.6 : 1,
+                transition: "150ms ease",
+                marginBottom: "1rem",
+                boxShadow: "0 4px 12px rgba(139,92,246,0.3)",
+              }}
+            >
+              {submitting ? (isSignUp ? t("onboarding_signing_up") : t("onboarding_signing_in")) : (isSignUp ? t("onboarding_sign_up") : t("onboarding_sign_in"))}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setIsSignUp(!isSignUp);
+                setError(null);
+              }}
+              disabled={submitting}
+              style={{
+                width: "100%",
+                padding: "0.75rem",
+                fontSize: 15,
+                border: GLASS.BORDER,
+                borderRadius: 9999,
+                background: GLASS.BG,
+                color: COLORS.ACCENT,
+                fontWeight: 600,
+                cursor: submitting ? "default" : "pointer",
+                opacity: submitting ? 0.6 : 1,
+              }}
+            >
+              {isSignUp ? t("onboarding_toggle_sign_in") : t("onboarding_toggle_sign_up")}
+            </button>
+
+            {error && (
+              <p style={{ color: COLORS.TEXT_SECONDARY, marginTop: "1rem", fontSize: 14 }}>
+                {error}
+              </p>
+            )}
+          </form>
         </div>
-
-        <form onSubmit={handleSubmit}>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder={t("onboarding_email")}
-            disabled={submitting}
-            autoComplete="email"
-            style={{
-              width: "100%",
-              padding: "1rem 1.25rem",
-              fontSize: 16,
-              border: "1px solid rgba(28,28,30,0.2)",
-              borderRadius: 9999,
-              background: GLASS.BG,
-              color: COLORS.TEXT_PRIMARY,
-              marginBottom: "1rem",
-              outline: "none",
-              transition: "150ms ease",
-              boxSizing: "border-box",
-            }}
-            onFocus={(e) => {
-              e.target.style.borderColor = "rgba(196,181,253,0.5)";
-            }}
-            onBlur={(e) => {
-              e.target.style.borderColor = "rgba(28,28,30,0.2)";
-            }}
-          />
-
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder={t("onboarding_password")}
-            disabled={submitting}
-            autoComplete={isSignUp ? "new-password" : "current-password"}
-            style={{
-              width: "100%",
-              padding: "1rem 1.25rem",
-              fontSize: 16,
-              border: "1px solid rgba(28,28,30,0.2)",
-              borderRadius: 9999,
-              background: GLASS.BG,
-              color: COLORS.TEXT_PRIMARY,
-              marginBottom: "1rem",
-              outline: "none",
-              transition: "150ms ease",
-              boxSizing: "border-box",
-            }}
-            onFocus={(e) => {
-              e.target.style.borderColor = "rgba(196,181,253,0.5)";
-            }}
-            onBlur={(e) => {
-              e.target.style.borderColor = "rgba(28,28,30,0.2)";
-            }}
-          />
-
-          <button
-            type="submit"
-            disabled={submitting || !email.trim() || !password.trim()}
-            style={{
-              width: "100%",
-              height: 54,
-              padding: "0 1.25rem",
-              fontSize: 16,
-              fontWeight: 600,
-              letterSpacing: "0.2px",
-              border: "none",
-              borderRadius: 9999,
-              background: `linear-gradient(to right, ${COLORS.ACCENT_LIGHT}, ${COLORS.ACCENT})`,
-              color: "#FFFFFF",
-              cursor: submitting ? "default" : "pointer",
-              opacity: submitting || !email.trim() || !password.trim() ? 0.6 : 1,
-              transition: "150ms ease",
-              marginBottom: "1rem",
-              boxShadow: "0 10px 24px rgba(139,92,246,0.3)",
-            }}
-          >
-            {submitting ? (isSignUp ? t("onboarding_signing_up") : t("onboarding_signing_in")) : (isSignUp ? t("onboarding_sign_up") : t("onboarding_sign_in"))}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              setIsSignUp(!isSignUp);
-              setError(null);
-            }}
-            disabled={submitting}
-            style={{
-              width: "100%",
-              padding: "0.75rem",
-              fontSize: 16,
-              border: "none",
-              background: "transparent",
-              color: COLORS.TEXT_SECONDARY,
-              fontWeight: 500,
-              cursor: submitting ? "default" : "pointer",
-              opacity: submitting ? 0.6 : 1,
-              textDecoration: "underline",
-            }}
-          >
-            {isSignUp ? t("onboarding_toggle_sign_in") : t("onboarding_toggle_sign_up")}
-          </button>
-
-          {error && (
-            <p style={{ color: COLORS.TEXT_PRIMARY, marginTop: "1rem", fontSize: 16 }}>
-              {error}
-            </p>
-          )}
-        </form>
       </div>
     </div>
   );

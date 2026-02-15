@@ -2647,17 +2647,19 @@ function CalendarView({
         </button>
       </div>
 
-      {/* Month nav: month + Today */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 24, marginBottom: "1.5rem", flexWrap: "wrap" }}>
-        <button type="button" onClick={prevMonth} style={yearButtonStyle} aria-label={t("calendar_prev")}>
-          ‹
-        </button>
-        <h2 style={{ fontSize: "1.5rem", fontWeight: 600, color: COLORS.TEXT_PRIMARY, margin: 0 }}>
-          {monthNames[displayMonth]}
-        </h2>
-        <button type="button" onClick={nextMonth} style={yearButtonStyle} aria-label={t("calendar_next")}>
-          ›
-        </button>
+      {/* Month nav: month on top, Today underneath */}
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, marginBottom: "1.5rem" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 24 }}>
+          <button type="button" onClick={prevMonth} style={yearButtonStyle} aria-label={t("calendar_prev")}>
+            ‹
+          </button>
+          <h2 style={{ fontSize: "1.5rem", fontWeight: 600, color: COLORS.TEXT_PRIMARY, margin: 0 }}>
+            {monthNames[displayMonth]}
+          </h2>
+          <button type="button" onClick={nextMonth} style={yearButtonStyle} aria-label={t("calendar_next")}>
+            ›
+          </button>
+        </div>
         <button
           type="button"
           onClick={goToToday}

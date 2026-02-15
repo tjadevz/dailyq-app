@@ -3,6 +3,19 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { motion, AnimatePresence } from "motion/react";
+import {
+  Crown,
+  CircleHelp,
+  Calendar as CalendarIcon,
+  Settings as SettingsIcon,
+  Check,
+  X,
+  Bell,
+  Globe,
+  Info,
+  LogOut,
+} from "lucide-react";
 import { createSupabaseBrowserClient } from "@/lib/supabaseClient";
 import { getNow } from "@/utils/dateProvider";
 import { registerServiceWorker } from "./register-sw";
@@ -21,37 +34,129 @@ type Answer = {
 
 type TabType = "today" | "calendar" | "settings";
 
-// Design Tokens (Single Source of Truth)
+// Design Tokens (Single Source of Truth) – Figma alignment
 const COLORS = {
   BACKGROUND: "#F4F6F9",
   BACKGROUND_GRADIENT: "linear-gradient(to bottom, #F4F6F9, #EEF2F7)",
-  TEXT_PRIMARY: "#1C1C1E",
-  TEXT_SECONDARY: "rgba(28,28,30,0.6)",
-  TEXT_TERTIARY: "rgba(28,28,30,0.55)",
-  TEXT_MUTED: "rgba(28,28,30,0.4)",
-  TEXT_FUTURE: "rgba(28,28,30,0.22)",
-  ACCENT: "#14316A",
+  TEXT_PRIMARY: "#1F2937",
+  TEXT_SECONDARY: "rgba(107,114,128,1)",
+  TEXT_TERTIARY: "rgba(107,114,128,0.9)",
+  TEXT_MUTED: "rgba(156,163,175,1)",
+  TEXT_FUTURE: "rgba(209,213,219,0.8)",
+  ACCENT: "#8B5CF6",
+  ACCENT_LIGHT: "#A78BFA",
+  HEADER_Q: "#F59E0B",
 };
 
 const GLASS = {
-  BG: "rgba(255,255,255,0.75)",
-  STRONG_BG: "rgba(255,255,255,0.85)",
-  BORDER: "1px solid rgba(255,255,255,0.4)",
-  SHADOW: "0 10px 30px rgba(0,0,0,0.08)",
-  TAB_SHADOW: "0 8px 25px rgba(0,0,0,0.08)",
-  BLUR: "blur(25px)",
+  BG: "rgba(255,255,255,0.5)",
+  STRONG_BG: "rgba(255,255,255,0.95)",
+  BORDER: "1px solid rgba(255,255,255,0.6)",
+  SHADOW: "0 8px 32px rgba(0,0,0,0.1), inset 0 1px 1px rgba(255,255,255,0.8)",
+  TAB_SHADOW: "0 2px 12px rgba(0,0,0,0.05)",
+  BLUR: "blur(40px)",
+  CARD_BG: "rgba(255,255,255,0.5)",
+  NAV_BG: "rgba(255,255,255,0.5)",
+  NAV_BORDER: "1px solid rgba(255,255,255,0.4)",
 };
 
 const CALENDAR = {
-  COMPLETED_BG: "linear-gradient(to bottom, #1C3F85, #14316A)",
-  COMPLETED_SHADOW: "0 4px 10px rgba(20,49,106,0.2), inset 0 1px 0 rgba(255,255,255,0.12)",
-  TODAY_RING: "0 0 0 2px rgba(20,49,106,0.18)",
-  TODAY_COMPLETED_RING: "0 0 0 3px rgba(20,49,106,0.25)",
-  MISSED_BG:
-    "repeating-linear-gradient(135deg, rgba(28,28,30,0.03), rgba(28,28,30,0.03) 6px, rgba(28,28,30,0.015) 6px, rgba(28,28,30,0.015) 12px), rgba(28,28,30,0.03)",
+  /** Full purple for current day only */
+  TODAY_AND_ANSWERED_BG: "#8B5CF6",
+  /** Answered past days: slightly faded purple (reference image) */
+  ANSWERED_FADED_BG: "rgba(139,92,246,0.5)",
+  /** Current day edge: outer purple, small white spacing, then cell with number */
+  TODAY_EDGE: "0 0 0 2px #FFFFFF, 0 0 0 5px #8B5CF6",
+  /** Subtle shadow for current day cell */
+  CELL_SHADOW: "0 2px 6px rgba(139,92,246,0.25)",
+  /** Missed days: edge only, no fill (reference image) */
+  MISSED_EDGE: "0 0 0 2px rgba(156,163,175,0.5)",
+  MISSED_COLOR: "rgba(156,163,175,1)",
+  FUTURE_BG: "rgba(255,255,255,0.15)",
+  FUTURE_BORDER: "1px solid rgba(229,231,235,0.25)",
+  FUTURE_COLOR: "rgba(209,213,219,0.5)",
+  BEFORE_START_COLOR: "rgba(156,163,175,0.6)",
+  BORDER_RADIUS: 8,
+};
+
+const JOKER = {
+  GRADIENT: "linear-gradient(to bottom right, #FEF3C7, #FDE68A, #FCD34D)",
+  BORDER: "1px solid rgba(245,158,11,0.3)",
+  TEXT: "#92400E",
+  SHADOW: "0 4px 12px rgba(245,158,11,0.2)",
 };
 
 const MODAL_CLOSE_MS = 200;
+
+/** Shared modal styles to match joker popup (design + spacing) */
+const MODAL = {
+  WRAPPER: {
+    position: "fixed" as const,
+    inset: 0,
+    zIndex: 9999,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "1.5rem",
+    boxSizing: "border-box",
+  },
+  BACKDROP: {
+    position: "absolute" as const,
+    inset: 0,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    backdropFilter: "blur(4px)",
+    borderRadius: 48,
+  },
+  CARD: {
+    position: "relative" as const,
+    zIndex: 1,
+    background: "rgba(255,255,255,0.95)",
+    backdropFilter: "blur(40px)",
+    WebkitBackdropFilter: "blur(40px)",
+    border: "1px solid rgba(255,255,255,0.6)",
+    boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
+    borderRadius: 32,
+    padding: "2rem",
+    width: "85%",
+    maxWidth: "20rem",
+  },
+  CARD_WIDE: {
+    position: "relative" as const,
+    zIndex: 1,
+    background: "rgba(255,255,255,0.95)",
+    backdropFilter: "blur(40px)",
+    WebkitBackdropFilter: "blur(40px)",
+    border: "1px solid rgba(255,255,255,0.6)",
+    boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
+    borderRadius: 32,
+    padding: "2rem",
+    width: "85%",
+    maxWidth: "28rem",
+  },
+  CLOSE_BUTTON: {
+    position: "absolute" as const,
+    top: 16,
+    right: 16,
+    width: 32,
+    height: 32,
+    borderRadius: "50%" as const,
+    border: "none",
+    background: "rgba(243,244,246,0.8)",
+    color: COLORS.TEXT_SECONDARY,
+    cursor: "pointer" as const,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+};
+
+function formatHeaderDate(date: Date, lang: "en" | "nl"): string {
+  return new Intl.DateTimeFormat(lang === "nl" ? "nl-NL" : "en-US", {
+    weekday: "long",
+    month: "short",
+    day: "numeric",
+  }).format(date);
+}
 
 function getCalendarStyle({
   hasAnswer,
@@ -71,40 +176,48 @@ function getCalendarStyle({
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 16,
+    borderRadius: CALENDAR.BORDER_RADIUS,
     transition: "200ms ease",
   };
 
   if (isFuture) {
-    style.color = "rgba(28,28,30,0.35)";
-    style.background = "transparent";
+    style.color = CALENDAR.FUTURE_COLOR;
+    style.background = CALENDAR.FUTURE_BG;
+    style.border = CALENDAR.FUTURE_BORDER;
     return style;
   }
   if (isTooOld || isBeforeAccountStart) {
-    style.color = "rgba(28,28,30,0.22)";
-    style.background = "transparent";
+    style.color = CALENDAR.BEFORE_START_COLOR;
+    style.background = CALENDAR.FUTURE_BG;
+    style.border = CALENDAR.FUTURE_BORDER;
     return style;
   }
 
+  /* Answered days: current day = full purple + edge; past answered = faded purple, no edge */
   if (hasAnswer) {
-    style.background = CALENDAR.COMPLETED_BG;
     style.color = "#FFFFFF";
-    style.boxShadow = CALENDAR.COMPLETED_SHADOW;
     if (isToday) {
-      style.boxShadow = `${CALENDAR.COMPLETED_SHADOW}, ${CALENDAR.TODAY_COMPLETED_RING}`;
+      style.background = CALENDAR.TODAY_AND_ANSWERED_BG;
+      style.boxShadow = `${CALENDAR.CELL_SHADOW}, ${CALENDAR.TODAY_EDGE}`;
+    } else {
+      style.background = CALENDAR.ANSWERED_FADED_BG;
+      style.boxShadow = CALENDAR.CELL_SHADOW;
     }
     return style;
   }
 
+  /* Current day (no answer yet): full purple + outer purple edge with white spacing */
   if (isToday) {
-    style.color = COLORS.TEXT_PRIMARY;
-    style.background = "transparent";
-    style.boxShadow = CALENDAR.TODAY_RING;
+    style.color = "#FFFFFF";
+    style.background = CALENDAR.TODAY_AND_ANSWERED_BG;
+    style.boxShadow = CALENDAR.TODAY_EDGE;
     return style;
   }
 
-  style.color = "rgba(28,28,30,0.55)";
-  style.background = CALENDAR.MISSED_BG;
+  /* Missed days: edge only, no fill (reference – grey outline, transparent interior) */
+  style.color = CALENDAR.MISSED_COLOR;
+  style.background = "transparent";
+  style.boxShadow = CALENDAR.MISSED_EDGE;
   return style;
 }
 
@@ -123,7 +236,7 @@ function getCurrentUser(supabaseUser: any): any {
 }
 
 function Home() {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const [activeTab, setActiveTab] = useState<TabType>("today");
   const [user, setUser] = useState<any>(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
@@ -146,6 +259,9 @@ function Home() {
   const jokerModalCloseRef = useRef<HTMLButtonElement>(null);
   const jokerModalClosingRef = useRef(false);
   const modalContainerRef = useRef<HTMLDivElement>(null);
+  const loadingScreenShownAtRef = useRef<number>(Date.now());
+  const LOADING_SCREEN_MIN_MS = 2200;
+  const [showLoadingScreen, setShowLoadingScreen] = useState(false);
 
   const closeJokerModal = () => {
     if (jokerModalClosingRef.current) return;
@@ -221,7 +337,9 @@ function Home() {
         } else {
           setUser(u);
         }
-        setCheckingAuth(false);
+        const elapsed = Date.now() - loadingScreenShownAtRef.current;
+        const wait = Math.max(0, LOADING_SCREEN_MIN_MS - elapsed);
+        setTimeout(() => setCheckingAuth(false), wait);
 
         // Listen for auth changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -232,7 +350,9 @@ function Home() {
           } else {
             setUser(session?.user ?? null);
           }
-          setCheckingAuth(false);
+          const elapsed = Date.now() - loadingScreenShownAtRef.current;
+          const wait = Math.max(0, LOADING_SCREEN_MIN_MS - elapsed);
+          setTimeout(() => setCheckingAuth(false), wait);
         });
 
         return () => {
@@ -245,7 +365,9 @@ function Home() {
           setUser(DEV_USER);
         }
         console.error('Auth error:', authError);
-        setCheckingAuth(false);
+        const elapsed = Date.now() - loadingScreenShownAtRef.current;
+        const wait = Math.max(0, LOADING_SCREEN_MIN_MS - elapsed);
+        setTimeout(() => setCheckingAuth(false), wait);
       }
     };
 
@@ -315,18 +437,38 @@ function Home() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [showJokerModal]);
 
-  if (checkingAuth) {
+  if (checkingAuth || showLoadingScreen) {
     return (
       <div
         style={{
-          minHeight: "100dvh",
+          minHeight: "100vh",
           display: "flex",
+          flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
           background: COLORS.BACKGROUND_GRADIENT,
+          padding: "2rem",
+          boxSizing: "border-box",
         }}
       >
-        <p style={{ color: COLORS.TEXT_PRIMARY }}>{t("loading")}</p>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "1rem" }}>
+          <span style={{ fontSize: 28, letterSpacing: "0.12em", textTransform: "uppercase", fontWeight: 700 }}>
+            <span style={{ color: "#4B5563" }}>Daily</span>
+            <span style={{ color: COLORS.HEADER_Q }}>Q</span>
+          </span>
+          <p
+            style={{
+              margin: 0,
+              fontSize: 15,
+              color: COLORS.TEXT_SECONDARY,
+              textAlign: "center",
+              lineHeight: 1.4,
+              maxWidth: 280,
+            }}
+          >
+            The easiest way to watch yourself change.
+          </p>
+        </div>
       </div>
     );
   }
@@ -335,14 +477,17 @@ function Home() {
     return <OnboardingScreen />;
   }
 
+  const now = getNow();
+  const headerDateLabel = formatHeaderDate(now, lang);
+
   return (
     <div
       data-app-root
       style={{
         display: "flex",
         flexDirection: "column",
-        minHeight: "100dvh",
-        maxHeight: "100dvh",
+        height: "100%",
+        minHeight: "100%",
         paddingTop: "env(safe-area-inset-top)",
         boxSizing: "border-box",
         background: COLORS.BACKGROUND,
@@ -350,92 +495,126 @@ function Home() {
     >
       {/* Modal overlay container: direct child of app root so overlay covers header + main + nav */}
       <div ref={modalContainerRef} style={{ position: "fixed", inset: 0, zIndex: 9999, pointerEvents: "none" }} aria-hidden />
-      {/* Header */}
-      <header
+      {/* Main content card: wraps header + main */}
+      <div
         style={{
-          padding: "24px",
-          background: COLORS.BACKGROUND,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
+          flex: 1,
+          margin: "16px 16px 8px",
+          borderRadius: 32,
+          overflow: "hidden",
           position: "relative",
+          background: GLASS.CARD_BG,
+          backdropFilter: GLASS.BLUR,
+          WebkitBackdropFilter: GLASS.BLUR,
+          border: GLASS.BORDER,
+          boxShadow: GLASS.SHADOW,
+          display: "flex",
+          flexDirection: "column",
+          minHeight: 0,
         }}
       >
-        <div style={{ flex: 1, minWidth: 0 }} />
-        <div
-          style={{
-            position: "absolute",
-            left: "50%",
-            top: "50%",
-            transform: "translate(-50%, -50%)",
-          }}
-        >
-          <span
-            style={{
-              fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", sans-serif',
-              fontSize: 32,
-              letterSpacing: "0.14em",
-              color: "#3C3C3E",
-            }}
-          >
-            <span style={{ fontWeight: 400 }}>Daily</span>
-            <span style={{ fontWeight: 700, color: COLORS.ACCENT }}>Q</span>
-          </span>
-        </div>
-        <div
-          style={{
-            flex: 1,
-            minWidth: 0,
-            minHeight: 30,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "flex-end",
-            paddingRight: "0.25rem",
-          }}
-        >
-          {(activeTab === "today" || activeTab === "calendar") && (
+        {/* Decorative blur orbs */}
+        <div style={{ position: "absolute", top: 64, right: 40, width: 160, height: 160, background: "linear-gradient(to bottom right, rgba(219,234,254,0.4), rgba(221,214,254,0.35))", borderRadius: "50%", filter: "blur(40px)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", bottom: "40%", left: 40, width: 192, height: 192, background: "linear-gradient(to top right, rgba(251,207,232,0.25), rgba(224,231,255,0.3))", borderRadius: "50%", filter: "blur(40px)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", width: 224, height: 224, background: "linear-gradient(to bottom right, rgba(250,232,255,0.25), rgba(219,234,254,0.2))", borderRadius: "50%", filter: "blur(40px)", pointerEvents: "none" }} />
+
+        {/* Joker pill - absolute top right (today + calendar only) */}
+        {(activeTab === "today" || activeTab === "calendar") && (
+          <div style={{ position: "absolute", top: 24, right: 24, zIndex: 20 }}>
             <button
               type="button"
               onClick={() => setShowJokerModal(true)}
               style={{
-                display: "flex",
+                display: "inline-flex",
                 alignItems: "center",
-                gap: 5,
-                fontSize: "1.0625rem",
-                fontWeight: 600,
-                color: COLORS.TEXT_PRIMARY,
-                background: "transparent",
-                border: "none",
-                padding: "0.25rem",
+                gap: 6,
+                padding: "6px 12px",
+                background: JOKER.GRADIENT,
+                border: JOKER.BORDER,
+                borderRadius: 9999,
+                boxShadow: JOKER.SHADOW,
                 cursor: "pointer",
+                transition: "transform 150ms ease, box-shadow 150ms ease",
               }}
               title={t("joker_tooltip")}
               aria-label={`Jokers: ${profile?.joker_balance ?? 0}`}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "scale(1.05)";
+                e.currentTarget.style.boxShadow = "0 8px 20px rgba(245,158,11,0.3)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "scale(1)";
+                e.currentTarget.style.boxShadow = JOKER.SHADOW;
+              }}
+              onMouseDown={(e) => { e.currentTarget.style.transform = "scale(0.98)"; }}
+              onMouseUp={(e) => { e.currentTarget.style.transform = "scale(1.05)"; }}
             >
-              <span role="img" aria-hidden style={{ fontSize: "1.0625rem" }}>⭐</span>
-              <span>{profile?.joker_balance ?? 0}</span>
+              <span style={{ width: 16, height: 16, borderRadius: "50%", background: "rgba(255,255,255,0.9)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 1px 2px rgba(0,0,0,0.1)" }}>
+                <Crown size={10} color={COLORS.HEADER_Q} strokeWidth={2.5} fill="#FCD34D" />
+              </span>
+              <span style={{ fontSize: 14, fontWeight: 700, color: JOKER.TEXT }}>{profile?.joker_balance ?? 0}</span>
             </button>
-          )}
-        </div>
-      </header>
+          </div>
+        )}
 
-      {/* Main content */}
-      <main
-        style={{
-          flex: 1,
-          overflowY: "auto",
-          overflowX: "hidden",
-          position: "relative",
-          background: COLORS.BACKGROUND,
-        }}
-      >
-        <div
+        {/* Header */}
+        <header
           style={{
-            display: activeTab === "today" ? "flex" : "none",
-            height: "100%",
+            padding: "24px",
+            background: "transparent",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            position: "relative",
+            flexShrink: 0,
           }}
         >
-          <TodayView
+          <div style={{ flex: 1, minWidth: 0 }} />
+          <div
+            style={{
+              position: "absolute",
+              left: "50%",
+              top: "50%",
+              transform: "translate(-50%, -50%)",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 4,
+            }}
+          >
+            <span
+              style={{
+                fontSize: 18,
+                letterSpacing: "0.12em",
+                textTransform: "uppercase",
+                fontWeight: 700,
+              }}
+            >
+              <span style={{ color: "#4B5563" }}>Daily</span>
+              <span style={{ color: COLORS.HEADER_Q }}>Q</span>
+            </span>
+            <span style={{ fontSize: 12, fontWeight: 500, color: COLORS.TEXT_MUTED }}>{headerDateLabel}</span>
+          </div>
+          <div style={{ flex: 1, minWidth: 0, minHeight: 30 }} />
+        </header>
+
+        {/* Main content */}
+        <main
+          style={{
+            flex: 1,
+            overflowY: "auto",
+            overflowX: "hidden",
+            position: "relative",
+            background: "transparent",
+          }}
+        >
+          <div
+            style={{
+              display: activeTab === "today" ? "flex" : "none",
+              height: "100%",
+            }}
+          >
+            <TodayView
           user={effectiveUser}
           onCalendarUpdate={onCalendarUpdate}
           onAfterAnswerSaved={onAfterAnswerSaved}
@@ -484,73 +663,65 @@ function Home() {
             height: "100%",
           }}
         >
-          <SettingsView user={effectiveUser} />
+          <SettingsView
+            user={effectiveUser}
+            onShowLoadingScreen={
+              process.env.NODE_ENV === "development"
+                ? () => {
+                    setShowLoadingScreen(true);
+                    setTimeout(() => setShowLoadingScreen(false), 3000);
+                  }
+                : undefined
+            }
+          />
         </div>
       </main>
+      </div>
 
       {/* Tab bar */}
       <nav
         style={{
           display: "flex",
           flexDirection: "row",
-          justifyContent: "space-evenly",
+          justifyContent: "space-around",
           alignItems: "center",
-          background: COLORS.BACKGROUND,
-          border: GLASS.BORDER,
-          borderRadius: 28,
+          background: GLASS.NAV_BG,
+          backdropFilter: GLASS.BLUR,
+          WebkitBackdropFilter: GLASS.BLUR,
+          border: GLASS.NAV_BORDER,
+          borderRadius: 24,
           boxShadow: GLASS.TAB_SHADOW,
-          paddingTop: "12px",
-          paddingLeft: "16px",
-          paddingRight: "16px",
-          paddingBottom: "max(12px, env(safe-area-inset-bottom))",
-          margin: "0 24px",
-          marginTop: "0",
-          marginBottom: "24px",
+          padding: "12px 16px max(12px, env(safe-area-inset-bottom)) 16px",
+          margin: "0 16px 24px",
         }}
       >
         <TabButton
           active={activeTab === "today"}
           onClick={() => setActiveTab("today")}
           label={t("tabs_today")}
-          icon={<QuestionMarkIcon />}
+          icon={<CircleHelp size={24} strokeWidth={1.5} />}
         />
         <TabButton
           active={activeTab === "calendar"}
           onClick={() => setActiveTab("calendar")}
           label={t("tabs_calendar")}
-          icon={<CalendarIcon />}
+          icon={<CalendarIcon size={24} strokeWidth={1.5} />}
         />
         <TabButton
           active={activeTab === "settings"}
           onClick={() => setActiveTab("settings")}
           label={t("tabs_settings")}
-          icon={<SettingsIcon />}
+          icon={<SettingsIcon size={24} strokeWidth={1.5} />}
         />
       </nav>
 
       {recapModal.open && recapModal.count !== null && recapModal.total !== null && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 9999,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "2rem",
-            boxSizing: "border-box",
-            animation: recapClosing ? `fadeOut ${MODAL_CLOSE_MS}ms ease-out` : "fadeIn 0.2s ease-out forwards",
-          }}
-        >
-          <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              backgroundColor: "rgba(0,0,0,0.4)",
-              backdropFilter: "blur(4px)",
-            }}
+        <div role="dialog" aria-modal="true" style={MODAL.WRAPPER}>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: recapClosing ? 0 : 1 }}
+            transition={{ duration: 0.2 }}
+            style={MODAL.BACKDROP}
             onClick={() => handleRecapClose()}
             aria-hidden
           />
@@ -573,47 +744,25 @@ function Home() {
           ? t("joker_modal_body_singular")
           : t("joker_modal_body", { joker_balance: balanceStr });
         const bodyParts = bodyText.split(balanceStr, 2);
-        const modalTitle = balance === 1 ? t("joker_modal_title_one") : t("joker_modal_title_many");
         return (
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label={modalTitle}
-            style={{
-              position: "fixed",
-              inset: 0,
-              zIndex: 9999,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: "1.5rem",
-              boxSizing: "border-box",
-              animation: jokerModalClosing ? `fadeOut ${MODAL_CLOSE_MS}ms ease-out` : "fadeIn 0.2s ease-out forwards",
-            }}
-          >
-            <div
-              style={{
-                position: "absolute",
-                inset: 0,
-                backgroundColor: "rgba(0,0,0,0.4)",
-                backdropFilter: "blur(4px)",
-              }}
+          <div role="dialog" aria-modal="true" aria-label={t("aria_joker_balance")} style={MODAL.WRAPPER}>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: jokerModalClosing ? 0 : 1 }}
+              transition={{ duration: 0.2 }}
+              style={MODAL.BACKDROP}
               onClick={closeJokerModal}
               aria-hidden
             />
-            <div
-              style={{
-                position: "relative",
-                zIndex: 1,
-                background: COLORS.BACKGROUND,
-                border: GLASS.BORDER,
-                boxShadow: GLASS.SHADOW,
-                borderRadius: 20,
-                padding: "1.5rem",
-                maxWidth: "20rem",
-                width: "100%",
-                textAlign: "center",
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{
+                opacity: jokerModalClosing ? 0 : 1,
+                scale: jokerModalClosing ? 0.9 : 1,
+                y: jokerModalClosing ? 20 : 0,
               }}
+              transition={{ type: "spring", bounce: 0.3, duration: 0.4 }}
+              style={{ ...MODAL.CARD, textAlign: "center" }}
               onClick={(e) => e.stopPropagation()}
             >
               <button
@@ -621,32 +770,19 @@ function Home() {
                 type="button"
                 aria-label={t("common_close")}
                 onClick={closeJokerModal}
-                style={{
-                  position: "absolute",
-                  top: "0.75rem",
-                  right: "0.75rem",
-                  width: 28,
-                  height: 28,
-                  borderRadius: "50%",
-                  border: "none",
-                  background: "transparent",
-                  color: COLORS.TEXT_SECONDARY,
-                  fontSize: "1.25rem",
-                  lineHeight: 1,
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
+                style={MODAL.CLOSE_BUTTON}
               >
-                ×
+                <X size={16} strokeWidth={2.5} />
               </button>
+              <div style={{ width: 64, height: 64, borderRadius: "50%", background: JOKER.GRADIENT, margin: "0 auto 1.25rem", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 8px 24px rgba(245,158,11,0.3)" }}>
+                <Crown size={32} color={COLORS.HEADER_Q} strokeWidth={2.5} fill="#FCD34D" />
+              </div>
               <p
                 style={{
-                  fontSize: "1rem",
+                  fontSize: 16,
                   lineHeight: 1.5,
                   margin: 0,
-                  color: COLORS.TEXT_PRIMARY,
+                  color: COLORS.TEXT_SECONDARY,
                   whiteSpace: "pre-line",
                 }}
               >
@@ -660,7 +796,25 @@ function Home() {
                   bodyText
                 )}
               </p>
-            </div>
+              <button
+                type="button"
+                onClick={closeJokerModal}
+                style={{
+                  marginTop: "1.5rem",
+                  padding: "12px 24px",
+                  borderRadius: 9999,
+                  border: "none",
+                  background: `linear-gradient(to right, ${COLORS.ACCENT_LIGHT}, ${COLORS.ACCENT})`,
+                  color: "#fff",
+                  fontSize: 16,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  boxShadow: "0 4px 12px rgba(139,92,246,0.3)",
+                }}
+              >
+                {t("common_ok")}
+              </button>
+            </motion.div>
           </div>
         );
       })()}
@@ -676,8 +830,6 @@ export default function Page() {
   );
 }
 
-const TAB_ICON_SIZE = 28;
-
 function TabButton({
   active,
   onClick,
@@ -689,92 +841,29 @@ function TabButton({
   label: string;
   icon: React.ReactNode;
 }) {
+  const color = active ? COLORS.ACCENT : COLORS.TEXT_SECONDARY;
   return (
     <button
       type="button"
       onClick={onClick}
       aria-label={label}
       style={{
-        width: 52,
-        height: 52,
-        borderRadius: "50%",
-        flex: "0 0 auto",
         display: "flex",
+        flexDirection: "column",
         alignItems: "center",
-        justifyContent: "center",
+        gap: 4,
         border: "none",
-        padding: 0,
+        padding: "4px 8px",
         cursor: "pointer",
         transition: "150ms ease",
-        background: active ? COLORS.ACCENT : "transparent",
-        color: active ? "#FFFFFF" : "rgba(28,28,30,0.5)",
+        background: "transparent",
+        color,
+        opacity: active ? 1 : 0.6,
       }}
     >
-      <span
-        style={{
-          width: TAB_ICON_SIZE,
-          height: TAB_ICON_SIZE,
-          flexShrink: 0,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        {icon}
-      </span>
+      <span style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>{icon}</span>
+      <span style={{ fontSize: 12, fontWeight: active ? 600 : 500 }}>{label}</span>
     </button>
-  );
-}
-
-// Nav bar SVG icons: fixed size, display block, and shapeRendering for crisp edges on high-DPI
-const navIconSvgProps: React.SVGProps<SVGSVGElement> = {
-  width: TAB_ICON_SIZE,
-  height: TAB_ICON_SIZE,
-  viewBox: "0 0 24 24",
-  fill: "none",
-  stroke: "currentColor",
-  strokeWidth: 2,
-  strokeLinecap: "round",
-  strokeLinejoin: "round",
-  style: { display: "block" },
-  shapeRendering: "geometricPrecision",
-};
-
-function QuestionMarkIcon() {
-  return (
-    <svg {...navIconSvgProps}>
-      <circle cx="12" cy="12" r="10" />
-      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-      <circle cx="12" cy="17" r="0.5" fill="currentColor" />
-    </svg>
-  );
-}
-
-function CalendarIcon() {
-  return (
-    <svg {...navIconSvgProps}>
-      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-      <line x1="16" y1="2" x2="16" y2="6" />
-      <line x1="8" y1="2" x2="8" y2="6" />
-      <line x1="3" y1="10" x2="21" y2="10" />
-    </svg>
-  );
-}
-
-function SettingsIcon() {
-  return (
-    <svg {...navIconSvgProps}>
-      <circle cx="12" cy="12" r="3" />
-      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-    </svg>
-  );
-}
-
-function CheckIconSmall() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="20 6 9 17 4 12" />
-    </svg>
   );
 }
 
@@ -826,12 +915,11 @@ function OnboardingScreen() {
   return (
     <div
       style={{
-        minHeight: "100dvh",
+        minHeight: "100%",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         position: "relative",
-        background: COLORS.BACKGROUND_GRADIENT,
         padding: "2rem 24px",
         overflow: "hidden",
       }}
@@ -844,25 +932,19 @@ function OnboardingScreen() {
           textAlign: "center",
           position: "relative",
           zIndex: 1,
-          background: GLASS.BG,
+          background: "rgba(255,255,255,0.5)",
           backdropFilter: GLASS.BLUR,
+          WebkitBackdropFilter: GLASS.BLUR,
           border: GLASS.BORDER,
           boxShadow: GLASS.SHADOW,
-          borderRadius: 26,
+          borderRadius: 32,
           padding: "2.5rem 2rem",
         }}
       >
         <div style={{ marginBottom: "3rem" }}>
-          <span
-            style={{
-              fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", sans-serif',
-              fontSize: 32,
-              letterSpacing: "0.14em",
-              color: "#3C3C3E",
-            }}
-          >
-            <span style={{ fontWeight: 400 }}>Daily</span>
-            <span style={{ fontWeight: 700, color: COLORS.ACCENT }}>Q</span>
+          <span style={{ fontSize: 18, letterSpacing: "0.12em", textTransform: "uppercase", fontWeight: 700 }}>
+            <span style={{ color: "#4B5563" }}>Daily</span>
+            <span style={{ color: COLORS.HEADER_Q }}>Q</span>
           </span>
         </div>
 
@@ -879,15 +961,16 @@ function OnboardingScreen() {
               padding: "1rem 1.25rem",
               fontSize: 16,
               border: "1px solid rgba(28,28,30,0.2)",
-              borderRadius: "999px",
+              borderRadius: 9999,
               background: GLASS.BG,
               color: COLORS.TEXT_PRIMARY,
               marginBottom: "1rem",
               outline: "none",
               transition: "150ms ease",
+              boxSizing: "border-box",
             }}
             onFocus={(e) => {
-              e.target.style.borderColor = "rgba(20,49,106,0.2)";
+              e.target.style.borderColor = "rgba(196,181,253,0.5)";
             }}
             onBlur={(e) => {
               e.target.style.borderColor = "rgba(28,28,30,0.2)";
@@ -906,15 +989,16 @@ function OnboardingScreen() {
               padding: "1rem 1.25rem",
               fontSize: 16,
               border: "1px solid rgba(28,28,30,0.2)",
-              borderRadius: "999px",
+              borderRadius: 9999,
               background: GLASS.BG,
               color: COLORS.TEXT_PRIMARY,
               marginBottom: "1rem",
               outline: "none",
               transition: "150ms ease",
+              boxSizing: "border-box",
             }}
             onFocus={(e) => {
-              e.target.style.borderColor = "rgba(20,49,106,0.2)";
+              e.target.style.borderColor = "rgba(196,181,253,0.5)";
             }}
             onBlur={(e) => {
               e.target.style.borderColor = "rgba(28,28,30,0.2)";
@@ -932,13 +1016,14 @@ function OnboardingScreen() {
               fontWeight: 600,
               letterSpacing: "0.2px",
               border: "none",
-              borderRadius: 999,
-              background: COLORS.ACCENT,
+              borderRadius: 9999,
+              background: `linear-gradient(to right, ${COLORS.ACCENT_LIGHT}, ${COLORS.ACCENT})`,
               color: "#FFFFFF",
               cursor: submitting ? "default" : "pointer",
               opacity: submitting || !email.trim() || !password.trim() ? 0.6 : 1,
               transition: "150ms ease",
               marginBottom: "1rem",
+              boxShadow: "0 10px 24px rgba(139,92,246,0.3)",
             }}
           >
             {submitting ? (isSignUp ? t("onboarding_signing_up") : t("onboarding_signing_in")) : (isSignUp ? t("onboarding_sign_up") : t("onboarding_sign_in"))}
@@ -987,7 +1072,7 @@ function fireConfetti(): void {
       spread: 55,
       origin: { y: 0.6 },
       startVelocity: 18,
-      colors: ["#14316A", "#EEF2F7", "#FFFFFF"],
+      colors: ["#8B5CF6", "#A78BFA", "#EEF2F7", "#FFFFFF"],
       ticks: 100,
     });
   });
@@ -1010,121 +1095,99 @@ function MondayRecapModal({
   const { t } = useLanguage();
   const isPerfect = total > 0 && count === total;
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, scale: 0.9, y: 20 }}
+      animate={{ opacity: isClosing ? 0 : 1, scale: isClosing ? 0.9 : 1, y: isClosing ? 20 : 0 }}
+      transition={{ type: "spring", bounce: 0.3, duration: 0.4 }}
       style={{
-        position: "relative",
-        background: COLORS.BACKGROUND,
-        border: GLASS.BORDER,
-        boxShadow: GLASS.SHADOW,
-        borderRadius: 26,
-        padding: "3rem 2rem",
-        maxWidth: "24rem",
-        width: "100%",
+        ...MODAL.CARD,
         textAlign: "center",
-        animation: isClosing ? "none" : "streakEnter 0.2s ease-out forwards",
+        maxWidth: "18rem",
+        padding: "1.5rem 1.25rem",
       }}
       onClick={(e) => e.stopPropagation()}
     >
-        <button
-          type="button"
-          aria-label={t("common_close")}
-          onClick={onClose}
-          style={{
-            position: "absolute",
-            top: "1rem",
-            right: "1rem",
-            width: 36,
-            height: 36,
-            borderRadius: "50%",
-            border: "none",
-            background: "transparent",
-            color: COLORS.TEXT_SECONDARY,
-            fontSize: "1.5rem",
-            lineHeight: 1,
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          ×
-        </button>
-        <p
-          style={{
-            fontSize: "1.25rem",
-            color: COLORS.TEXT_PRIMARY,
-            marginBottom: "2rem",
-            lineHeight: 1.45,
-          }}
-        >
-          {t("recap_body", { count: String(count), total: String(total) })}
-        </p>
-        {isPerfect && (
-          <p style={{ fontSize: "1.5rem", fontWeight: 600, color: COLORS.ACCENT, marginBottom: "1.5rem" }}>
-            🎉
-          </p>
-        )}
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-          {isPerfect ? (
+      <button type="button" aria-label={t("common_close")} onClick={onClose} style={MODAL.CLOSE_BUTTON}>
+        <X size={16} strokeWidth={2.5} />
+      </button>
+      <p
+        style={{
+          fontSize: "0.9375rem",
+          color: COLORS.TEXT_PRIMARY,
+          marginTop: "2rem",
+          marginBottom: "1.25rem",
+          paddingLeft: "0.5rem",
+          paddingRight: "0.5rem",
+          lineHeight: 1.5,
+        }}
+      >
+        {t("recap_body", { count: String(count), total: String(total) })}
+      </p>
+      {isPerfect && (
+        <p style={{ fontSize: "1.25rem", fontWeight: 600, color: COLORS.ACCENT, marginBottom: "1rem" }}>🎉</p>
+      )}
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", alignItems: "center" }}>
+        {isPerfect ? (
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              height: 44,
+              padding: "0 1.5rem",
+              borderRadius: 9999,
+              border: "none",
+              background: `linear-gradient(to right, ${COLORS.ACCENT_LIGHT}, ${COLORS.ACCENT})`,
+              color: "#FFFFFF",
+              fontSize: 14,
+              fontWeight: 600,
+              letterSpacing: "0.2px",
+              cursor: "pointer",
+              boxShadow: "0 4px 12px rgba(139,92,246,0.3)",
+            }}
+          >
+            {t("recap_mooi")}
+          </button>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={onAnswerMissedDay}
+              style={{
+                minHeight: 44,
+                padding: "0.75rem 1.5rem",
+                borderRadius: 9999,
+                border: JOKER.BORDER,
+                background: JOKER.GRADIENT,
+                color: JOKER.TEXT,
+                fontSize: 14,
+                fontWeight: 600,
+                letterSpacing: "0.2px",
+                cursor: "pointer",
+                boxShadow: JOKER.SHADOW,
+                whiteSpace: "normal",
+                lineHeight: 1.3,
+              }}
+            >
+              {t("recap_answer_missed")}
+            </button>
             <button
               type="button"
               onClick={onClose}
               style={{
-                height: 54,
-                padding: "0 2rem",
-                borderRadius: 999,
+                padding: "0.5rem",
+                fontSize: 14,
                 border: "none",
-                background: COLORS.ACCENT,
-                color: "#FFFFFF",
-                fontSize: 16,
-                fontWeight: 600,
-                letterSpacing: "0.2px",
+                background: "transparent",
+                color: COLORS.TEXT_SECONDARY,
                 cursor: "pointer",
-                transition: "150ms ease",
               }}
             >
-              {t("recap_mooi")}
+              {t("common_close")}
             </button>
-          ) : (
-            <>
-              <button
-                type="button"
-                onClick={onAnswerMissedDay}
-                style={{
-                  height: 54,
-                  padding: "0 2rem",
-                  borderRadius: 999,
-                  border: "none",
-                  background: COLORS.ACCENT,
-                  color: "#FFFFFF",
-                  fontSize: 16,
-                  fontWeight: 600,
-                  letterSpacing: "0.2px",
-                  cursor: "pointer",
-                  transition: "150ms ease",
-                }}
-              >
-                {t("recap_answer_missed")}
-              </button>
-              <button
-                type="button"
-                onClick={onClose}
-                style={{
-                  padding: "0.75rem",
-                  fontSize: 16,
-                  border: "none",
-                  background: "transparent",
-                  color: COLORS.TEXT_SECONDARY,
-                  cursor: "pointer",
-                  transition: "150ms ease",
-                }}
-              >
-                {t("common_close")}
-              </button>
-            </>
-          )}
-        </div>
-    </div>
+          </>
+        )}
+      </div>
+    </motion.div>
   );
 }
 
@@ -1155,8 +1218,11 @@ function TodayView({
   const [submitting, setSubmitting] = useState(false);
   const [offline, setOffline] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [showAnswerInput, setShowAnswerInput] = useState(false);
   const [showEditConfirmation, setShowEditConfirmation] = useState(false);
   const [editConfirmationClosing, setEditConfirmationClosing] = useState(false);
+  const [showSubmitSuccess, setShowSubmitSuccess] = useState(false);
+  const delaySubmitSuccessRef = useRef(false);
 
   const closeEditConfirmation = () => {
     setEditConfirmationClosing(true);
@@ -1164,6 +1230,16 @@ function TodayView({
       setShowEditConfirmation(false);
       setEditConfirmationClosing(false);
     }, MODAL_CLOSE_MS);
+  };
+
+  const clearTodayAnswerForDev = () => {
+    if (!question || effectiveUser?.id !== "dev-user") return;
+    try {
+      localStorage.removeItem(`dev-answer-${question.day}`);
+      setAnswer(null);
+    } catch {}
+    setDraft("");
+    setShowAnswerInput(false);
   };
 
   useEffect(() => {
@@ -1353,20 +1429,20 @@ function TodayView({
       if (process.env.NODE_ENV === 'development' && effectiveUser.id === 'dev-user') {
         console.log('✅ Dev mode: Simulating answer submission (not saved to database)');
         
-        // Save mock answer to localStorage
         try {
           const mockAnswerKey = `dev-answer-${dayKey}`;
           localStorage.setItem(mockAnswerKey, draft);
         } catch (e) {
           console.warn('Could not save mock answer to localStorage');
         }
-        
-        setAnswer({
-          id: 'dev-answer-id',
-          answer_text: draft,
-        });
         if (onCalendarUpdate) onCalendarUpdate(dayKey, question.text, draft);
+        setDraft('');
+        setIsEditMode(false);
+        if (initialQuestionDayKey) onClearInitialDay?.();
+        if (isMonday(today)) void onAfterAnswerSaved?.(dayKey);
+
         if (editingExisting) {
+          setAnswer({ id: 'dev-answer-id', answer_text: draft });
           setShowEditConfirmation(true);
           setEditConfirmationClosing(false);
           setTimeout(() => {
@@ -1377,12 +1453,16 @@ function TodayView({
             }, MODAL_CLOSE_MS);
           }, 2000);
         } else {
+          delaySubmitSuccessRef.current = true;
+          setShowSubmitSuccess(true);
           fireConfetti();
+          setTimeout(() => {
+            setAnswer({ id: 'dev-answer-id', answer_text: draft });
+            setShowSubmitSuccess(false);
+            delaySubmitSuccessRef.current = false;
+            setSubmitting(false);
+          }, 1100);
         }
-        setDraft(''); // Clear the draft
-        setIsEditMode(false); // Exit edit mode
-        if (initialQuestionDayKey) onClearInitialDay?.();
-        if (isMonday(today)) void onAfterAnswerSaved?.(dayKey);
       } else {
         const supabase = createSupabaseBrowserClient();
         try {
@@ -1431,7 +1511,7 @@ function TodayView({
       setError(t("today_submit_error"));
       console.error(e);
     } finally {
-      setSubmitting(false);
+      if (!delaySubmitSuccessRef.current) setSubmitting(false);
     }
   };
 
@@ -1487,76 +1567,123 @@ function TodayView({
     );
   }
 
+  const primaryButtonStyle: React.CSSProperties = {
+    height: 54,
+    padding: "0 2.5rem",
+    borderRadius: 9999,
+    border: "none",
+    background: `linear-gradient(to right, ${COLORS.ACCENT_LIGHT}, ${COLORS.ACCENT})`,
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: 600,
+    letterSpacing: "0.2px",
+    cursor: "pointer",
+    transition: "transform 150ms ease, box-shadow 150ms ease",
+    boxShadow: "0 10px 24px rgba(139,92,246,0.3)",
+  };
+
   return (
     <div
       style={{
         display: "flex",
         flexDirection: "column",
-        padding: "2rem 24px",
+        padding: "1.5rem 28px 2rem",
         height: "100%",
         width: "100%",
-        backgroundColor: COLORS.BACKGROUND,
+        background: "transparent",
         boxSizing: "border-box",
         overflow: "auto",
       }}
     >
-      <section style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+      <section style={{ flex: 1, display: "flex", flexDirection: "column", position: "relative" }}>
+        {showSubmitSuccess && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.2 }}
+            style={{
+              position: "absolute",
+              inset: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "rgba(244,246,249,0.85)",
+              zIndex: 10,
+              borderRadius: 24,
+            }}
+          >
+            <motion.div
+              initial={{ scale: 0.5, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: "spring", bounce: 0.5, duration: 0.5 }}
+              style={{
+                width: 72,
+                height: 72,
+                borderRadius: "50%",
+                background: JOKER.GRADIENT,
+                border: JOKER.BORDER,
+                boxShadow: JOKER.SHADOW,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Check size={36} strokeWidth={2.5} color="#FFFFFF" />
+            </motion.div>
+          </motion.div>
+        )}
         {answer && !isEditMode ? (
-          <div
+          <motion.div
+            initial={{ opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ type: "spring", bounce: 0.4, duration: 0.5 }}
             style={{
               flex: 1,
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
               justifyContent: "center",
-              padding: "clamp(2rem, 10vh, 5rem) 24px",
-              marginTop: "4rem",
+              padding: "clamp(2rem, 10vh, 5rem) 0",
             }}
           >
+            <div style={{ display: "flex", justifyContent: "center", marginBottom: "2rem" }}>
+              <div
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "8px 16px",
+                  borderRadius: 9999,
+                  background: `linear-gradient(to right, ${COLORS.ACCENT_LIGHT}, ${COLORS.ACCENT})`,
+                  boxShadow: "0 4px 12px rgba(139,92,246,0.3)",
+                }}
+              >
+                <Check size={16} strokeWidth={2} color="#FFFFFF" />
+                <span style={{ fontSize: 14, fontWeight: 600, color: "#FFFFFF" }}>{t("today_ready")}</span>
+              </div>
+            </div>
             <div
               style={{
                 width: "100%",
                 maxWidth: "28rem",
                 padding: "2.5rem 2rem",
-                borderRadius: 26,
-                background: GLASS.BG,
+                marginBottom: "2rem",
+                borderRadius: 28,
+                background: "rgba(255,255,255,0.4)",
                 backdropFilter: GLASS.BLUR,
-                border: GLASS.BORDER,
-                boxShadow: GLASS.SHADOW,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                textAlign: "center",
-                gap: 0,
+                WebkitBackdropFilter: GLASS.BLUR,
+                border: "1px solid rgba(255,255,255,0.4)",
+                boxShadow: "0 4px 16px rgba(0,0,0,0.06)",
               }}
             >
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "0.5rem",
-                  color: COLORS.TEXT_PRIMARY,
-                  fontWeight: 500,
-                  fontSize: "1.125rem",
-                  letterSpacing: "0.025em",
-                }}
-              >
-                <span>{t("today_ready")}</span>
-                <span style={{ display: "inline-flex", alignItems: "center", opacity: 0.9 }}>
-                  <CheckIconSmall />
-                </span>
-              </div>
               <p
                 style={{
                   margin: 0,
-                  marginTop: "1.25rem",
-                  fontSize: "1.125rem",
-                  lineHeight: 1.625,
-                  color: COLORS.TEXT_SECONDARY,
-                  fontWeight: 500,
+                  fontSize: 20,
+                  fontWeight: 600,
                   textAlign: "center",
+                  color: COLORS.TEXT_PRIMARY,
+                  lineHeight: 1.35,
                 }}
               >
                 {question.text}
@@ -1569,40 +1696,59 @@ function TodayView({
                 setDraft(answer.answer_text);
               }}
               style={{
-                marginTop: "3rem",
-                padding: "1rem 2rem",
-                borderRadius: 999,
-                border: GLASS.BORDER,
-                background: GLASS.BG,
-                color: COLORS.ACCENT,
-                fontSize: 16,
+                padding: "0.65rem 1.35rem",
+                borderRadius: 9999,
+                border: "none",
+                background: `linear-gradient(to right, ${COLORS.ACCENT_LIGHT}, ${COLORS.ACCENT})`,
+                boxShadow: "0 4px 12px rgba(139,92,246,0.3)",
+                color: "#FFFFFF",
+                fontSize: 14,
                 fontWeight: 600,
+                letterSpacing: "0.2px",
                 cursor: "pointer",
-                transition: "150ms ease",
               }}
             >
               {t("today_edit_answer")}
             </button>
-            {process.env.NODE_ENV === "development" && onShowRecapTest && (
-              <button
-                type="button"
-                onClick={onShowRecapTest}
-                style={{
-                  marginTop: "0.5rem",
-                  padding: "0.35rem 0.75rem",
-                  fontSize: "0.75rem",
-                  color: COLORS.TEXT_PRIMARY,
-                  background: "transparent",
-                  border: `1px dashed ${COLORS.TEXT_TERTIARY}`,
-                  borderRadius: "999px",
-                  cursor: "pointer",
-                  opacity: 0.7,
-                }}
-              >
-                Show Monday Recap
-              </button>
+            {process.env.NODE_ENV === "development" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "0.5rem", alignItems: "center" }}>
+                <button
+                  type="button"
+                  onClick={clearTodayAnswerForDev}
+                  style={{
+                    padding: "0.35rem 0.75rem",
+                    fontSize: "0.75rem",
+                    color: COLORS.TEXT_PRIMARY,
+                    background: "transparent",
+                    border: "1px dashed rgba(156,163,175,0.6)",
+                    borderRadius: "999px",
+                    cursor: "pointer",
+                    opacity: 0.8,
+                  }}
+                >
+                  Clear today's answer
+                </button>
+                {onShowRecapTest && (
+                  <button
+                    type="button"
+                    onClick={onShowRecapTest}
+                    style={{
+                      padding: "0.35rem 0.75rem",
+                      fontSize: "0.75rem",
+                      color: COLORS.TEXT_PRIMARY,
+                      background: "transparent",
+                      border: `1px dashed ${COLORS.TEXT_TERTIARY}`,
+                      borderRadius: "999px",
+                      cursor: "pointer",
+                      opacity: 0.7,
+                    }}
+                  >
+                    Show Monday Recap
+                  </button>
+                )}
+              </div>
             )}
-          </div>
+          </motion.div>
         ) : (
           <div
             style={{
@@ -1611,80 +1757,103 @@ function TodayView({
               flexDirection: "column",
               justifyContent: "center",
               alignItems: "stretch",
-              padding: "1.5rem 0",
+              padding: "1rem 0",
             }}
           >
-            <p
+            <div style={{ display: "flex", justifyContent: "center", marginBottom: "2rem" }}>
+              <div
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "8px 16px",
+                  borderRadius: 9999,
+                  background: `linear-gradient(to right, ${COLORS.ACCENT_LIGHT}, ${COLORS.ACCENT})`,
+                  boxShadow: "0 4px 12px rgba(139,92,246,0.3)",
+                }}
+              >
+                <span style={{ fontSize: 14, fontWeight: 600, color: "#FFFFFF" }}>{t("today_question_label")}</span>
+              </div>
+            </div>
+            <div
               style={{
-                fontSize: "0.875rem",
-                color: COLORS.TEXT_SECONDARY,
-                textAlign: "center",
-                marginTop: 0,
-                marginBottom: "0.75rem",
-                letterSpacing: "0.04em",
-                textTransform: "uppercase",
-                fontWeight: 500,
+                width: "100%",
+                padding: "2.5rem 2rem",
+                marginBottom: "2rem",
+                borderRadius: 28,
+                background: "rgba(255,255,255,0.4)",
+                backdropFilter: GLASS.BLUR,
+                WebkitBackdropFilter: GLASS.BLUR,
+                border: "1px solid rgba(255,255,255,0.4)",
+                boxShadow: "0 4px 16px rgba(0,0,0,0.06)",
               }}
             >
-              {t("today_question_label")}
-            </p>
-            <h1
-              style={{
-                fontSize: "2rem",
-                fontWeight: 600,
-                textAlign: "center",
-                marginBottom: "3.5rem",
-                marginTop: 0,
-                color: COLORS.TEXT_PRIMARY,
-                lineHeight: 1.3,
-              }}
-            >
-              {question.text}
-            </h1>
-            <textarea
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              placeholder={t("today_placeholder")}
-              style={{
-                minHeight: "12rem",
-                padding: "1.25rem",
-                borderRadius: 16,
-                border: "1px solid rgba(28,28,30,0.2)",
-                background: GLASS.BG,
-                resize: "vertical",
-                fontFamily: "inherit",
-                fontSize: 16,
-                lineHeight: 1.45,
-                color: COLORS.TEXT_PRIMARY,
-              }}
-              onFocus={(e) => {
-                e.target.style.borderColor = "rgba(20,49,106,0.2)";
-              }}
-              onBlur={(e) => {
-                e.target.style.borderColor = "rgba(28,28,30,0.2)";
-              }}
-            />
-            <button
-              type="button"
-              onClick={handleSubmit}
-              style={{
-                marginTop: "1.5rem",
-                height: 54,
-                padding: "0 2rem",
-                borderRadius: 999,
-                border: "none",
-                background: COLORS.ACCENT,
-                color: "#FFFFFF",
-                fontSize: 16,
-                fontWeight: 600,
-                letterSpacing: "0.2px",
-                cursor: "pointer",
-                transition: "150ms ease",
-              }}
-              disabled={submitting}
-            >
-              {answer ? t("today_update") : t("today_submit")}
-            </button>
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: 20,
+                  fontWeight: 600,
+                  textAlign: "center",
+                  color: "#1F2937",
+                  lineHeight: 1.35,
+                }}
+              >
+                {question.text}
+              </p>
+            </div>
+            {!(showAnswerInput || isEditMode) ? (
+              <button
+                type="button"
+                onClick={() => setShowAnswerInput(true)}
+                style={{
+                  ...primaryButtonStyle,
+                  marginTop: 0,
+                  padding: "0.65rem 1.35rem",
+                  fontSize: 14,
+                  height: "auto",
+                }}
+              >
+                {t("today_answer_question")}
+              </button>
+            ) : (
+              <>
+                <textarea
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  placeholder={t("today_placeholder")}
+                  style={{
+                    minHeight: "9rem",
+                    padding: "1.25rem 1.5rem",
+                    borderRadius: 24,
+                    border: "1px solid rgba(255,255,255,0.6)",
+                    background: "rgba(255,254,249,0.75)",
+                    backdropFilter: "blur(24px)",
+                    boxShadow: "0 4px 20px rgba(0,0,0,0.08), inset 0 1px 2px rgba(255,255,255,0.9)",
+                    resize: "vertical",
+                    fontFamily: "inherit",
+                    fontSize: 16,
+                    lineHeight: 1.45,
+                    color: COLORS.TEXT_PRIMARY,
+                    boxSizing: "border-box",
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = "rgba(196,181,253,0.5)";
+                    e.target.style.outline = "none";
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = "rgba(255,255,255,0.6)";
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  style={{ ...primaryButtonStyle, marginTop: "1.5rem" }}
+                  disabled={submitting}
+                >
+                  {answer ? t("today_update") : t("today_submit")}
+                </button>
+              </>
+            )}
             {process.env.NODE_ENV === "development" && onShowRecapTest && (
               <button
                 type="button"
@@ -1716,71 +1885,35 @@ function TodayView({
       {showEditConfirmation &&
         typeof document !== "undefined" &&
         createPortal(
-          <div
-            style={{
-              position: "fixed",
-              inset: 0,
-              backgroundColor: "rgba(0, 0, 0, 0.4)",
-              backdropFilter: "blur(4px)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: "2rem",
-              pointerEvents: "auto",
-              animation: editConfirmationClosing ? `fadeOut ${MODAL_CLOSE_MS}ms ease-out` : "fadeIn 0.2s ease-out forwards",
-            }}
-            onClick={closeEditConfirmation}
-          >
-            <div
+          <div style={{ ...MODAL.WRAPPER, pointerEvents: "auto" }} onClick={closeEditConfirmation}>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: editConfirmationClosing ? 0 : 1 }}
+              transition={{ duration: 0.2 }}
+              style={MODAL.BACKDROP}
+              aria-hidden
+            />
+            <motion.div
+              initial={{ scale: 0.5, opacity: 0 }}
+              animate={{ scale: editConfirmationClosing ? 0.5 : 1, opacity: editConfirmationClosing ? 0 : 1 }}
+              transition={{ type: "spring", bounce: 0.5, duration: 0.5 }}
               style={{
                 position: "relative",
-                background: COLORS.BACKGROUND,
-                border: GLASS.BORDER,
-                boxShadow: GLASS.SHADOW,
-                borderRadius: 26,
-                padding: "3rem 2rem",
-                maxWidth: "24rem",
-                width: "100%",
-                textAlign: "center",
-animation: editConfirmationClosing ? "none" : "streakEnter 0.2s ease-out forwards",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              type="button"
-              aria-label={t("common_close")}
-              onClick={closeEditConfirmation}
-                style={{
-                  position: "absolute",
-                  top: "1rem",
-                  right: "1rem",
-                  width: 36,
-                  height: 36,
-                  borderRadius: "50%",
-                  border: "none",
-                  background: "transparent",
-                  color: COLORS.TEXT_SECONDARY,
-                  fontSize: "1.5rem",
-                  lineHeight: 1,
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                ×
-              </button>
-              <p
-                style={{
-                  fontSize: "1.25rem",
-                  fontWeight: 600,
-                  color: COLORS.TEXT_PRIMARY,
-                  margin: 0,
-                }}
-              >
-                {t("today_answer_changed")}
-              </p>
-            </div>
+                zIndex: 1,
+                width: 72,
+                height: 72,
+                borderRadius: "50%",
+                background: JOKER.GRADIENT,
+                border: JOKER.BORDER,
+                boxShadow: JOKER.SHADOW,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                pointerEvents: "none",
+              }}
+            >
+              <Check size={36} strokeWidth={2.5} color="#FFFFFF" />
+            </motion.div>
           </div>,
           modalContainerRef?.current ?? document.body
         )}
@@ -1912,59 +2045,24 @@ function MissedDayAnswerModal({
   };
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        backgroundColor: "rgba(0, 0, 0, 0.4)",
-        backdropFilter: "blur(6px)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "1.5rem",
-        pointerEvents: "auto",
-        animation: isClosing ? `fadeOut ${MODAL_CLOSE_MS}ms ease-out` : "fadeIn 0.2s ease-out forwards",
-      }}
-    >
-      <div
-        style={{
-          position: "relative",
-          background: COLORS.BACKGROUND,
-          border: GLASS.BORDER,
-          boxShadow: GLASS.SHADOW,
-          borderRadius: 26,
-          padding: "1.5rem",
-          maxWidth: "28rem",
-          width: "100%",
-          maxHeight: "90vh",
-          overflow: "auto",
-          animation: isClosing ? "none" : "streakEnter 0.2s ease-out forwards",
-        }}
+    <div style={{ ...MODAL.WRAPPER, pointerEvents: "auto" }} onClick={handleClose}>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: isClosing ? 0 : 1 }}
+        transition={{ duration: 0.2 }}
+        style={MODAL.BACKDROP}
+        onClick={handleClose}
+        aria-hidden
+      />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+        animate={{ opacity: isClosing ? 0 : 1, scale: isClosing ? 0.9 : 1, y: isClosing ? 20 : 0 }}
+        transition={{ type: "spring", bounce: 0.3, duration: 0.4 }}
+        style={{ ...MODAL.CARD_WIDE, maxHeight: "90vh", overflow: "auto" }}
         onClick={(e) => e.stopPropagation()}
       >
-        <button
-          type="button"
-          aria-label={t("common_close")}
-          onClick={handleClose}
-          style={{
-            position: "absolute",
-            top: "1rem",
-            right: "1rem",
-            width: 36,
-            height: 36,
-            borderRadius: "50%",
-            border: "none",
-            background: "transparent",
-            color: COLORS.TEXT_SECONDARY,
-            fontSize: "1.5rem",
-            lineHeight: 1,
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          ×
+        <button type="button" aria-label={t("common_close")} onClick={handleClose} style={MODAL.CLOSE_BUTTON}>
+          <X size={16} strokeWidth={2.5} />
         </button>
 
         {loading && (
@@ -2038,23 +2136,23 @@ function MissedDayAnswerModal({
                 width: "100%",
                 height: 54,
                 padding: "0 1.5rem",
-                borderRadius: 999,
+                borderRadius: 9999,
                 border: "none",
-                background: COLORS.ACCENT,
+                background: `linear-gradient(to right, ${COLORS.ACCENT_LIGHT}, ${COLORS.ACCENT})`,
                 color: "#FFFFFF",
                 fontSize: 16,
                 fontWeight: 600,
                 letterSpacing: "0.2px",
                 cursor: submitting ? "default" : "pointer",
                 opacity: submitting || !draft.trim() ? 0.6 : 1,
-                transition: "150ms ease",
+                boxShadow: "0 4px 12px rgba(139,92,246,0.3)",
               }}
             >
               {submitting ? t("missed_answer_submitting") : t("today_submit")}
             </button>
           </div>
         )}
-      </div>
+      </motion.div>
     </div>
   );
 }
@@ -2077,7 +2175,7 @@ function CalendarView({
   onAnswerMissedDay?: (dayKey: string) => void;
   modalContainerRef?: React.RefObject<HTMLDivElement | null>;
 }) {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [displayYear, setDisplayYear] = useState(() => getNow().getFullYear());
@@ -2094,6 +2192,7 @@ function CalendarView({
   const [closingMissedModal, setClosingMissedModal] = useState(false);
   const [useJokerLoading, setUseJokerLoading] = useState(false);
   const [useJokerError, setUseJokerError] = useState<string | null>(null);
+  const [showYearPicker, setShowYearPicker] = useState(false);
   const calendarInitialLoadDoneRef = useRef(false);
 
   useEffect(() => {
@@ -2282,6 +2381,20 @@ function CalendarView({
     days.push(d);
   }
 
+  // Streak: consecutive days with answers ending at today
+  let streakCount = 0;
+  const today = getNow();
+  for (let offset = 0; offset < 365; offset++) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - offset);
+    const key = getLocalDayKey(d);
+    if (isBeforeAccountStart(d, user)) break;
+    if (!answersMap.has(key)) break;
+    streakCount++;
+  }
+
+  const dowLabels = lang === "nl" ? ["ma", "di", "wo", "do", "vr", "za", "zo"] : ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
   const handleDayTap = (day: number) => {
     const dayDate = new Date(displayYear, displayMonth, day);
     const dayKey = getLocalDayKey(dayDate);
@@ -2357,100 +2470,135 @@ function CalendarView({
     }, MODAL_CLOSE_MS);
   };
 
+  const goToToday = () => {
+    const now = getNow();
+    setDisplayYear(now.getFullYear());
+    setDisplayMonth(now.getMonth());
+  };
+
+  const now = getNow();
+  const yearOptions = (() => {
+    const start = 2020;
+    const end = now.getFullYear() + 2;
+    const arr: number[] = [];
+    for (let y = end; y >= start; y--) arr.push(y);
+    return arr;
+  })();
+
+  const isViewingCurrentMonth = displayYear === now.getFullYear() && displayMonth === now.getMonth();
+
+  const yearButtonStyle = {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    border: "1px solid rgba(255,255,255,0.4)",
+    background: "rgba(255,255,255,0.6)",
+    backdropFilter: GLASS.BLUR,
+    cursor: "pointer" as const,
+    fontSize: "1.125rem",
+    color: COLORS.TEXT_SECONDARY,
+    display: "flex" as const,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+  };
+
   return (
     <div 
       style={{ 
         height: "100%",
         width: "100%",
-        padding: "1rem 0",
+        padding: "1rem 24px 1.5rem",
         position: "relative",
         overflowY: "auto",
         overflowX: "hidden",
         boxSizing: "border-box",
-        background: COLORS.BACKGROUND,
+        background: "transparent",
       }}
     >
-      <div 
-        style={{ 
-          padding: "0 24px", 
-          width: "100%", 
+      {/* Year above month: tap to open year picker */}
+      <div style={{ display: "flex", justifyContent: "center", marginBottom: "0.5rem" }}>
+        <button
+          type="button"
+          onClick={() => setShowYearPicker(true)}
+          style={{
+            padding: "6px 14px",
+            borderRadius: 8,
+            border: "1px solid rgba(255,255,255,0.5)",
+            background: "rgba(255,255,255,0.5)",
+            backdropFilter: GLASS.BLUR,
+            cursor: "pointer",
+            fontSize: "1rem",
+            fontWeight: 600,
+            color: COLORS.TEXT_PRIMARY,
+          }}
+          aria-label={t("calendar_select_year")}
+        >
+          {displayYear}
+        </button>
+      </div>
+
+      {/* Month nav: month + Today */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 24, marginBottom: "1.5rem", flexWrap: "wrap" }}>
+        <button type="button" onClick={prevMonth} style={yearButtonStyle} aria-label={t("calendar_prev")}>
+          ‹
+        </button>
+        <h2 style={{ fontSize: "1.5rem", fontWeight: 600, color: COLORS.TEXT_PRIMARY, margin: 0 }}>
+          {monthNames[displayMonth]}
+        </h2>
+        <button type="button" onClick={nextMonth} style={yearButtonStyle} aria-label={t("calendar_next")}>
+          ›
+        </button>
+        <button
+          type="button"
+          onClick={goToToday}
+          style={{
+            padding: "8px 14px",
+            borderRadius: 8,
+            border: "1px solid rgba(255,255,255,0.4)",
+            background: isViewingCurrentMonth ? "rgba(139,92,246,0.2)" : "rgba(255,255,255,0.6)",
+            backdropFilter: GLASS.BLUR,
+            cursor: "pointer",
+            fontSize: 14,
+            fontWeight: 600,
+            color: isViewingCurrentMonth ? COLORS.ACCENT : COLORS.TEXT_SECONDARY,
+          }}
+        >
+          {t("calendar_today")}
+        </button>
+      </div>
+
+      <div
+        style={{
+          borderRadius: 24,
+          background: "rgba(255,254,249,0.65)",
+          backdropFilter: GLASS.BLUR,
+          WebkitBackdropFilter: GLASS.BLUR,
+          border: "1px solid rgba(255,255,255,0.5)",
+          boxShadow: "0 4px 16px rgba(0,0,0,0.08), inset 0 1px 1px rgba(255,255,255,0.6)",
+          padding: 24,
           boxSizing: "border-box",
-          paddingTop: "clamp(1rem, 12vh, 5rem)",
-          background: COLORS.BACKGROUND,
         }}
       >
         <div
           style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: "1rem",
-          }}
-        >
-          <button
-            type="button"
-            onClick={prevMonth}
-            style={{
-              padding: "0.5rem",
-              border: "none",
-              background: "transparent",
-              cursor: "pointer",
-              fontSize: "1.25rem",
-              color: COLORS.TEXT_PRIMARY,
-            }}
-          >
-            ‹
-          </button>
-          <h2 style={{ fontSize: "22px", fontWeight: 600, color: COLORS.TEXT_PRIMARY }}>
-            {monthNames[displayMonth]} {displayYear}
-          </h2>
-          <button
-            type="button"
-            onClick={nextMonth}
-            style={{
-              padding: "0.5rem",
-              border: "none",
-              background: "transparent",
-              cursor: "pointer",
-              fontSize: "1.25rem",
-              color: COLORS.TEXT_PRIMARY,
-            }}
-          >
-            ›
-          </button>
-        </div>
-
-        <p
-          style={{
-            fontSize: "0.8125rem",
-            color: COLORS.TEXT_SECONDARY,
-            marginBottom: "1rem",
-            textAlign: "center",
-          }}
-        >
-          {t("calendar_answered_this_month", { captured: capturedThisMonth, total: answerableDaysThisMonth })}
-        </p>
-
-        <div
-          style={{
             display: "grid",
             gridTemplateColumns: "repeat(7, 1fr)",
-            gap: "0.75rem",
+            gap: 8,
             minWidth: 0,
             boxSizing: "border-box",
+            marginBottom: 16,
           }}
         >
-          {["ma", "di", "wo", "do", "vr", "za", "zo"].map((dow) => (
+          {dowLabels.map((dow) => (
             <div
               key={dow}
               style={{
                 textAlign: "center",
-                fontSize: "0.875rem",
+                fontSize: 12,
                 fontWeight: 600,
-                padding: "0.5rem",
                 color: COLORS.TEXT_SECONDARY,
-                minWidth: 0,
-                boxSizing: "border-box",
+                textTransform: "uppercase",
+                letterSpacing: "0.05em",
               }}
             >
               {dow}
@@ -2497,93 +2645,157 @@ function CalendarView({
             );
           })}
         </div>
+
+        <div
+          style={{
+            marginTop: 32,
+            paddingTop: 24,
+            borderTop: "1px solid rgba(229,231,235,0.4)",
+            display: "flex",
+            flexDirection: "column",
+            gap: 10,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: "1.125rem", fontWeight: 600, color: COLORS.HEADER_Q }}>{capturedThisMonth}</span>
+            <span style={{ fontSize: 14, color: COLORS.TEXT_SECONDARY }}>
+              {lang === "nl" ? "van de" : "out of"} {answerableDaysThisMonth} {lang === "nl" ? "dagen beantwoord" : "days answered"}
+            </span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: "1.125rem", fontWeight: 600, color: COLORS.ACCENT }}>{streakCount}</span>
+            <span style={{ fontSize: 14, color: COLORS.TEXT_SECONDARY }}>{lang === "nl" ? "dagen streak" : "day streak"}</span>
+          </div>
+        </div>
       </div>
+
+      {showYearPicker &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div style={{ ...MODAL.WRAPPER, pointerEvents: "auto" }} onClick={() => setShowYearPicker(false)}>
+            <div style={MODAL.BACKDROP} aria-hidden />
+            <div
+              style={{
+                ...MODAL.CARD,
+                maxHeight: "70vh",
+                overflow: "auto",
+                textAlign: "center",
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                aria-label={t("common_close")}
+                onClick={() => setShowYearPicker(false)}
+                style={MODAL.CLOSE_BUTTON}
+              >
+                <X size={16} strokeWidth={2.5} />
+              </button>
+              <h3 style={{ fontSize: "1.125rem", fontWeight: 600, margin: "0 0 1rem", color: COLORS.TEXT_PRIMARY }}>
+                {t("calendar_select_year_title")}
+              </h3>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: "50vh", overflowY: "auto" }}>
+                {yearOptions.map((y) => (
+                  <button
+                    key={y}
+                    type="button"
+                    onClick={() => {
+                      setDisplayYear(y);
+                      setShowYearPicker(false);
+                    }}
+                    style={{
+                      padding: "12px 16px",
+                      borderRadius: 12,
+                      border: displayYear === y ? `2px solid ${COLORS.ACCENT}` : "1px solid rgba(229,231,235,0.6)",
+                      background: displayYear === y ? "rgba(139,92,246,0.1)" : "transparent",
+                      color: COLORS.TEXT_PRIMARY,
+                      fontSize: 16,
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                  >
+                    {y}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>,
+          modalContainerRef?.current ?? document.body
+        )}
 
       {selectedDay &&
         typeof document !== "undefined" &&
         createPortal(
-          <div
-            style={{
-              position: "fixed",
-              inset: 0,
-              backgroundColor: "rgba(0,0,0,0.4)",
-              backdropFilter: "blur(4px)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: "1.5rem",
-              pointerEvents: "auto",
-              animation: closingModal ? `fadeOut ${MODAL_CLOSE_MS}ms ease-out` : "fadeIn 0.2s ease-out forwards",
-            }}
-            onClick={handleCloseModal}
-          >
-            <div
-              style={{
-                position: "relative",
-                background: COLORS.BACKGROUND,
-                border: GLASS.BORDER,
-                boxShadow: GLASS.SHADOW,
-                borderRadius: 26,
-                padding: "1.5rem",
-                maxWidth: "28rem",
-                width: "100%",
-                maxHeight: "80vh",
-                overflow: "auto",
-animation: closingModal ? "none" : "scaleIn 0.2s ease-out forwards",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              type="button"
-              aria-label={t("common_close")}
-              onClick={handleCloseModal}
-                style={{
-                  position: "absolute",
-                  top: "1rem",
-                  right: "1rem",
-                  width: 36,
-                  height: 36,
-                  borderRadius: "50%",
-                  border: "none",
-                  background: "transparent",
-                  color: COLORS.TEXT_SECONDARY,
-                  fontSize: "1.5rem",
-                  lineHeight: 1,
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  zIndex: 1,
-                }}
-              >
-                ×
+          <div style={{ ...MODAL.WRAPPER, pointerEvents: "auto" }} onClick={handleCloseModal}>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: closingModal ? 0 : 1 }}
+              transition={{ duration: 0.2 }}
+              style={MODAL.BACKDROP}
+              aria-hidden
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{
+                opacity: closingModal ? 0 : 1,
+                scale: closingModal ? 0.9 : 1,
+                y: closingModal ? 20 : 0,
+              }}
+              transition={{ type: "spring", bounce: 0.3, duration: 0.4 }}
+              style={{ ...MODAL.CARD_WIDE, maxHeight: "75%", overflow: "auto", textAlign: "center" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button type="button" aria-label={t("common_close")} onClick={handleCloseModal} style={{ ...MODAL.CLOSE_BUTTON, zIndex: 1 }}>
+                <X size={16} strokeWidth={2.5} />
               </button>
-              <h3 style={{ fontSize: "1.25rem", marginBottom: "1rem", color: COLORS.TEXT_PRIMARY }}>
-                {selectedDay.questionText}
-              </h3>
-              <p style={{ fontSize: 16, lineHeight: 1.45, marginBottom: "1.5rem", color: COLORS.TEXT_PRIMARY }}>
-                {selectedDay.answerText}
-              </p>
-              <button
-                type="button"
-                onClick={handleCloseModal}
-                style={{
-                  height: 54,
-                  padding: "0 1.5rem",
-                  borderRadius: 999,
-                  border: "none",
-                  background: COLORS.ACCENT,
-                  color: "#FFFFFF",
-                  fontSize: 16,
-                  fontWeight: 600,
-                  letterSpacing: "0.2px",
-                  cursor: "pointer",
-                  transition: "150ms ease",
-                }}
-              >
-                {t("calendar_view_answer_close")}
-              </button>
-            </div>
+              <div style={{ marginBottom: "1rem" }}>
+                <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 12px", borderRadius: 9999, background: "rgba(237,233,254,0.8)", marginBottom: 16 }}>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: COLORS.ACCENT }}>
+                    {(() => {
+                      const [y, m, d] = selectedDay.day.split("-").map(Number);
+                      return new Intl.DateTimeFormat(lang === "nl" ? "nl-NL" : "en-US", {
+                        weekday: "long",
+                        day: "numeric",
+                        month: "long",
+                        year: "numeric",
+                      }).format(new Date(y, m - 1, d));
+                    })()}
+                  </span>
+                </div>
+                <h3 style={{ fontSize: "1.25rem", fontWeight: 600, marginBottom: "1rem", color: COLORS.TEXT_PRIMARY, lineHeight: 1.4 }}>
+                  {selectedDay.questionText}
+                </h3>
+              </div>
+              <div style={{ background: "rgba(255,254,249,0.7)", borderRadius: 20, padding: 20, border: "1px solid rgba(229,231,235,0.4)", textAlign: "center" }}>
+                <h4 style={{ fontSize: 12, fontWeight: 600, color: COLORS.TEXT_SECONDARY, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 12 }}>
+                  {t("calendar_your_answer")}
+                </h4>
+                <p style={{ fontSize: 16, lineHeight: 1.45, margin: 0, color: COLORS.TEXT_PRIMARY }}>
+                  {selectedDay.answerText}
+                </p>
+              </div>
+              <div style={{ display: "flex", justifyContent: "center", marginTop: "1.5rem" }}>
+                <button
+                  type="button"
+                  onClick={handleCloseModal}
+                  style={{
+                    height: 54,
+                    padding: "0 1.5rem",
+                    borderRadius: 9999,
+                    border: "none",
+                    background: `linear-gradient(to right, ${COLORS.ACCENT_LIGHT}, ${COLORS.ACCENT})`,
+                    color: "#FFFFFF",
+                    fontSize: 16,
+                    fontWeight: 600,
+                    letterSpacing: "0.2px",
+                    cursor: "pointer",
+                    boxShadow: "0 4px 12px rgba(139,92,246,0.3)",
+                  }}
+                >
+                  {t("calendar_view_answer_close")}
+                </button>
+              </div>
+            </motion.div>
           </div>,
           modalContainerRef?.current ?? document.body
         )}
@@ -2592,79 +2804,33 @@ animation: closingModal ? "none" : "scaleIn 0.2s ease-out forwards",
         missedDayKey &&
         typeof document !== "undefined" &&
         createPortal(
-          <div
-            style={{
-              position: "fixed",
-              inset: 0,
-              backgroundColor: "rgba(0,0,0,0.4)",
-              backdropFilter: "blur(4px)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: "1.5rem",
-              pointerEvents: "auto",
-              animation: closingMissedModal ? `fadeOut ${MODAL_CLOSE_MS}ms ease-out` : "fadeIn 0.2s ease-out forwards",
-            }}
-            onClick={handleCloseMissedModal}
-          >
-            <div
-              style={{
-                position: "relative",
-                background: COLORS.BACKGROUND,
-                border: GLASS.BORDER,
-                boxShadow: GLASS.SHADOW,
-                borderRadius: 26,
-                padding: "1.5rem",
-                maxWidth: "28rem",
-                width: "100%",
-                textAlign: "center",
-animation: closingMissedModal ? "none" : "scaleIn 0.2s ease-out forwards",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              type="button"
-              aria-label={t("common_close")}
-              onClick={handleCloseMissedModal}
-              style={{
-                position: "absolute",
-                top: "1rem",
-                right: "1rem",
-                width: 36,
-                height: 36,
-                borderRadius: "50%",
-                border: "none",
-                background: "transparent",
-                color: COLORS.TEXT_SECONDARY,
-                fontSize: "1.5rem",
-                lineHeight: 1,
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
+          <div style={{ ...MODAL.WRAPPER, pointerEvents: "auto" }} onClick={handleCloseMissedModal}>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: closingMissedModal ? 0 : 1 }}
+              transition={{ duration: 0.2 }}
+              style={MODAL.BACKDROP}
+              aria-hidden
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: closingMissedModal ? 0 : 1, scale: closingMissedModal ? 0.9 : 1, y: closingMissedModal ? 20 : 0 }}
+              transition={{ type: "spring", bounce: 0.3, duration: 0.4 }}
+              style={{ ...MODAL.CARD, textAlign: "center" }}
+              onClick={(e) => e.stopPropagation()}
             >
-              ×
-            </button>
-            <p
-              style={{
-                fontSize: "1.125rem",
-                  lineHeight: 1.5,
-                  marginBottom: "1.25rem",
-                  marginTop: 0,
-                  marginLeft: "2.5rem",
-                  marginRight: "2.5rem",
-                  color: COLORS.TEXT_PRIMARY,
-                  fontWeight: 500,
-                  whiteSpace: "pre-line",
-                }}
-              >
-                {t("missed_use_joker_message")}
-              </p>
+              <button type="button" aria-label={t("common_close")} onClick={handleCloseMissedModal} style={MODAL.CLOSE_BUTTON}>
+                <X size={16} strokeWidth={2.5} />
+              </button>
+              <div style={{ display: "flex", flexDirection: "column", gap: "1rem", marginBottom: "1.25rem", marginTop: 0 }}>
+                {(t("missed_use_joker_message").split(/\n\n+/).filter(Boolean).map((paragraph, i) => (
+                  <p key={i} style={{ fontSize: "1.125rem", lineHeight: 1.5, margin: 0, color: COLORS.TEXT_PRIMARY, fontWeight: 500 }}>
+                    {paragraph}
+                  </p>
+                )))}
+              </div>
               {useJokerError && (
-                <p style={{ fontSize: 14, color: COLORS.ACCENT, marginBottom: "0.75rem" }}>
-                  {useJokerError}
-                </p>
+                <p style={{ fontSize: 14, color: COLORS.ACCENT, marginBottom: "0.75rem" }}>{useJokerError}</p>
               )}
               <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", alignItems: "center" }}>
                 <button
@@ -2674,17 +2840,16 @@ animation: closingMissedModal ? "none" : "scaleIn 0.2s ease-out forwards",
                   style={{
                     height: 54,
                     padding: "0 1.5rem",
-                    borderRadius: 999,
-                    border: "none",
-                    background: "#facc15",
-                    color: "#000000",
+                    borderRadius: 9999,
+                    border: JOKER.BORDER,
+                    background: JOKER.GRADIENT,
+                    color: JOKER.TEXT,
                     fontSize: 16,
                     fontWeight: 600,
                     letterSpacing: "0.2px",
                     cursor: useJokerLoading ? "not-allowed" : "pointer",
                     opacity: useJokerLoading ? 0.7 : 1,
-                    transition: "150ms ease",
-                    boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1)",
+                    boxShadow: JOKER.SHADOW,
                   }}
                 >
                   {useJokerLoading ? t("loading") : t("missed_use_joker_btn")}
@@ -2693,19 +2858,12 @@ animation: closingMissedModal ? "none" : "scaleIn 0.2s ease-out forwards",
                   type="button"
                   onClick={handleCloseMissedModal}
                   disabled={useJokerLoading}
-                  style={{
-                    padding: "0.75rem",
-                    fontSize: 16,
-                    border: "none",
-                    background: "transparent",
-                    color: COLORS.TEXT_SECONDARY,
-                    cursor: "pointer",
-                  }}
+                  style={{ padding: "0.75rem", fontSize: 16, border: "none", background: "transparent", color: COLORS.TEXT_SECONDARY, cursor: "pointer" }}
                 >
                   {t("common_cancel")}
                 </button>
               </div>
-            </div>
+            </motion.div>
           </div>,
           modalContainerRef?.current ?? document.body
         )}
@@ -2713,86 +2871,16 @@ animation: closingMissedModal ? "none" : "scaleIn 0.2s ease-out forwards",
       {missedDayModal === "missed_no_joker" &&
         typeof document !== "undefined" &&
         createPortal(
-          <div
-            style={{
-              position: "fixed",
-              inset: 0,
-              backgroundColor: "rgba(0,0,0,0.4)",
-              backdropFilter: "blur(4px)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: "1.5rem",
-              pointerEvents: "auto",
-              animation: closingMissedModal ? `fadeOut ${MODAL_CLOSE_MS}ms ease-out` : "fadeIn 0.2s ease-out forwards",
-            }}
-            onClick={handleCloseMissedModal}
-          >
-            <div
-              style={{
-                position: "relative",
-                background: COLORS.BACKGROUND,
-                border: GLASS.BORDER,
-                boxShadow: GLASS.SHADOW,
-                borderRadius: 26,
-                padding: "1.5rem",
-                maxWidth: "28rem",
-                width: "100%",
-                textAlign: "center",
-                animation: closingMissedModal ? "none" : "scaleIn 0.2s ease-out forwards",
-              }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <button
-                type="button"
-                aria-label={t("common_close")}
-                onClick={handleCloseMissedModal}
-                style={{
-                  position: "absolute",
-                  top: "1rem",
-                  right: "1rem",
-                  width: 36,
-                  height: 36,
-                  borderRadius: "50%",
-                  border: "none",
-                  background: "transparent",
-                  color: COLORS.TEXT_SECONDARY,
-                  fontSize: "1.5rem",
-                  lineHeight: 1,
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                ×
+          <div style={{ ...MODAL.WRAPPER, pointerEvents: "auto" }} onClick={handleCloseMissedModal}>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: closingMissedModal ? 0 : 1 }} transition={{ duration: 0.2 }} style={MODAL.BACKDROP} aria-hidden />
+            <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: closingMissedModal ? 0 : 1, scale: closingMissedModal ? 0.9 : 1, y: closingMissedModal ? 20 : 0 }} transition={{ type: "spring", bounce: 0.3, duration: 0.4 }} style={{ ...MODAL.CARD, textAlign: "center" }} onClick={(e) => e.stopPropagation()}>
+              <button type="button" aria-label={t("common_close")} onClick={handleCloseMissedModal} style={MODAL.CLOSE_BUTTON}>
+                <X size={16} strokeWidth={2.5} />
               </button>
-              <h3 style={{ fontSize: "1.25rem", marginBottom: "0.75rem", color: COLORS.TEXT_PRIMARY }}>
-                {t("missed_title")}
-              </h3>
-              <p style={{ fontSize: 16, lineHeight: 1.45, marginBottom: "1.5rem", color: COLORS.TEXT_SECONDARY }}>
-                {t("missed_no_jokers_body")}
-              </p>
-              <button
-                type="button"
-                onClick={handleCloseMissedModal}
-                style={{
-                  height: 54,
-                  padding: "0 1.5rem",
-                  borderRadius: 999,
-                  border: "none",
-                  background: COLORS.ACCENT,
-                  color: "#FFFFFF",
-                  fontSize: 16,
-                  fontWeight: 600,
-                  letterSpacing: "0.2px",
-                  cursor: "pointer",
-                  transition: "150ms ease",
-                }}
-              >
-                {t("common_ok")}
-              </button>
-            </div>
+              <h3 style={{ fontSize: "1.25rem", marginBottom: "0.75rem", color: COLORS.TEXT_PRIMARY }}>{t("missed_title")}</h3>
+              <p style={{ fontSize: 16, lineHeight: 1.45, marginBottom: "1.5rem", color: COLORS.TEXT_SECONDARY }}>{t("missed_no_jokers_body")}</p>
+              <button type="button" onClick={handleCloseMissedModal} style={{ height: 54, padding: "0 1.5rem", borderRadius: 9999, border: "none", background: `linear-gradient(to right, ${COLORS.ACCENT_LIGHT}, ${COLORS.ACCENT})`, color: "#FFFFFF", fontSize: 16, fontWeight: 600, letterSpacing: "0.2px", cursor: "pointer", boxShadow: "0 4px 12px rgba(139,92,246,0.3)" }}>{t("common_ok")}</button>
+            </motion.div>
           </div>,
           modalContainerRef?.current ?? document.body
         )}
@@ -2800,86 +2888,16 @@ animation: closingMissedModal ? "none" : "scaleIn 0.2s ease-out forwards",
       {missedDayModal === "closed" &&
         typeof document !== "undefined" &&
         createPortal(
-          <div
-            style={{
-              position: "fixed",
-              inset: 0,
-              backgroundColor: "rgba(0,0,0,0.4)",
-              backdropFilter: "blur(4px)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: "1.5rem",
-              pointerEvents: "auto",
-              animation: closingMissedModal ? `fadeOut ${MODAL_CLOSE_MS}ms ease-out` : "fadeIn 0.2s ease-out forwards",
-            }}
-            onClick={handleCloseMissedModal}
-          >
-            <div
-              style={{
-                position: "relative",
-                background: COLORS.BACKGROUND,
-                border: GLASS.BORDER,
-                boxShadow: GLASS.SHADOW,
-                borderRadius: 26,
-                padding: "1.5rem",
-                maxWidth: "28rem",
-                width: "100%",
-                textAlign: "center",
-                animation: closingMissedModal ? "none" : "scaleIn 0.2s ease-out forwards",
-              }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <button
-                type="button"
-                aria-label={t("common_close")}
-                onClick={handleCloseMissedModal}
-                style={{
-                  position: "absolute",
-                  top: "1rem",
-                  right: "1rem",
-                  width: 36,
-                  height: 36,
-                  borderRadius: "50%",
-                  border: "none",
-                  background: "transparent",
-                  color: COLORS.TEXT_SECONDARY,
-                  fontSize: "1.5rem",
-                  lineHeight: 1,
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                ×
+          <div style={{ ...MODAL.WRAPPER, pointerEvents: "auto" }} onClick={handleCloseMissedModal}>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: closingMissedModal ? 0 : 1 }} transition={{ duration: 0.2 }} style={MODAL.BACKDROP} aria-hidden />
+            <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: closingMissedModal ? 0 : 1, scale: closingMissedModal ? 0.9 : 1, y: closingMissedModal ? 20 : 0 }} transition={{ type: "spring", bounce: 0.3, duration: 0.4 }} style={{ ...MODAL.CARD, textAlign: "center" }} onClick={(e) => e.stopPropagation()}>
+              <button type="button" aria-label={t("common_close")} onClick={handleCloseMissedModal} style={MODAL.CLOSE_BUTTON}>
+                <X size={16} strokeWidth={2.5} />
               </button>
-              <h3 style={{ fontSize: "1.25rem", marginBottom: "0.75rem", color: COLORS.TEXT_PRIMARY }}>
-                {t("closed_title")}
-              </h3>
-              <p style={{ fontSize: 16, lineHeight: 1.45, marginBottom: "1.5rem", color: COLORS.TEXT_SECONDARY }}>
-                {t("closed_body")}
-              </p>
-              <button
-                type="button"
-                onClick={handleCloseMissedModal}
-                style={{
-                  height: 54,
-                  padding: "0 1.5rem",
-                  borderRadius: 999,
-                  border: "none",
-                  background: COLORS.ACCENT,
-                  color: "#FFFFFF",
-                  fontSize: 16,
-                  fontWeight: 600,
-                  letterSpacing: "0.2px",
-                  cursor: "pointer",
-                  transition: "150ms ease",
-                }}
-              >
-                {t("common_ok")}
-              </button>
-            </div>
+              <h3 style={{ fontSize: "1.25rem", marginBottom: "0.75rem", color: COLORS.TEXT_PRIMARY }}>{t("closed_title")}</h3>
+              <p style={{ fontSize: 16, lineHeight: 1.45, marginBottom: "1.5rem", color: COLORS.TEXT_SECONDARY }}>{t("closed_body")}</p>
+              <button type="button" onClick={handleCloseMissedModal} style={{ height: 54, padding: "0 1.5rem", borderRadius: 9999, border: "none", background: `linear-gradient(to right, ${COLORS.ACCENT_LIGHT}, ${COLORS.ACCENT})`, color: "#FFFFFF", fontSize: 16, fontWeight: 600, letterSpacing: "0.2px", cursor: "pointer", boxShadow: "0 4px 12px rgba(139,92,246,0.3)" }}>{t("common_ok")}</button>
+            </motion.div>
           </div>,
           modalContainerRef?.current ?? document.body
         )}
@@ -2908,9 +2926,10 @@ animation: closingMissedModal ? "none" : "scaleIn 0.2s ease-out forwards",
 }
 
 // ============ SETTINGS VIEW ============
-function SettingsView({ user }: { user: any }) {
+function SettingsView({ user, onShowLoadingScreen }: { user: any; onShowLoadingScreen?: () => void }) {
   const { t, lang, setLang } = useLanguage();
   const [signingOut, setSigningOut] = useState(false);
+  const [showLanguageModal, setShowLanguageModal] = useState(false);
 
   const handleSignOut = async () => {
     setSigningOut(true);
@@ -2925,6 +2944,17 @@ function SettingsView({ user }: { user: any }) {
     }
   };
 
+  const settingsCardStyle: React.CSSProperties = {
+    borderRadius: 20,
+    background: "rgba(255,254,249,0.65)",
+    backdropFilter: GLASS.BLUR,
+    WebkitBackdropFilter: GLASS.BLUR,
+    border: "1px solid rgba(255,255,255,0.5)",
+    boxShadow: "0 4px 16px rgba(0,0,0,0.08), inset 0 1px 1px rgba(255,255,255,0.6)",
+    padding: "12px 16px",
+    marginBottom: 10,
+  };
+
   return (
     <div
       style={{
@@ -2932,94 +2962,162 @@ function SettingsView({ user }: { user: any }) {
         width: "100%",
         minHeight: "100%",
         boxSizing: "border-box",
-        background: COLORS.BACKGROUND,
+        background: "transparent",
       }}
     >
-      <h2 style={{ fontSize: "22px", fontWeight: 600, marginBottom: "1.5rem", color: COLORS.TEXT_PRIMARY }}>{t("settings_title")}</h2>
+      <h2 style={{ fontSize: "1.875rem", fontWeight: 600, marginBottom: 4, color: COLORS.TEXT_PRIMARY }}>{t("settings_title")}</h2>
+      <p style={{ fontSize: 14, color: COLORS.TEXT_SECONDARY, marginBottom: "2rem", marginTop: 0 }}>{t("settings_subtitle")}</p>
 
-      <div style={{ marginBottom: "2rem" }}>
-        {user && user.email && (
-          <p style={{ fontSize: 16, color: COLORS.TEXT_SECONDARY, marginBottom: "1rem" }}>
-            {t("settings_signed_in_as")} {user.email}
-          </p>
-        )}
-        <button
-          type="button"
-          onClick={handleSignOut}
-          disabled={signingOut}
-          style={{
-            padding: "0.75rem 1.5rem",
-            borderRadius: 999,
-            border: GLASS.BORDER,
-            background: GLASS.BG,
-            color: COLORS.ACCENT,
-            fontSize: 16,
-            fontWeight: 600,
-            cursor: "pointer",
-            transition: "150ms ease",
-          }}
-        >
-          {signingOut ? t("settings_signing_out") : t("settings_sign_out")}
-        </button>
-      </div>
-
-      <div style={{ marginBottom: "2rem" }}>
-        <p style={{ fontSize: 16, fontWeight: 600, marginBottom: "0.5rem", color: COLORS.TEXT_PRIMARY }}>{t("settings_language")}</p>
-        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-          <button
-            type="button"
-            onClick={() => setLang("en")}
-            style={{
-              padding: "0.5rem 1rem",
-              borderRadius: 999,
-              border: lang === "en" ? `2px solid ${COLORS.ACCENT}` : GLASS.BORDER,
-              background: lang === "en" ? "rgba(20,49,106,0.08)" : GLASS.BG,
-              color: COLORS.TEXT_PRIMARY,
-              fontSize: 16,
-              fontWeight: lang === "en" ? 600 : 500,
-              cursor: "pointer",
-              transition: "150ms ease",
-            }}
-          >
-            {t("settings_lang_en")}
-          </button>
-          <button
-            type="button"
-            onClick={() => setLang("nl")}
-            style={{
-              padding: "0.5rem 1rem",
-              borderRadius: 999,
-              border: lang === "nl" ? `2px solid ${COLORS.ACCENT}` : GLASS.BORDER,
-              background: lang === "nl" ? "rgba(20,49,106,0.08)" : GLASS.BG,
-              color: COLORS.TEXT_PRIMARY,
-              fontSize: 16,
-              fontWeight: lang === "nl" ? 600 : 500,
-              cursor: "pointer",
-              transition: "150ms ease",
-            }}
-          >
-            {t("settings_lang_nl")}
-          </button>
+      <div style={{ ...settingsCardStyle, opacity: 0.5, pointerEvents: "none" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 10, background: "rgba(237,233,254,0.7)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Bell size={16} strokeWidth={2} color={COLORS.ACCENT} />
+            </div>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.TEXT_PRIMARY, marginBottom: 1 }}>{t("settings_reminder")}</div>
+              <div style={{ fontSize: 13, color: COLORS.TEXT_SECONDARY }}>{t("settings_reminder_time")}</div>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div style={{ borderTop: "1px solid rgba(28,28,30,0.1)", paddingTop: "1.5rem" }}>
-        <p style={{ fontSize: "0.85rem", color: COLORS.TEXT_SECONDARY }}>{t("settings_version")}</p>
-        <a
-          href="https://instagram.com/tjadevz"
-          target="_blank"
-          rel="noopener noreferrer"
+      <button
+        type="button"
+        onClick={() => setShowLanguageModal(true)}
+        style={{ ...settingsCardStyle, width: "100%", textAlign: "left", cursor: "pointer", border: "none", fontFamily: "inherit" }}
+      >
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 10, background: "rgba(219,234,254,0.7)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Globe size={16} strokeWidth={2} color="#3B82F6" />
+            </div>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.TEXT_PRIMARY, marginBottom: 1 }}>{t("settings_language")}</div>
+              <div style={{ fontSize: 13, color: COLORS.TEXT_SECONDARY }}>{lang === "en" ? t("settings_lang_en") : t("settings_lang_nl")}</div>
+            </div>
+          </div>
+        </div>
+      </button>
+
+      {showLanguageModal && typeof document !== "undefined" && createPortal(
+        <div style={{ ...MODAL.WRAPPER, pointerEvents: "auto" }} onClick={() => setShowLanguageModal(false)}>
+          <div style={MODAL.BACKDROP} aria-hidden />
+          <div style={{ ...MODAL.CARD, textAlign: "center" }} onClick={(e) => e.stopPropagation()}>
+            <button type="button" aria-label={t("common_close")} onClick={() => setShowLanguageModal(false)} style={MODAL.CLOSE_BUTTON}>
+              <X size={16} strokeWidth={2.5} />
+            </button>
+            <h3 style={{ fontSize: "1.125rem", fontWeight: 600, margin: "0 0 1rem", color: COLORS.TEXT_PRIMARY }}>{t("settings_language")}</h3>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <button
+                type="button"
+                onClick={() => { setLang("en"); setShowLanguageModal(false); }}
+                style={{
+                  padding: "10px 16px",
+                  borderRadius: 12,
+                  border: lang === "en" ? `2px solid ${COLORS.ACCENT}` : GLASS.BORDER,
+                  background: lang === "en" ? "rgba(139,92,246,0.08)" : GLASS.BG,
+                  color: COLORS.TEXT_PRIMARY,
+                  fontSize: 15,
+                  fontWeight: lang === "en" ? 600 : 500,
+                  cursor: "pointer",
+                }}
+              >
+                {t("settings_lang_en")}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setLang("nl"); setShowLanguageModal(false); }}
+                style={{
+                  padding: "10px 16px",
+                  borderRadius: 12,
+                  border: lang === "nl" ? `2px solid ${COLORS.ACCENT}` : GLASS.BORDER,
+                  background: lang === "nl" ? "rgba(139,92,246,0.08)" : GLASS.BG,
+                  color: COLORS.TEXT_PRIMARY,
+                  fontSize: 15,
+                  fontWeight: lang === "nl" ? 600 : 500,
+                  cursor: "pointer",
+                }}
+              >
+                {t("settings_lang_nl")}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      <div style={{ height: 24 }} />
+
+      <div style={settingsCardStyle}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ width: 32, height: 32, borderRadius: 10, background: "rgba(224,231,255,0.7)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Info size={16} strokeWidth={2} color="#6366F1" />
+          </div>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.TEXT_PRIMARY, marginBottom: 1 }}>{t("settings_about")}</div>
+            <div style={{ fontSize: 13, color: COLORS.TEXT_SECONDARY }}>{t("settings_version")}</div>
+          </div>
+        </div>
+      </div>
+
+      {user && user.email && (
+        <p style={{ fontSize: 14, color: COLORS.TEXT_SECONDARY, marginTop: 16, marginBottom: 8 }}>
+          {t("settings_signed_in_as")} {user.email}
+        </p>
+      )}
+
+      <button
+        type="button"
+        onClick={handleSignOut}
+        disabled={signingOut}
+        style={{ ...settingsCardStyle, width: "100%", textAlign: "left", cursor: signingOut ? "wait" : "pointer", border: "none", fontFamily: "inherit", marginTop: 0 }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ width: 32, height: 32, borderRadius: 10, background: "rgba(254,226,226,0.7)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <LogOut size={16} strokeWidth={2} color="#DC2626" />
+          </div>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.TEXT_PRIMARY, marginBottom: 1 }}>
+              {signingOut ? t("settings_signing_out") : t("settings_sign_out")}
+            </div>
+          </div>
+        </div>
+      </button>
+
+      {onShowLoadingScreen && (
+        <button
+          type="button"
+          onClick={onShowLoadingScreen}
           style={{
-            display: "inline-block",
             marginTop: "1rem",
-            fontSize: "0.85rem",
-            color: COLORS.ACCENT,
-            textDecoration: "underline",
+            padding: "0.5rem 1rem",
+            fontSize: "0.8rem",
+            color: COLORS.TEXT_SECONDARY,
+            background: "transparent",
+            border: "1px dashed rgba(156,163,175,0.5)",
+            borderRadius: 999,
+            cursor: "pointer",
           }}
         >
-          @tjadevz
-        </a>
-      </div>
+          Show loading screen
+        </button>
+      )}
+
+      <a
+        href="https://instagram.com/tjadevz"
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{
+          display: "inline-block",
+          marginTop: "1.5rem",
+          fontSize: "0.85rem",
+          color: COLORS.ACCENT,
+          textDecoration: "underline",
+        }}
+      >
+        @tjadevz
+      </a>
     </div>
   );
 }

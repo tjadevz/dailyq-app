@@ -2,13 +2,13 @@
 
 :root {
   --background: #F4F6F9;
-  --foreground: #1C1C1E;
-  --accent: #14316A;
+  --foreground: #1F2937;
+  --accent: #8B5CF6;
 
-  --glass-bg: rgba(255, 255, 255, 0.75);
-  --glass-strong-bg: rgba(255, 255, 255, 0.85);
-  --glass-border: 1px solid rgba(255, 255, 255, 0.4);
-  --glass-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+  --glass-bg: rgba(255, 255, 255, 0.5);
+  --glass-strong-bg: rgba(255, 255, 255, 0.95);
+  --glass-border: 1px solid rgba(255, 255, 255, 0.6);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.1), inset 0 1px 1px rgba(255, 255, 255, 0.8);
 }
 
 html,
@@ -18,14 +18,37 @@ body {
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
-    system-ui, sans-serif;
+  font-family: "Poppins", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   font-size: 16px;
   line-height: 1.45;
   color: #1C1C1E;
-  background: #F4F6F9;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Full-screen gradient wrapper: centers the app frame */
+.app-outer {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: linear-gradient(to bottom right, #F8FAFF, #FCFAFF, #FAF8FF);
+}
+
+/* iPhone-style glass container */
+.app-phone {
+  max-width: 390px;
+  width: 100%;
+  height: 844px;
+  border-radius: 48px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(to bottom, rgba(253, 253, 255, 0.95), rgba(252, 250, 255, 0.95));
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.15),
+    0 0 0 1px rgba(255, 255, 255, 0.3);
 }
 
 * {

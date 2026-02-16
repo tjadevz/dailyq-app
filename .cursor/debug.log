@@ -1,0 +1,10 @@
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771253828814,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771253828822,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771253843538,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771253843539,"hypothesisId":"H2"}
+{"location":"page.tsx:TodayView-effect","message":"TodayView effect run","data":{"initialQuestionDefined":true,"isToday":true},"timestamp":1771253843571,"hypothesisId":"H3"}
+{"location":"page.tsx:TodayView-effect","message":"Using preload, skipping fetch","data":{"isToday":true},"timestamp":1771253843572,"hypothesisId":"H4"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771253868490,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771253868496,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771253889616,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771253889619,"hypothesisId":"H2"}

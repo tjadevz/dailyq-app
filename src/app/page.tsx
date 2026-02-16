@@ -420,6 +420,13 @@ function Home() {
           } else {
             setUser(session?.user ?? null);
           }
+          // Preload today's question when user just signed in so TodayView doesn't show "Loading question of the day"
+          const effectiveId = session?.user?.id ?? (process.env.NODE_ENV === "development" ? DEV_USER.id : undefined);
+          if (effectiveId) {
+            fetchTodayQuestionForPreload(lang, effectiveId).then((preload) => {
+              setInitialTodayQuestion(preload);
+            }).catch(() => {});
+          }
           const elapsed = Date.now() - loadingScreenShownAtRef.current;
           const wait = Math.max(0, LOADING_SCREEN_MIN_MS - elapsed);
           setTimeout(() => setCheckingAuth(false), wait);
@@ -459,14 +466,24 @@ function Home() {
       hadUserRef.current = true;
       if (typeof window !== "undefined") {
         const before = { scrollY: window.scrollY, bodyScrollHeight: document.body.scrollHeight, docClientHeight: document.documentElement.clientHeight, bodyScrollTop: document.body.scrollTop };
-        window.scrollTo(0, 0);
-        document.documentElement.scrollTop = 0;
-        document.body.scrollTop = 0;
+        const scrollReset = () => {
+          window.scrollTo(0, 0);
+          document.documentElement.scrollTop = 0;
+          document.body.scrollTop = 0;
+          document.documentElement.style.overflow = "hidden";
+          document.body.style.overflow = "hidden";
+        };
+        scrollReset();
         // #region agent log
         fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:scroll-reset',message:'Scroll reset after login',data:{before,afterScrollY:window.scrollY},timestamp:Date.now(),hypothesisId:'H5'})}).catch(()=>{});
         // #endregion
+        // Run again after layout/paint so scroll doesn't reappear
         requestAnimationFrame(() => {
-          fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:scroll-after-raf',message:'Scroll state one frame after reset',data:{scrollY:window.scrollY,bodyScrollHeight:document.body.scrollHeight,docClientHeight:document.documentElement.clientHeight},timestamp:Date.now(),hypothesisId:'H6'})}).catch(()=>{});
+          scrollReset();
+          requestAnimationFrame(() => {
+            scrollReset();
+            fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:scroll-after-raf',message:'Scroll state one frame after reset',data:{scrollY:window.scrollY,bodyScrollHeight:document.body.scrollHeight,docClientHeight:document.documentElement.clientHeight},timestamp:Date.now(),hypothesisId:'H6'})}).catch(()=>{});
+          });
         });
       }
     }
@@ -1670,6 +1687,17 @@ function TodayView({
     setDraft("");
     setShowAnswerInput(false);
   };
+
+  // When parent sets initialQuestion after mount (e.g. preload resolved post sign-in), apply it so we stop showing "Loading question of the day"
+  useEffect(() => {
+    if (initialQuestion === undefined) return;
+    const dayKey = initialQuestionDayKey ?? getLocalDayKey(getNow());
+    const isToday = dayKey === getLocalDayKey(getNow());
+    if (isToday && initialQuestion) {
+      setQuestion(initialQuestion);
+      setLoading(false);
+    }
+  }, [initialQuestion, initialQuestionDayKey]);
 
   useEffect(() => {
     registerServiceWorker();

@@ -69,16 +69,19 @@ const CALENDAR = {
   /** Current day edge: outer purple, small white spacing, then cell with number */
   TODAY_EDGE: "0 0 0 2px #FFFFFF, 0 0 0 5px #8B5CF6",
   /** Current day edge drawn inside cell so it does not make the day look bigger (white inner + purple ring) */
-  TODAY_EDGE_INSET: "inset 0 0 0 3px #8B5CF6, inset 0 0 0 1px #FFFFFF",
+  TODAY_EDGE_INSET: "inset 0 0 0 3px rgba(139,92,246,0.9), inset 0 0 0 1px rgba(255,255,255,0.9)",
   /** Subtle shadow for current day cell */
   CELL_SHADOW: "0 2px 6px rgba(139,92,246,0.25)",
   /** Missed days: edge only, no fill (reference image) */
-  MISSED_EDGE: "0 0 0 2px rgba(156,163,175,0.5)",
+  MISSED_EDGE: "0 0 0 2px rgba(156,163,175,0.45)",
   MISSED_COLOR: "rgba(156,163,175,1)",
   FUTURE_BG: "rgba(255,255,255,0.15)",
   FUTURE_BORDER: "1px solid rgba(229,231,235,0.25)",
   FUTURE_COLOR: "rgba(209,213,219,0.5)",
-  BEFORE_START_COLOR: "rgba(156,163,175,0.6)",
+  /** Past days before account existed: slightly less faded than future so they read as "past" */
+  BEFORE_START_BG: "rgba(255,255,255,0.22)",
+  BEFORE_START_BORDER: "1px solid rgba(229,231,235,0.35)",
+  BEFORE_START_COLOR: "rgba(156,163,175,0.78)",
   BORDER_RADIUS: 8,
 };
 
@@ -204,8 +207,8 @@ function getCalendarStyle({
   }
   if (isTooOld || isBeforeAccountStart) {
     style.color = CALENDAR.BEFORE_START_COLOR;
-    style.background = CALENDAR.FUTURE_BG;
-    style.border = CALENDAR.FUTURE_BORDER;
+    style.background = CALENDAR.BEFORE_START_BG;
+    style.border = CALENDAR.BEFORE_START_BORDER;
     return style;
   }
 
@@ -575,10 +578,111 @@ function Home() {
           minHeight: 0,
         }}
       >
-        {/* Decorative blur orbs */}
-        <div style={{ position: "absolute", top: 64, right: 40, width: 160, height: 160, background: "linear-gradient(to bottom right, rgba(219,234,254,0.4), rgba(221,214,254,0.35))", borderRadius: "50%", filter: "blur(40px)", pointerEvents: "none" }} />
-        <div style={{ position: "absolute", bottom: "40%", left: 40, width: 192, height: 192, background: "linear-gradient(to top right, rgba(251,207,232,0.25), rgba(224,231,255,0.3))", borderRadius: "50%", filter: "blur(40px)", pointerEvents: "none" }} />
-        <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", width: 224, height: 224, background: "linear-gradient(to bottom right, rgba(250,232,255,0.25), rgba(219,234,254,0.2))", borderRadius: "50%", filter: "blur(40px)", pointerEvents: "none" }} />
+        {/* Enhanced decorative glass panels */}
+        <div
+          style={{
+            position: "absolute",
+            top: 64,
+            right: -96,
+            width: 320,
+            height: 500,
+            borderRadius: 50,
+            transform: "rotate(15deg)",
+            background: "linear-gradient(135deg, rgba(243, 232, 255, 0.25) 0%, rgba(221, 214, 254, 0.2) 50%, rgba(196, 181, 253, 0.15) 100%)",
+            backdropFilter: "blur(40px)",
+            WebkitBackdropFilter: "blur(40px)",
+            boxShadow: "0 4px 20px rgba(139, 92, 246, 0.08), inset 0 1px 2px rgba(255, 255, 255, 0.3)",
+            pointerEvents: "none",
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            bottom: -128,
+            left: -80,
+            width: 384,
+            height: 384,
+            borderRadius: 50,
+            transform: "rotate(-20deg)",
+            background: "linear-gradient(135deg, rgba(224, 231, 255, 0.25) 0%, rgba(221, 214, 254, 0.2) 50%, rgba(233, 213, 255, 0.15) 100%)",
+            backdropFilter: "blur(40px)",
+            WebkitBackdropFilter: "blur(40px)",
+            boxShadow: "0 4px 20px rgba(139, 92, 246, 0.08), inset 0 1px 2px rgba(255, 255, 255, 0.3)",
+            pointerEvents: "none",
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            top: "33.333%",
+            left: "25%",
+            width: 288,
+            height: 320,
+            borderRadius: 45,
+            transform: "rotate(35deg)",
+            background: "linear-gradient(135deg, rgba(240, 253, 250, 0.2) 0%, rgba(224, 231, 255, 0.18) 50%, rgba(243, 232, 255, 0.15) 100%)",
+            backdropFilter: "blur(35px)",
+            WebkitBackdropFilter: "blur(35px)",
+            boxShadow: "0 4px 20px rgba(139, 92, 246, 0.06), inset 0 1px 2px rgba(255, 255, 255, 0.3)",
+            pointerEvents: "none",
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            top: 96,
+            left: -64,
+            width: 224,
+            height: 288,
+            borderRadius: 40,
+            transform: "rotate(-25deg)",
+            background: "linear-gradient(135deg, rgba(254, 243, 199, 0.18) 0%, rgba(253, 230, 138, 0.15) 50%, rgba(252, 211, 77, 0.12) 100%)",
+            backdropFilter: "blur(30px)",
+            WebkitBackdropFilter: "blur(30px)",
+            boxShadow: "0 4px 20px rgba(245, 158, 11, 0.05), inset 0 1px 2px rgba(255, 255, 255, 0.3)",
+            pointerEvents: "none",
+          }}
+        />
+        {/* Soft glow orbs */}
+        <div
+          style={{
+            position: "absolute",
+            top: 80,
+            right: 48,
+            width: 160,
+            height: 160,
+            background: "linear-gradient(to bottom right, rgba(224, 231, 255, 0.2), rgba(221, 214, 254, 0.15))",
+            borderRadius: "50%",
+            filter: "blur(48px)",
+            pointerEvents: "none",
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            bottom: 128,
+            left: 32,
+            width: 192,
+            height: 192,
+            background: "linear-gradient(to top right, rgba(243, 232, 255, 0.18), rgba(224, 231, 255, 0.12))",
+            borderRadius: "50%",
+            filter: "blur(48px)",
+            pointerEvents: "none",
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            top: "50%",
+            right: "25%",
+            width: 256,
+            height: 256,
+            background: "linear-gradient(to bottom right, rgba(250, 232, 255, 0.15), rgba(219, 234, 254, 0.12))",
+            borderRadius: "50%",
+            filter: "blur(48px)",
+            pointerEvents: "none",
+          }}
+        />
 
         {/* Joker pill - absolute top right (today + calendar only) */}
         {(activeTab === "today" || activeTab === "calendar") && (
@@ -1794,8 +1898,8 @@ function TodayView({
               style={{
                 width: "100%",
                 marginBottom: 48,
-                paddingLeft: 10,
-                paddingRight: 10,
+                paddingLeft: 4,
+                paddingRight: 4,
               }}
             >
               <div
@@ -1816,7 +1920,7 @@ function TodayView({
                     backdropFilter: "blur(16px)",
                     WebkitBackdropFilter: "blur(16px)",
                     borderRadius: 27,
-                    padding: "48px 24px",
+                    padding: "48px 16px",
                     position: "relative",
                     overflow: "hidden",
                     display: "flex",
@@ -1970,8 +2074,8 @@ function TodayView({
               style={{
                 width: "100%",
                 marginBottom: 48,
-                paddingLeft: 10,
-                paddingRight: 10,
+                paddingLeft: 4,
+                paddingRight: 4,
               }}
             >
               <div
@@ -1992,7 +2096,7 @@ function TodayView({
                     backdropFilter: "blur(16px)",
                     WebkitBackdropFilter: "blur(16px)",
                     borderRadius: 27,
-                    padding: "48px 24px",
+                    padding: "48px 16px",
                     position: "relative",
                     overflow: "hidden",
                   }}
@@ -2054,8 +2158,8 @@ function TodayView({
               <div
                 style={{
                   width: "100%",
-                  paddingLeft: 10,
-                  paddingRight: 10,
+                  paddingLeft: 4,
+                  paddingRight: 4,
                 }}
               >
                 <button
@@ -2819,7 +2923,7 @@ function CalendarView({
         overflowY: "auto",
         overflowX: "hidden",
         boxSizing: "border-box",
-        background: "#F8FAFC",
+        background: "transparent",
       }}
     >
       {/* Year above month: tap to open year picker */}
@@ -3148,13 +3252,14 @@ function CalendarView({
                     borderRadius: 9999,
                     border: JOKER.BORDER,
                     background: JOKER.GRADIENT,
-                    color: JOKER.TEXT,
+                    color: "#FFFFFF",
                     fontSize: 16,
                     fontWeight: 600,
                     letterSpacing: "0.2px",
                     cursor: useJokerLoading ? "not-allowed" : "pointer",
                     opacity: useJokerLoading ? 0.7 : 1,
                     boxShadow: JOKER.SHADOW,
+                    textShadow: "0 1px 2px rgba(0,0,0,0.25)",
                   }}
                 >
                   {useJokerLoading ? t("loading") : t("missed_use_joker_btn")}

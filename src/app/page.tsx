@@ -411,6 +411,9 @@ function Home() {
         // Listen for auth changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
           console.log('🔄 Auth state changed:', _event);
+          // #region agent log
+          fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:onAuthStateChange',message:'Auth state changed',data:{event:_event,hasSession:Boolean(session?.user),userId:session?.user?.id?.slice(0,8)},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+          // #endregion
           // In development, keep dev user when session is null so submit still works
           if (process.env.NODE_ENV === "development" && !session?.user) {
             setUser(DEV_USER);
@@ -455,9 +458,16 @@ function Home() {
     if (hasUser && !hadUserRef.current) {
       hadUserRef.current = true;
       if (typeof window !== "undefined") {
+        const before = { scrollY: window.scrollY, bodyScrollHeight: document.body.scrollHeight, docClientHeight: document.documentElement.clientHeight, bodyScrollTop: document.body.scrollTop };
         window.scrollTo(0, 0);
         document.documentElement.scrollTop = 0;
         document.body.scrollTop = 0;
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:scroll-reset',message:'Scroll reset after login',data:{before,afterScrollY:window.scrollY},timestamp:Date.now(),hypothesisId:'H5'})}).catch(()=>{});
+        // #endregion
+        requestAnimationFrame(() => {
+          fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:scroll-after-raf',message:'Scroll state one frame after reset',data:{scrollY:window.scrollY,bodyScrollHeight:document.body.scrollHeight,docClientHeight:document.documentElement.clientHeight},timestamp:Date.now(),hypothesisId:'H6'})}).catch(()=>{});
+        });
       }
     }
     if (!hasUser) hadUserRef.current = false;
@@ -662,6 +672,12 @@ function Home() {
   if (!effectiveUser) {
     return <OnboardingScreen />;
   }
+
+  // #region agent log
+  if (typeof window !== "undefined") {
+    fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:Home-render-app',message:'Rendering main app with user',data:{initialTodayQuestionDefined:initialTodayQuestion !== undefined,userId:effectiveUser?.id?.slice(0,8)},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+  }
+  // #endregion
 
   const now = getNow();
   const headerDateLabel = formatHeaderDate(now, lang);
@@ -1658,6 +1674,10 @@ function TodayView({
   useEffect(() => {
     registerServiceWorker();
 
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:TodayView-effect',message:'TodayView effect run',data:{initialQuestionDefined:initialQuestion !== undefined,isToday: (initialQuestionDayKey ?? getLocalDayKey(getNow())) === getLocalDayKey(getNow())},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
+    // #endregion
+
     const load = async () => {
       console.log('🔧 TodayView: Starting to load...');
       
@@ -1668,6 +1688,9 @@ function TodayView({
 
       // Use preloaded question from loading screen so we never show "loading today's question"
       if (initialQuestion !== undefined && isToday) {
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:TodayView-effect',message:'Using preload, skipping fetch',data:{isToday},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
+        // #endregion
         setQuestion(initialQuestion ?? null);
         setLoading(false);
         if (effectiveUser?.id === "dev-user") {

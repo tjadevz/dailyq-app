@@ -37,7 +37,7 @@ export const translations: Record<
     onboarding_toggle_sign_up: "No account yet? Sign up",
     // Monday recap
     recap_body: "Last week you answered {count} of the {total} questions.",
-    recap_mooi: "Nice",
+    recap_mooi: "yay!",
     recap_answer_missed: "Answer a missed day",
     // Today view
     today_ready: "Ready for today",
@@ -129,7 +129,7 @@ export const translations: Record<
     onboarding_toggle_sign_in: "Heb je al een account? Log in",
     onboarding_toggle_sign_up: "Nog geen account? Registreer",
     recap_body: "Vorige week heb je {count} van de {total} vragen beantwoord.",
-    recap_mooi: "Mooi",
+    recap_mooi: "yay!",
     recap_answer_missed: "Beantwoord een gemiste dag",
     today_ready: "Klaar voor vandaag",
     today_edit_answer: "Antwoord bewerken",

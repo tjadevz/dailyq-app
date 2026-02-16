@@ -1819,6 +1819,10 @@ function TodayView({
                     padding: "48px 24px",
                     position: "relative",
                     overflow: "hidden",
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "center",
+                    minHeight: 140,
                   }}
                 >
                   <div
@@ -1826,8 +1830,8 @@ function TodayView({
                       position: "absolute",
                       top: 0,
                       left: 0,
-                      width: 64,
-                      height: 64,
+                      width: 48,
+                      height: 48,
                       background: "linear-gradient(to bottom right, rgba(139,92,246,0.08), transparent)",
                       borderBottomRightRadius: 999,
                     }}
@@ -1837,8 +1841,8 @@ function TodayView({
                       position: "absolute",
                       bottom: 0,
                       right: 0,
-                      width: 64,
-                      height: 64,
+                      width: 48,
+                      height: 48,
                       background: "linear-gradient(to top left, rgba(139,92,246,0.08), transparent)",
                       borderTopLeftRadius: 999,
                     }}
@@ -1856,20 +1860,21 @@ function TodayView({
                   >
                     {formattedQuestionNumber}
                   </div>
-                  <div style={{ display: "flex", justifyContent: "center", marginBottom: "1.25rem" }}>
+                  <div style={{ display: "flex", justifyContent: "center", marginBottom: "0.85rem" }}>
                     <div
                       style={{
-                        display: "inline-flex",
+                        width: 51,
+                        height: 51,
+                        borderRadius: "50%",
+                        background: JOKER.GRADIENT,
+                        border: JOKER.BORDER,
+                        boxShadow: JOKER.SHADOW,
+                        display: "flex",
                         alignItems: "center",
-                        gap: 8,
-                        padding: "8px 16px",
-                        borderRadius: 9999,
-                        background: `linear-gradient(to right, ${COLORS.ACCENT_LIGHT}, ${COLORS.ACCENT})`,
-                        boxShadow: "0 4px 12px rgba(139,92,246,0.3)",
+                        justifyContent: "center",
                       }}
                     >
-                      <Check size={16} strokeWidth={2} color="#FFFFFF" />
-                      <span style={{ fontSize: 14, fontWeight: 600, color: "#FFFFFF" }}>{t("today_ready")}</span>
+                      <Check size={24} strokeWidth={2.5} color="#FFFFFF" />
                     </div>
                   </div>
                   <p
@@ -1997,8 +2002,8 @@ function TodayView({
                       position: "absolute",
                       top: 0,
                       left: 0,
-                      width: 64,
-                      height: 64,
+                      width: 48,
+                      height: 48,
                       background: "linear-gradient(to bottom right, rgba(139,92,246,0.08), transparent)",
                       borderBottomRightRadius: 999,
                     }}
@@ -2008,8 +2013,8 @@ function TodayView({
                       position: "absolute",
                       bottom: 0,
                       right: 0,
-                      width: 64,
-                      height: 64,
+                      width: 48,
+                      height: 48,
                       background: "linear-gradient(to top left, rgba(139,92,246,0.08), transparent)",
                       borderTopLeftRadius: 999,
                     }}

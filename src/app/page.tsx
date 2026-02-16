@@ -16,6 +16,7 @@ import {
   Globe,
   Info,
   LogOut,
+  Instagram,
 } from "lucide-react";
 import { createSupabaseBrowserClient } from "@/lib/supabaseClient";
 import { getNow } from "@/utils/dateProvider";
@@ -101,6 +102,46 @@ function getDayOfYear(date: Date) {
   return Math.floor(diff / oneDay);
 }
 
+/** Fetch today's question for loading-screen preload (same logic as TodayView). */
+async function fetchTodayQuestionForPreload(
+  lang: "en" | "nl",
+  userId: string | undefined
+): Promise<Question | null> {
+  const dayKey = getLocalDayKey(getNow());
+  if (userId === "dev-user") {
+    return {
+      id: "dev-question-id",
+      text: "Waar heb je vandaag om gelachen?",
+      day: dayKey,
+    };
+  }
+  try {
+    const supabase = createSupabaseBrowserClient();
+    const tableName = lang === "en" ? "daily_questions_en" : "questions";
+    const queryPromise =
+      tableName === "daily_questions_en"
+        ? supabase.from(tableName).select("id, question_text, question_date").eq("question_date", dayKey).maybeSingle()
+        : supabase.from(tableName).select("id, text, day").eq("day", dayKey).maybeSingle();
+    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Query timeout")), 2000));
+    const result: any = await Promise.race([queryPromise, timeoutPromise]);
+    const { data, error } = result;
+    if (error) throw error;
+    if (data) {
+      if (tableName === "daily_questions_en") {
+        return { id: data.id, text: data.question_text ?? "", day: data.question_date ?? "" };
+      }
+      return { id: data.id, text: data.text ?? "", day: data.day ?? "" };
+    }
+    return null;
+  } catch {
+    return {
+      id: "dev-question-id",
+      text: "Waar heb je vandaag om gelachen?",
+      day: dayKey,
+    };
+  }
+}
+
 /** Shared modal styles to match joker popup (design + spacing) */
 const MODAL: {
   WRAPPER: CSSProperties;
@@ -172,7 +213,7 @@ const MODAL: {
 function formatHeaderDate(date: Date, lang: "en" | "nl"): string {
   return new Intl.DateTimeFormat(lang === "nl" ? "nl-NL" : "en-US", {
     weekday: "long",
-    month: "short",
+    month: lang === "nl" ? "long" : "short",
     day: "numeric",
   }).format(date);
 }
@@ -268,6 +309,7 @@ function Home() {
     total: null,
   });
   const [initialQuestionDayKey, setInitialQuestionDayKey] = useState<string | null>(null);
+  const [initialTodayQuestion, setInitialTodayQuestion] = useState<Question | null | undefined>(undefined);
   const [profile, setProfile] = useState<{
     id: string;
     joker_balance: number;
@@ -357,6 +399,11 @@ function Home() {
         } else {
           setUser(u);
         }
+        const effectiveId = u?.id ?? (process.env.NODE_ENV === 'development' ? DEV_USER.id : undefined);
+        if (effectiveId) {
+          const preload = await fetchTodayQuestionForPreload(lang, effectiveId);
+          setInitialTodayQuestion(preload);
+        }
         const elapsed = Date.now() - loadingScreenShownAtRef.current;
         const wait = Math.max(0, LOADING_SCREEN_MIN_MS - elapsed);
         setTimeout(() => setCheckingAuth(false), wait);
@@ -364,11 +411,21 @@ function Home() {
         // Listen for auth changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
           console.log('🔄 Auth state changed:', _event);
+          // #region agent log
+          fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:onAuthStateChange',message:'Auth state changed',data:{event:_event,hasSession:Boolean(session?.user),userId:session?.user?.id?.slice(0,8)},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+          // #endregion
           // In development, keep dev user when session is null so submit still works
           if (process.env.NODE_ENV === "development" && !session?.user) {
             setUser(DEV_USER);
           } else {
             setUser(session?.user ?? null);
+          }
+          // Preload today's question when user just signed in so TodayView doesn't show "Loading question of the day"
+          const effectiveId = session?.user?.id ?? (process.env.NODE_ENV === "development" ? DEV_USER.id : undefined);
+          if (effectiveId) {
+            fetchTodayQuestionForPreload(lang, effectiveId).then((preload) => {
+              setInitialTodayQuestion(preload);
+            }).catch(() => {});
           }
           const elapsed = Date.now() - loadingScreenShownAtRef.current;
           const wait = Math.max(0, LOADING_SCREEN_MIN_MS - elapsed);
@@ -383,6 +440,8 @@ function Home() {
         if (process.env.NODE_ENV === 'development') {
           console.warn('⚠️ Supabase auth failed, using dev user');
           setUser(DEV_USER);
+          const preload = await fetchTodayQuestionForPreload(lang, DEV_USER.id);
+          setInitialTodayQuestion(preload);
         }
         console.error('Auth error:', authError);
         const elapsed = Date.now() - loadingScreenShownAtRef.current;
@@ -398,6 +457,38 @@ function Home() {
   }, []);
 
   const effectiveUser = getCurrentUser(user);
+
+  // After login transition: reset scroll so app is full-screen on iOS (no body scroll)
+  const hadUserRef = useRef(false);
+  useEffect(() => {
+    const hasUser = Boolean(effectiveUser?.id);
+    if (hasUser && !hadUserRef.current) {
+      hadUserRef.current = true;
+      if (typeof window !== "undefined") {
+        const before = { scrollY: window.scrollY, bodyScrollHeight: document.body.scrollHeight, docClientHeight: document.documentElement.clientHeight, bodyScrollTop: document.body.scrollTop };
+        const scrollReset = () => {
+          window.scrollTo(0, 0);
+          document.documentElement.scrollTop = 0;
+          document.body.scrollTop = 0;
+          document.documentElement.style.overflow = "hidden";
+          document.body.style.overflow = "hidden";
+        };
+        scrollReset();
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:scroll-reset',message:'Scroll reset after login',data:{before,afterScrollY:window.scrollY},timestamp:Date.now(),hypothesisId:'H5'})}).catch(()=>{});
+        // #endregion
+        // Run again after layout/paint so scroll doesn't reappear
+        requestAnimationFrame(() => {
+          scrollReset();
+          requestAnimationFrame(() => {
+            scrollReset();
+            fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:scroll-after-raf',message:'Scroll state one frame after reset',data:{scrollY:window.scrollY,bodyScrollHeight:document.body.scrollHeight,docClientHeight:document.documentElement.clientHeight},timestamp:Date.now(),hypothesisId:'H6'})}).catch(()=>{});
+          });
+        });
+      }
+    }
+    if (!hasUser) hadUserRef.current = false;
+  }, [effectiveUser?.id]);
 
   useEffect(() => {
     if (!effectiveUser?.id) {
@@ -461,79 +552,136 @@ function Home() {
     return (
       <div
         style={{
-          minHeight: "100%",
           display: "flex",
           flexDirection: "column",
+          height: "100%",
+          minHeight: "100%",
           paddingTop: "env(safe-area-inset-top)",
           boxSizing: "border-box",
-          background: COLORS.BACKGROUND_GRADIENT,
-          position: "relative",
-          overflow: "hidden",
+          background: COLORS.BACKGROUND,
         }}
       >
-        {/* Decorative blur orbs – same as onboarding */}
-        <div style={{ position: "absolute", top: 64, right: 40, width: 160, height: 160, background: "linear-gradient(to bottom right, rgba(219,234,254,0.4), rgba(221,214,254,0.35))", borderRadius: "50%", filter: "blur(40px)", pointerEvents: "none" }} />
-        <div style={{ position: "absolute", bottom: "40%", left: 40, width: 192, height: 192, background: "linear-gradient(to top right, rgba(251,207,232,0.25), rgba(224,231,255,0.3))", borderRadius: "50%", filter: "blur(40px)", pointerEvents: "none" }} />
-        <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", width: 224, height: 224, background: "linear-gradient(to bottom right, rgba(250,232,255,0.25), rgba(219,234,254,0.2))", borderRadius: "50%", filter: "blur(40px)", pointerEvents: "none" }} />
-
-        <div
+        <motion.div
+          initial={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.5 }}
           style={{
             flex: 1,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "16px 24px",
+            margin: "16px 16px 8px",
+            borderRadius: 32,
+            overflow: "hidden",
             position: "relative",
-            zIndex: 1,
+            background: GLASS.CARD_BG,
+            backdropFilter: GLASS.BLUR,
+            WebkitBackdropFilter: GLASS.BLUR,
+            border: GLASS.BORDER,
+            boxShadow: GLASS.SHADOW,
+            display: "flex",
+            flexDirection: "column",
+            minHeight: 0,
           }}
         >
+          {/* Decorative Glass Panels (less faded, more visible) */}
+          <div
+            className="absolute top-16 -right-24 w-80 h-[500px] rounded-[50px] transform rotate-[15deg]"
+            style={{
+              background: "linear-gradient(135deg, rgba(243, 232, 255, 0.4) 0%, rgba(221, 214, 254, 0.34) 50%, rgba(196, 181, 253, 0.28) 100%)",
+              backdropFilter: "blur(40px)",
+              boxShadow: "0 4px 20px rgba(139, 92, 246, 0.08), inset 0 1px 2px rgba(255, 255, 255, 0.3)",
+              pointerEvents: "none",
+            }}
+          />
+          <div
+            className="absolute -bottom-32 -left-20 w-96 h-96 rounded-[50px] transform -rotate-[20deg]"
+            style={{
+              background: "linear-gradient(135deg, rgba(224, 231, 255, 0.4) 0%, rgba(221, 214, 254, 0.34) 50%, rgba(233, 213, 255, 0.28) 100%)",
+              backdropFilter: "blur(40px)",
+              boxShadow: "0 4px 20px rgba(139, 92, 246, 0.08), inset 0 1px 2px rgba(255, 255, 255, 0.3)",
+              pointerEvents: "none",
+            }}
+          />
+          <div
+            className="absolute top-1/3 left-1/4 w-72 h-80 rounded-[45px] transform rotate-[35deg]"
+            style={{
+              background: "linear-gradient(135deg, rgba(240, 253, 250, 0.34) 0%, rgba(224, 231, 255, 0.3) 50%, rgba(243, 232, 255, 0.26) 100%)",
+              backdropFilter: "blur(35px)",
+              boxShadow: "0 4px 20px rgba(139, 92, 246, 0.06), inset 0 1px 2px rgba(255, 255, 255, 0.3)",
+              pointerEvents: "none",
+            }}
+          />
+          <div
+            className="absolute top-24 -left-16 w-56 h-72 rounded-[40px] transform -rotate-[25deg]"
+            style={{
+              background: "linear-gradient(135deg, rgba(254, 243, 199, 0.3) 0%, rgba(253, 230, 138, 0.26) 50%, rgba(252, 211, 77, 0.22) 100%)",
+              backdropFilter: "blur(30px)",
+              boxShadow: "0 4px 20px rgba(245, 158, 11, 0.05), inset 0 1px 2px rgba(255, 255, 255, 0.3)",
+              pointerEvents: "none",
+            }}
+          />
+          {/* Soft Glow Orbs */}
+          <div className="absolute top-20 right-12 w-40 h-40 bg-gradient-to-br from-[#E0E7FF]/32 to-[#DDD6FE]/26 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute bottom-32 left-8 w-48 h-48 bg-gradient-to-tr from-[#F3E8FF]/30 to-[#E0E7FF]/24 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute top-1/2 right-1/4 w-64 h-64 bg-gradient-to-br from-[#FAE8FF]/26 to-[#DBEAFE]/22 rounded-full blur-3xl pointer-events-none" />
+
+          {/* Loading content */}
           <div
             style={{
-              maxWidth: "24rem",
-              width: "100%",
-              textAlign: "center",
-              background: GLASS.CARD_BG,
-              backdropFilter: GLASS.BLUR,
-              WebkitBackdropFilter: GLASS.BLUR,
-              border: GLASS.BORDER,
-              boxShadow: `${GLASS.SHADOW}, 0 0 48px rgba(139,92,246,0.08)`,
-              borderRadius: 32,
-              padding: "2.5rem 1.5rem",
+              flex: 1,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "24px",
+              position: "relative",
+              zIndex: 1,
             }}
           >
-            <button
-              type="button"
-              disabled
-              aria-hidden
-              style={{
-                display: "inline-block",
-                padding: "0.75rem 1.75rem",
-                background: `linear-gradient(135deg, ${COLORS.ACCENT_LIGHT}, ${COLORS.ACCENT})`,
-                border: "none",
-                borderRadius: 9999,
-                boxShadow: "0 4px 16px rgba(139,92,246,0.35)",
-                cursor: "default",
-              }}
-            >
-              <span style={{ fontSize: 20, letterSpacing: "0.14em", textTransform: "uppercase", fontWeight: 700, color: "#FFFFFF" }}>
-                DailyQ
-              </span>
-            </button>
-            <p
-              style={{
-                margin: "1.25rem 0 0",
-                fontSize: 13,
-                fontWeight: 500,
-                letterSpacing: "0.06em",
-                color: "rgba(124,122,158,0.9)",
-                lineHeight: 1.5,
-                textTransform: "none",
-              }}
-            >
-              The easiest way to watch yourself change.
-            </p>
+            <div style={{ position: "relative", zIndex: 10, display: "flex", flexDirection: "column", alignItems: "center" }}>
+              <motion.div
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 0.5, ease: "easeOut" }}
+                style={{ marginBottom: 32 }}
+              >
+                <h1 style={{ fontSize: "1.875rem", fontWeight: 600, color: "#1F2937", letterSpacing: "0.08em", textAlign: "center", margin: 0 }}>
+                  DailyQ
+                </h1>
+                <p style={{ fontSize: 14, color: "#9CA3AF", fontWeight: 500, letterSpacing: "0.025em", textAlign: "center", margin: "8px 0 0" }}>
+                  One question. Every day.
+                </p>
+              </motion.div>
+
+              {/* Animated loading dots */}
+              <motion.div
+                style={{ display: "flex", alignItems: "center", gap: 8 }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.3 }}
+              >
+                {[0, 1, 2].map((i) => (
+                  <motion.div
+                    key={i}
+                    style={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: "50%",
+                      background: "rgba(139, 92, 246, 0.6)",
+                    }}
+                    animate={{
+                      scale: [1, 1.3, 1],
+                      opacity: [0.5, 1, 0.5],
+                    }}
+                    transition={{
+                      duration: 1.5,
+                      repeat: Infinity,
+                      delay: i * 0.2,
+                      ease: "easeInOut",
+                    }}
+                  />
+                ))}
+              </motion.div>
+            </div>
           </div>
-        </div>
+        </motion.div>
       </div>
     );
   }
@@ -541,6 +689,12 @@ function Home() {
   if (!effectiveUser) {
     return <OnboardingScreen />;
   }
+
+  // #region agent log
+  if (typeof window !== "undefined") {
+    fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:Home-render-app',message:'Rendering main app with user',data:{initialTodayQuestionDefined:initialTodayQuestion !== undefined,userId:effectiveUser?.id?.slice(0,8)},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+  }
+  // #endregion
 
   const now = getNow();
   const headerDateLabel = formatHeaderDate(now, lang);
@@ -588,7 +742,7 @@ function Home() {
             height: 500,
             borderRadius: 50,
             transform: "rotate(15deg)",
-            background: "linear-gradient(135deg, rgba(243, 232, 255, 0.25) 0%, rgba(221, 214, 254, 0.2) 50%, rgba(196, 181, 253, 0.15) 100%)",
+            background: "linear-gradient(135deg, rgba(243, 232, 255, 0.32) 0%, rgba(221, 214, 254, 0.26) 50%, rgba(196, 181, 253, 0.2) 100%)",
             backdropFilter: "blur(40px)",
             WebkitBackdropFilter: "blur(40px)",
             boxShadow: "0 4px 20px rgba(139, 92, 246, 0.08), inset 0 1px 2px rgba(255, 255, 255, 0.3)",
@@ -604,7 +758,7 @@ function Home() {
             height: 384,
             borderRadius: 50,
             transform: "rotate(-20deg)",
-            background: "linear-gradient(135deg, rgba(224, 231, 255, 0.25) 0%, rgba(221, 214, 254, 0.2) 50%, rgba(233, 213, 255, 0.15) 100%)",
+            background: "linear-gradient(135deg, rgba(224, 231, 255, 0.32) 0%, rgba(221, 214, 254, 0.26) 50%, rgba(233, 213, 255, 0.2) 100%)",
             backdropFilter: "blur(40px)",
             WebkitBackdropFilter: "blur(40px)",
             boxShadow: "0 4px 20px rgba(139, 92, 246, 0.08), inset 0 1px 2px rgba(255, 255, 255, 0.3)",
@@ -620,7 +774,7 @@ function Home() {
             height: 320,
             borderRadius: 45,
             transform: "rotate(35deg)",
-            background: "linear-gradient(135deg, rgba(240, 253, 250, 0.2) 0%, rgba(224, 231, 255, 0.18) 50%, rgba(243, 232, 255, 0.15) 100%)",
+            background: "linear-gradient(135deg, rgba(240, 253, 250, 0.28) 0%, rgba(224, 231, 255, 0.24) 50%, rgba(243, 232, 255, 0.2) 100%)",
             backdropFilter: "blur(35px)",
             WebkitBackdropFilter: "blur(35px)",
             boxShadow: "0 4px 20px rgba(139, 92, 246, 0.06), inset 0 1px 2px rgba(255, 255, 255, 0.3)",
@@ -636,7 +790,7 @@ function Home() {
             height: 288,
             borderRadius: 40,
             transform: "rotate(-25deg)",
-            background: "linear-gradient(135deg, rgba(254, 243, 199, 0.18) 0%, rgba(253, 230, 138, 0.15) 50%, rgba(252, 211, 77, 0.12) 100%)",
+            background: "linear-gradient(135deg, rgba(254, 243, 199, 0.24) 0%, rgba(253, 230, 138, 0.2) 50%, rgba(252, 211, 77, 0.16) 100%)",
             backdropFilter: "blur(30px)",
             WebkitBackdropFilter: "blur(30px)",
             boxShadow: "0 4px 20px rgba(245, 158, 11, 0.05), inset 0 1px 2px rgba(255, 255, 255, 0.3)",
@@ -651,7 +805,7 @@ function Home() {
             right: 48,
             width: 160,
             height: 160,
-            background: "linear-gradient(to bottom right, rgba(224, 231, 255, 0.2), rgba(221, 214, 254, 0.15))",
+            background: "linear-gradient(to bottom right, rgba(224, 231, 255, 0.26), rgba(221, 214, 254, 0.2))",
             borderRadius: "50%",
             filter: "blur(48px)",
             pointerEvents: "none",
@@ -664,7 +818,7 @@ function Home() {
             left: 32,
             width: 192,
             height: 192,
-            background: "linear-gradient(to top right, rgba(243, 232, 255, 0.18), rgba(224, 231, 255, 0.12))",
+            background: "linear-gradient(to top right, rgba(243, 232, 255, 0.24), rgba(224, 231, 255, 0.18))",
             borderRadius: "50%",
             filter: "blur(48px)",
             pointerEvents: "none",
@@ -677,7 +831,7 @@ function Home() {
             right: "25%",
             width: 256,
             height: 256,
-            background: "linear-gradient(to bottom right, rgba(250, 232, 255, 0.15), rgba(219, 234, 254, 0.12))",
+            background: "linear-gradient(to bottom right, rgba(250, 232, 255, 0.22), rgba(219, 234, 254, 0.18))",
             borderRadius: "50%",
             filter: "blur(48px)",
             pointerEvents: "none",
@@ -786,6 +940,7 @@ function Home() {
           onCalendarUpdate={onCalendarUpdate}
           onAfterAnswerSaved={onAfterAnswerSaved}
           initialQuestionDayKey={initialQuestionDayKey}
+          initialQuestion={initialTodayQuestion}
           onClearInitialDay={() => setInitialQuestionDayKey(null)}
           onShowRecapTest={
             process.env.NODE_ENV === "development"
@@ -1047,11 +1202,64 @@ function TabButton({
 // ============ ONBOARDING SCREEN ============
 function OnboardingScreen({ onClose }: { onClose?: () => void }) {
   const { t } = useLanguage();
+  const [isLoginMode, setIsLoginMode] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [isSignUp, setIsSignUp] = useState(false);
+  const [name, setName] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // #region agent log
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    fetch("http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        location: "page.tsx:OnboardingScreen-auth-mounted",
+        message: "Auth step mounted",
+        data: { hypothesisId: "E", authStepVisible: true },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    const t = setTimeout(() => {
+      const form = document.querySelector('form input[type="email"]')?.closest("form") ?? document.querySelector('input[placeholder="Email"]')?.closest("form");
+      const h2 = form?.previousElementSibling?.previousElementSibling;
+      const p = form?.previousElementSibling;
+      const submitBtn = form?.querySelector('button[type="submit"]');
+      const toggleBtn = form?.nextElementSibling;
+      const h2Style = h2 ? getComputedStyle(h2) : null;
+      const pStyle = p ? getComputedStyle(p) : null;
+      const formStyle = form ? getComputedStyle(form) : null;
+      const btnStyle = submitBtn ? getComputedStyle(submitBtn) : null;
+      const toggleStyle = toggleBtn ? getComputedStyle(toggleBtn) : null;
+      fetch("http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          location: "page.tsx:OnboardingScreen-auth-spacing",
+          message: "Auth step computed spacing",
+          data: {
+            hypothesisId: "A_B_C_D",
+            formFound: !!form,
+            h2ClassName: (h2 as HTMLElement)?.className ?? null,
+            h2MarginBottom: h2Style?.marginBottom ?? null,
+            pClassName: (p as HTMLElement)?.className ?? null,
+            pMarginBottom: pStyle?.marginBottom ?? null,
+            formClassName: (form as HTMLElement)?.className ?? null,
+            formGap: formStyle?.gap ?? null,
+            formMarginBottom: formStyle?.marginBottom ?? null,
+            submitMarginTop: btnStyle?.marginTop ?? null,
+            submitMarginBottom: btnStyle?.marginBottom ?? null,
+            toggleMarginTop: toggleStyle?.marginTop ?? null,
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+    }, 400);
+    return () => clearTimeout(t);
+  }, []);
+  // #endregion
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1062,7 +1270,8 @@ function OnboardingScreen({ onClose }: { onClose?: () => void }) {
 
     try {
       const supabase = createSupabaseBrowserClient();
-      
+      const isSignUp = !isLoginMode;
+
       let response;
       if (isSignUp) {
         response = await supabase.auth.signUp({
@@ -1083,7 +1292,7 @@ function OnboardingScreen({ onClose }: { onClose?: () => void }) {
     } catch (e: any) {
       const errorMessage = e?.message || "Inloggen mislukt. Probeer het opnieuw.";
       setError(errorMessage);
-      console.error('Auth error:', e);
+      console.error("Auth error:", e);
     } finally {
       setSubmitting(false);
     }
@@ -1092,188 +1301,199 @@ function OnboardingScreen({ onClose }: { onClose?: () => void }) {
   return (
     <div
       style={{
-        minHeight: "100%",
         display: "flex",
         flexDirection: "column",
+        height: "100%",
+        minHeight: "100%",
         paddingTop: "env(safe-area-inset-top)",
         boxSizing: "border-box",
-        background: COLORS.BACKGROUND_GRADIENT,
-        position: "relative",
-        overflow: "hidden",
+        background: COLORS.BACKGROUND,
       }}
     >
-      {onClose && (
-        <button
-          type="button"
-          aria-label={t("common_close")}
-          onClick={onClose}
-          style={{
-            position: "absolute",
-            top: 16,
-            right: 16,
-            zIndex: 10,
-            width: 36,
-            height: 36,
-            borderRadius: "50%",
-            border: "none",
-            background: "rgba(243,244,246,0.9)",
-            color: COLORS.TEXT_SECONDARY,
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <X size={18} strokeWidth={2.5} />
-        </button>
-      )}
-      {/* Decorative blur orbs – same as main app */}
-      <div style={{ position: "absolute", top: 64, right: 40, width: 160, height: 160, background: "linear-gradient(to bottom right, rgba(219,234,254,0.4), rgba(221,214,254,0.35))", borderRadius: "50%", filter: "blur(40px)", pointerEvents: "none" }} />
-      <div style={{ position: "absolute", bottom: "40%", left: 40, width: 192, height: 192, background: "linear-gradient(to top right, rgba(251,207,232,0.25), rgba(224,231,255,0.3))", borderRadius: "50%", filter: "blur(40px)", pointerEvents: "none" }} />
-      <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", width: 224, height: 224, background: "linear-gradient(to bottom right, rgba(250,232,255,0.25), rgba(219,234,254,0.2))", borderRadius: "50%", filter: "blur(40px)", pointerEvents: "none" }} />
-
+      {/* Main content card: same as app – wraps glass panels + content */}
       <div
         style={{
           flex: 1,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: "16px 24px",
+          margin: "16px 16px 8px",
+          borderRadius: 32,
+          overflow: "hidden",
           position: "relative",
-          zIndex: 1,
+          background: GLASS.CARD_BG,
+          backdropFilter: GLASS.BLUR,
+          WebkitBackdropFilter: GLASS.BLUR,
+          border: GLASS.BORDER,
+          boxShadow: GLASS.SHADOW,
+          display: "flex",
+          flexDirection: "column",
+          minHeight: 0,
         }}
       >
-        <div
-          style={{
-            maxWidth: "24rem",
-            width: "100%",
-            textAlign: "center",
-            background: GLASS.CARD_BG,
-            backdropFilter: GLASS.BLUR,
-            WebkitBackdropFilter: GLASS.BLUR,
-            border: GLASS.BORDER,
-            boxShadow: GLASS.SHADOW,
-            borderRadius: 32,
-            padding: "2rem 1.5rem",
-          }}
-        >
-          <div style={{ marginBottom: "2.5rem" }}>
-            <span style={{ fontSize: 22, letterSpacing: "0.12em", textTransform: "uppercase", fontWeight: 700 }}>
-              <span style={{ color: COLORS.TEXT_SECONDARY }}>Daily</span>
-              <span style={{ color: COLORS.HEADER_Q }}>Q</span>
-            </span>
-          </div>
-
-          <form onSubmit={handleSubmit}>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder={t("onboarding_email")}
-              disabled={submitting}
-              autoComplete="email"
-              style={{
-                width: "100%",
-                padding: "1rem 1.25rem",
-                fontSize: 16,
-                border: "1px solid rgba(255,255,255,0.6)",
-                borderRadius: 24,
-                background: "rgba(255,254,249,0.75)",
-                color: COLORS.TEXT_PRIMARY,
-                marginBottom: "1rem",
-                outline: "none",
-                transition: "150ms ease",
-                boxSizing: "border-box",
-              }}
-              onFocus={(e) => {
-                e.target.style.borderColor = "rgba(196,181,253,0.5)";
-              }}
-              onBlur={(e) => {
-                e.target.style.borderColor = "rgba(255,255,255,0.6)";
-              }}
-            />
-
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder={t("onboarding_password")}
-              disabled={submitting}
-              autoComplete={isSignUp ? "new-password" : "current-password"}
-              style={{
-                width: "100%",
-                padding: "1rem 1.25rem",
-                fontSize: 16,
-                border: "1px solid rgba(255,255,255,0.6)",
-                borderRadius: 24,
-                background: "rgba(255,254,249,0.75)",
-                color: COLORS.TEXT_PRIMARY,
-                marginBottom: "1.25rem",
-                outline: "none",
-                transition: "150ms ease",
-                boxSizing: "border-box",
-              }}
-              onFocus={(e) => {
-                e.target.style.borderColor = "rgba(196,181,253,0.5)";
-              }}
-              onBlur={(e) => {
-                e.target.style.borderColor = "rgba(255,255,255,0.6)";
-              }}
-            />
-
-            <button
-              type="submit"
-              disabled={submitting || !email.trim() || !password.trim()}
-              style={{
-                width: "100%",
-                height: 54,
-                padding: "0 1.5rem",
-                fontSize: 16,
-                fontWeight: 600,
-                letterSpacing: "0.2px",
-                border: "none",
-                borderRadius: 9999,
-                background: `linear-gradient(to right, ${COLORS.ACCENT_LIGHT}, ${COLORS.ACCENT})`,
-                color: "#FFFFFF",
-                cursor: submitting ? "default" : "pointer",
-                opacity: submitting || !email.trim() || !password.trim() ? 0.6 : 1,
-                transition: "150ms ease",
-                marginBottom: "1rem",
-                boxShadow: "0 4px 12px rgba(139,92,246,0.3)",
-              }}
-            >
-              {submitting ? (isSignUp ? t("onboarding_signing_up") : t("onboarding_signing_in")) : (isSignUp ? t("onboarding_sign_up") : t("onboarding_sign_in"))}
-            </button>
-
+        {onClose && (
+          <div style={{ position: "absolute", top: 24, right: 24, zIndex: 20 }}>
             <button
               type="button"
-              onClick={() => {
-                setIsSignUp(!isSignUp);
-                setError(null);
-              }}
-              disabled={submitting}
+              aria-label={t("common_close")}
+              onClick={onClose}
               style={{
-                width: "100%",
-                padding: "0.75rem",
-                fontSize: 15,
-                border: GLASS.BORDER,
-                borderRadius: 9999,
-                background: GLASS.BG,
-                color: COLORS.ACCENT,
-                fontWeight: 600,
-                cursor: submitting ? "default" : "pointer",
-                opacity: submitting ? 0.6 : 1,
+                width: 36,
+                height: 36,
+                borderRadius: "50%",
+                border: "none",
+                background: "rgba(243,244,246,0.9)",
+                color: COLORS.TEXT_SECONDARY,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
               }}
             >
-              {isSignUp ? t("onboarding_toggle_sign_in") : t("onboarding_toggle_sign_up")}
+              <X size={18} strokeWidth={2.5} />
             </button>
+          </div>
+        )}
+        {/* Decorative Glass Panels (less faded, more visible) */}
+        <div
+          className="absolute top-16 -right-24 w-80 h-[500px] rounded-[50px] transform rotate-[15deg]"
+          style={{
+            background: "linear-gradient(135deg, rgba(243, 232, 255, 0.4) 0%, rgba(221, 214, 254, 0.34) 50%, rgba(196, 181, 253, 0.28) 100%)",
+            backdropFilter: "blur(40px)",
+            boxShadow: "0 4px 20px rgba(139, 92, 246, 0.08), inset 0 1px 2px rgba(255, 255, 255, 0.3)",
+            pointerEvents: "none",
+          }}
+        />
+        <div
+          className="absolute -bottom-32 -left-20 w-96 h-96 rounded-[50px] transform -rotate-[20deg]"
+          style={{
+            background: "linear-gradient(135deg, rgba(224, 231, 255, 0.4) 0%, rgba(221, 214, 254, 0.34) 50%, rgba(233, 213, 255, 0.28) 100%)",
+            backdropFilter: "blur(40px)",
+            boxShadow: "0 4px 20px rgba(139, 92, 246, 0.08), inset 0 1px 2px rgba(255, 255, 255, 0.3)",
+            pointerEvents: "none",
+          }}
+        />
+        <div
+          className="absolute top-1/3 left-1/4 w-72 h-80 rounded-[45px] transform rotate-[35deg]"
+          style={{
+            background: "linear-gradient(135deg, rgba(240, 253, 250, 0.34) 0%, rgba(224, 231, 255, 0.3) 50%, rgba(243, 232, 255, 0.26) 100%)",
+            backdropFilter: "blur(35px)",
+            boxShadow: "0 4px 20px rgba(139, 92, 246, 0.06), inset 0 1px 2px rgba(255, 255, 255, 0.3)",
+            pointerEvents: "none",
+          }}
+        />
+        <div
+          className="absolute top-24 -left-16 w-56 h-72 rounded-[40px] transform -rotate-[25deg]"
+          style={{
+            background: "linear-gradient(135deg, rgba(254, 243, 199, 0.3) 0%, rgba(253, 230, 138, 0.26) 50%, rgba(252, 211, 77, 0.22) 100%)",
+            backdropFilter: "blur(30px)",
+            boxShadow: "0 4px 20px rgba(245, 158, 11, 0.05), inset 0 1px 2px rgba(255, 255, 255, 0.3)",
+            pointerEvents: "none",
+          }}
+        />
+        {/* Soft Glow Orbs */}
+        <div className="absolute top-20 right-12 w-40 h-40 bg-gradient-to-br from-[#E0E7FF]/32 to-[#DDD6FE]/26 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-32 left-8 w-48 h-48 bg-gradient-to-tr from-[#F3E8FF]/30 to-[#E0E7FF]/24 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-1/2 right-1/4 w-64 h-64 bg-gradient-to-br from-[#FAE8FF]/26 to-[#DBEAFE]/22 rounded-full blur-3xl pointer-events-none" />
 
-            {error && (
-              <p style={{ color: COLORS.TEXT_SECONDARY, marginTop: "1rem", fontSize: 14 }}>
-                {error}
-              </p>
-            )}
-          </form>
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexDirection: "column",
+            padding: "24px",
+            position: "relative",
+            zIndex: 1,
+          }}
+        >
+          <div
+            style={{
+              position: "relative",
+              zIndex: 10,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+            }}
+          >
+          <div className="relative z-10 w-full max-w-[420px] px-10">
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.9, opacity: 0, y: -20 }}
+                transition={{ duration: 0.6, ease: "easeOut" }}
+                className="text-center w-full max-w-[420px]"
+              >
+                <h2 className="text-[32px] leading-tight font-bold text-gray-800" style={{ marginBottom: 64 }}>
+                  {isLoginMode ? "DailyQ" : "Create account"}
+                </h2>
+
+                <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 20, marginBottom: 20 }}>
+                  {!isLoginMode && (
+                    <input
+                      type="text"
+                      placeholder="Name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="w-full h-[52px] bg-white/70 backdrop-blur-xl rounded-2xl border border-white/60 text-[15px] text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#8B5CF6]/40 text-left"
+                      style={{ paddingLeft: 24, paddingRight: 24 }}
+                    />
+                  )}
+                  <input
+                    type="email"
+                    placeholder="Email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={submitting}
+                    autoComplete="email"
+                    className="w-full h-[52px] bg-white/70 backdrop-blur-xl rounded-2xl border border-white/60 text-[15px] text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#8B5CF6]/40 text-left"
+                    style={{ paddingLeft: 24, paddingRight: 24 }}
+                  />
+                  <input
+                    type="password"
+                    placeholder="Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    disabled={submitting}
+                    autoComplete={isLoginMode ? "current-password" : "new-password"}
+                    className="w-full h-[52px] bg-white/70 backdrop-blur-xl rounded-2xl border border-white/60 text-[15px] text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#8B5CF6]/40 text-left"
+                    style={{ paddingLeft: 24, paddingRight: 24 }}
+                  />
+
+                  <button
+                    type="submit"
+                    disabled={submitting || !email.trim() || !password.trim()}
+                    className="w-full h-[56px] bg-gradient-to-r from-[#8B5CF6] to-[#7C3AED] rounded-full text-white text-[16px] font-semibold shadow-[0_18px_50px_rgba(139,92,246,0.35)] transition-all disabled:opacity-60 disabled:cursor-default"
+                    style={{ marginTop: 24, marginBottom: 0 }}
+                  >
+                    {submitting
+                      ? isLoginMode
+                        ? t("onboarding_signing_in")
+                        : t("onboarding_signing_up")
+                      : isLoginMode
+                        ? "Sign In"
+                        : "Create Account"}
+                  </button>
+                </form>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsLoginMode(!isLoginMode);
+                    setError(null);
+                  }}
+                  disabled={submitting}
+                  className="text-[16px] text-gray-500 hover:text-gray-700 transition-colors block w-full"
+style={{ marginTop: 0 }}
+                  >
+                  {isLoginMode ? "Don't have an account? " : "Already have an account? "}
+                  <span className="text-[#8B5CF6] font-medium">{isLoginMode ? "Sign up" : "Sign in"}</span>
+                </button>
+
+                {error && (
+                  <p style={{ color: COLORS.TEXT_SECONDARY, marginTop: "1rem", fontSize: 14 }}>{error}</p>
+                )}
+              </motion.div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -1414,6 +1634,7 @@ function TodayView({
   onCalendarUpdate,
   onAfterAnswerSaved,
   initialQuestionDayKey,
+  initialQuestion,
   onClearInitialDay,
   onShowRecapTest,
   modalContainerRef,
@@ -1422,13 +1643,14 @@ function TodayView({
   onCalendarUpdate: ((dayKey: string, questionText: string, answerText: string) => void) | null;
   onAfterAnswerSaved?: (dayKey: string) => void | Promise<void>;
   initialQuestionDayKey?: string | null;
+  initialQuestion?: Question | null;
   onClearInitialDay?: () => void;
   onShowRecapTest?: () => void;
   modalContainerRef?: React.RefObject<HTMLDivElement | null>;
 }) {
   const { t, lang } = useLanguage();
-  const [loading, setLoading] = useState(true);
-  const [question, setQuestion] = useState<Question | null>(null);
+  const [loading, setLoading] = useState(initialQuestion === undefined);
+  const [question, setQuestion] = useState<Question | null>(initialQuestion ?? null);
   const [answer, setAnswer] = useState<Answer | null>(null);
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -1463,21 +1685,65 @@ function TodayView({
     setShowAnswerInput(false);
   };
 
+  // When parent sets initialQuestion after mount (e.g. preload resolved post sign-in), apply it so we stop showing "Loading question of the day"
+  useEffect(() => {
+    if (initialQuestion === undefined) return;
+    const dayKey = initialQuestionDayKey ?? getLocalDayKey(getNow());
+    const isToday = dayKey === getLocalDayKey(getNow());
+    if (isToday && initialQuestion) {
+      setQuestion(initialQuestion);
+      setLoading(false);
+    }
+  }, [initialQuestion, initialQuestionDayKey]);
+
   useEffect(() => {
     registerServiceWorker();
+
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:TodayView-effect',message:'TodayView effect run',data:{initialQuestionDefined:initialQuestion !== undefined,isToday: (initialQuestionDayKey ?? getLocalDayKey(getNow())) === getLocalDayKey(getNow())},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
+    // #endregion
 
     const load = async () => {
       console.log('🔧 TodayView: Starting to load...');
       
-      setLoading(true);
       setError(null);
 
+      const dayKey = initialQuestionDayKey ?? getLocalDayKey(getNow());
+      const isToday = dayKey === getLocalDayKey(getNow());
+
+      // Use preloaded question from loading screen so we never show "loading today's question"
+      if (initialQuestion !== undefined && isToday) {
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:TodayView-effect',message:'Using preload, skipping fetch',data:{isToday},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
+        // #endregion
+        setQuestion(initialQuestion ?? null);
+        setLoading(false);
+        if (effectiveUser?.id === "dev-user") {
+          try {
+            const mockAnswerKey = `dev-answer-${dayKey}`;
+            const savedAnswer = localStorage.getItem(mockAnswerKey);
+            if (savedAnswer) setAnswer({ id: "dev-answer-id", answer_text: savedAnswer });
+          } catch {}
+        } else if (effectiveUser) {
+          try {
+            const supabase = createSupabaseBrowserClient();
+            const { data: answerData, error: answerError } = await supabase
+              .from("answers")
+              .select("id, answer_text")
+              .eq("user_id", effectiveUser.id)
+              .eq("question_date", dayKey)
+              .maybeSingle();
+            if (!answerError && answerData) setAnswer(answerData);
+          } catch {}
+        }
+        return;
+      }
+
+      setLoading(true);
       try {
         if (typeof window !== "undefined" && !window.navigator.onLine) {
           setOffline(true);
         }
-
-        const dayKey = initialQuestionDayKey ?? getLocalDayKey(getNow());
 
         // In development with dev user, skip database and use mock data
         if (effectiveUser?.id === 'dev-user') {
@@ -1882,7 +2148,7 @@ function TodayView({
         )}
         {answer && !isEditMode ? (
           <motion.div
-            initial={{ opacity: 0, scale: 0.96 }}
+            initial={false}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ type: "spring", bounce: 0.4, duration: 0.5 }}
             style={{
@@ -2099,6 +2365,7 @@ function TodayView({
                     padding: "48px 16px",
                     position: "relative",
                     overflow: "hidden",
+                    minHeight: 140,
                   }}
                 >
                   <div
@@ -2979,7 +3246,7 @@ function CalendarView({
       <div
         style={{
           borderRadius: 24,
-          background: "rgba(255,254,249,0.65)",
+          background: "rgba(255,254,249,0.75)",
           backdropFilter: GLASS.BLUR,
           WebkitBackdropFilter: GLASS.BLUR,
           border: "1px solid rgba(255,255,255,0.5)",
@@ -3409,6 +3676,21 @@ function SettingsView({ user, onShowLoadingScreen, onShowOnboardingScreen }: { u
         </div>
       </button>
 
+      <a
+        href="https://www.instagram.com/thedailyq.app/?hl=en"
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Follow DailyQ on Instagram"
+        style={{ ...settingsCardStyle, width: "100%", textAlign: "left", cursor: "pointer", border: "none", fontFamily: "inherit", textDecoration: "none", color: "inherit", display: "block" }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ width: 32, height: 32, borderRadius: 10, background: "rgba(253,224,239,0.8)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Instagram size={16} strokeWidth={1.5} color="#E4405F" />
+          </div>
+          <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.TEXT_PRIMARY }}>Follow DailyQ on Instagram</div>
+        </div>
+      </a>
+
       {showLanguageModal && typeof document !== "undefined" && createPortal(
         <div style={{ ...MODAL.WRAPPER, pointerEvents: "auto" }} onClick={() => setShowLanguageModal(false)}>
           <div style={MODAL.BACKDROP} aria-hidden />
@@ -3470,12 +3752,6 @@ function SettingsView({ user, onShowLoadingScreen, onShowOnboardingScreen }: { u
         </div>
       </div>
 
-      {user && user.email && (
-        <p style={{ fontSize: 14, color: COLORS.TEXT_SECONDARY, marginTop: 16, marginBottom: 8 }}>
-          {t("settings_signed_in_as")} {user.email}
-        </p>
-      )}
-
       <button
         type="button"
         onClick={handleSignOut}
@@ -3493,6 +3769,12 @@ function SettingsView({ user, onShowLoadingScreen, onShowOnboardingScreen }: { u
           </div>
         </div>
       </button>
+
+      {user && user.email && (
+        <p style={{ fontSize: 14, color: COLORS.TEXT_SECONDARY, marginTop: 16, marginBottom: 8 }}>
+          {t("settings_signed_in_as")} {user.email}
+        </p>
+      )}
 
       {onShowLoadingScreen && (
         <button
@@ -3531,20 +3813,6 @@ function SettingsView({ user, onShowLoadingScreen, onShowOnboardingScreen }: { u
         </button>
       )}
 
-      <a
-        href="https://instagram.com/tjadevz"
-        target="_blank"
-        rel="noopener noreferrer"
-        style={{
-          display: "inline-block",
-          marginTop: "1.5rem",
-          fontSize: "0.85rem",
-          color: COLORS.ACCENT,
-          textDecoration: "underline",
-        }}
-      >
-        @tjadevz
-      </a>
     </div>
   );
 }

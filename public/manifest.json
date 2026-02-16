@@ -1,0 +1,22 @@
+{
+  "name": "DailyQ",
+  "short_name": "DailyQ",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F3E8FF",
+  "theme_color": "#8B5CF6",
+  "icons": [
+    {
+      "src": "/icons/icon-full.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-full.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

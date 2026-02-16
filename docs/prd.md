@@ -434,3 +434,23 @@ Any future feature must be evaluated against a single criterion:
 - **Calendar – missed-day answer (see Jokers):** “Nu beantwoorden” opens a full-screen modal overlay on the Calendar (no route change). User answers in the overlay; validation (7-day window, account start) before submit; close via X or successful submit only; background dimmed/blurred.
 - **Pop-up screens (modals):** All full-screen overlay modals are rendered via **React portal** into document.body so the entire viewport (header, main, tab bar) dims together with the backdrop; no staggered fade. Every pop-up has a top-right **X**; close runs 200 ms exit animation (fadeOut + scaleOut) before unmount. - **Pop-up animations:** Open: fadeIn (backdrop) and scaleIn/streakEnter (card), 0.2 s, with forwards so the end state is kept. Close: fadeOut + scaleOut, 200 ms, then unmount. Applied to Monday recap, joker modal, edit confirmation, missed-day answer overlay, Calendar view-answer and missed/closed modals.
 - **Web Push:** Single service worker at `public/sw.js`; push and notificationclick listeners appended (no second worker). Registration remains `register-sw.ts` → `/sw.js`. `pushNotifications.ts` provides VAPID + subscribeUserToPush (upsert to `push_subscriptions`). Settings includes "Enable Daily Notifications" button. Edge Function `send-daily-push` sends daily payload to all subscribers (cron/external trigger).
+
+**UI – Today / question card (Feb 2025)**
+
+- **Question card:** Glass-style card with outer wrapper (full width, horizontal padding 4px), border layer (backdrop blur, purple-tinted border/shadow), inner card (gradient bg, blur, padding 48px 16px), decorative corner accents (48×48px, purple gradient), and question number label (dynamic day-of-year, e.g. #001–#366, leap-aware). Question text: font-weight 500, gray-700, centered; card content vertically centered via flex. Answer button full width of card; card and button share same horizontal padding for alignment.
+- **Answered state:** "Klaar voor vandaag" / "Ready for today" replaced with a single **golden checkmark** (JOKER gradient circle, white Check icon, ~51px, subtle spacing above question). Checkmark and question block centered in the card.
+- **Question number:** Replaced hardcoded #046 with **day-of-year** (Jan 1 = #001, Dec 31 = #365 or #366 in leap years); `getDayOfYear(date)` utility used.
+- **Copy:** Today CTA: "Beantwoord de vraag" / "Answer question" → **"Beantwoorden"** / **"Answer"**. Recap dismiss: "Mooi" / "Nice" → **"yay!"**.
+
+**UI – Calendar**
+
+- **Year / Today controls:** Borders removed; padding and font size reduced for a lighter look.
+- **Day states:** Missed-day edge 10% more faded (opacity 0.45). Current-day edge 10% more faded (purple/white at 0.9 opacity). **Past days (before account / too old)** use distinct styles (BEFORE_START_*): slightly less faded than future days (stronger background, border, and text color) so they read clearly as "past" vs future.
+
+**UI – Background & tabs**
+
+- **Decorative glass panels:** Main content card (Today/Calendar/Settings) includes four angled glass panels (pink–purple, purple–blue, mint–lavender, golden accent) and three soft glow orbs; all with backdrop blur and subtle opacity. Implemented with inline styles (no Tailwind). Calendar view root background set to transparent so the same panels show on all three tabs.
+
+**UI – Joker / missed day**
+
+- **"Joker inzetten" button:** Label set to **white** (like other primary buttons); added `textShadow` for readability on the golden gradient.

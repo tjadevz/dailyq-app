@@ -16,6 +16,7 @@ import {
   Globe,
   Info,
   LogOut,
+  Instagram,
 } from "lucide-react";
 import { createSupabaseBrowserClient } from "@/lib/supabaseClient";
 import { getNow } from "@/utils/dateProvider";
@@ -447,6 +448,21 @@ function Home() {
 
   const effectiveUser = getCurrentUser(user);
 
+  // After login transition: reset scroll so app is full-screen on iOS (no body scroll)
+  const hadUserRef = useRef(false);
+  useEffect(() => {
+    const hasUser = Boolean(effectiveUser?.id);
+    if (hasUser && !hadUserRef.current) {
+      hadUserRef.current = true;
+      if (typeof window !== "undefined") {
+        window.scrollTo(0, 0);
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+      }
+    }
+    if (!hasUser) hadUserRef.current = false;
+  }, [effectiveUser?.id]);
+
   useEffect(() => {
     if (!effectiveUser?.id) {
       grantCheckedRef.current = false;
@@ -651,8 +667,11 @@ function Home() {
   const headerDateLabel = formatHeaderDate(now, lang);
 
   return (
-    <div
+    <motion.div
       data-app-root
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.2, ease: "easeOut" }}
       style={{
         display: "flex",
         flexDirection: "column",
@@ -1101,7 +1120,7 @@ function Home() {
         </div>,
         document.body
       )}
-    </div>
+    </motion.div>
   );
 }
 
@@ -2081,7 +2100,7 @@ function TodayView({
         )}
         {answer && !isEditMode ? (
           <motion.div
-            initial={{ opacity: 0, scale: 0.96 }}
+            initial={false}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ type: "spring", bounce: 0.4, duration: 0.5 }}
             style={{
@@ -3731,18 +3750,19 @@ function SettingsView({ user, onShowLoadingScreen, onShowOnboardingScreen }: { u
       )}
 
       <a
-        href="https://instagram.com/tjadevz"
+        href="https://www.instagram.com/thedailyq.app/?hl=en"
         target="_blank"
         rel="noopener noreferrer"
+        aria-label="DailyQ on Instagram"
         style={{
-          display: "inline-block",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
           marginTop: "1.5rem",
-          fontSize: "0.85rem",
           color: COLORS.ACCENT,
-          textDecoration: "underline",
         }}
       >
-        @tjadevz
+        <Instagram size={24} strokeWidth={1.5} />
       </a>
     </div>
   );

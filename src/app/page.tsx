@@ -91,6 +91,13 @@ const JOKER = {
 
 const MODAL_CLOSE_MS = 200;
 
+function getDayOfYear(date: Date) {
+  const start = new Date(date.getFullYear(), 0, 0);
+  const diff = date.getTime() - start.getTime();
+  const oneDay = 1000 * 60 * 60 * 24;
+  return Math.floor(diff / oneDay);
+}
+
 /** Shared modal styles to match joker popup (design + spacing) */
 const MODAL: {
   WRAPPER: CSSProperties;
@@ -1330,6 +1337,10 @@ function TodayView({
   const [showSubmitSuccess, setShowSubmitSuccess] = useState(false);
   const delaySubmitSuccessRef = useRef(false);
 
+  const today = new Date();
+  const questionNumber = getDayOfYear(today);
+  const formattedQuestionNumber = `#${String(questionNumber).padStart(3, "0")}`;
+
   const closeEditConfirmation = () => {
     setEditConfirmationClosing(true);
     setTimeout(() => {
@@ -1782,45 +1793,102 @@ function TodayView({
             <div
               style={{
                 width: "100%",
-                maxWidth: "28rem",
-                padding: "2.5rem 2rem",
-                marginBottom: "2rem",
-                borderRadius: 28,
-                background: "rgba(255,255,255,0.4)",
-                backdropFilter: GLASS.BLUR,
-                WebkitBackdropFilter: GLASS.BLUR,
-                border: "1px solid rgba(255,255,255,0.4)",
-                boxShadow: "0 4px 16px rgba(0,0,0,0.06)",
+                marginBottom: 48,
+                paddingLeft: 10,
+                paddingRight: 10,
               }}
             >
-              <div style={{ display: "flex", justifyContent: "center", marginBottom: "1.25rem" }}>
-                <div
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 8,
-                    padding: "8px 16px",
-                    borderRadius: 9999,
-                    background: `linear-gradient(to right, ${COLORS.ACCENT_LIGHT}, ${COLORS.ACCENT})`,
-                    boxShadow: "0 4px 12px rgba(139,92,246,0.3)",
-                  }}
-                >
-                  <Check size={16} strokeWidth={2} color="#FFFFFF" />
-                  <span style={{ fontSize: 14, fontWeight: 600, color: "#FFFFFF" }}>{t("today_ready")}</span>
-                </div>
-              </div>
-              <p
+              <div
                 style={{
-                  margin: 0,
-                  fontSize: 20,
-                  fontWeight: 600,
-                  textAlign: "center",
-                  color: COLORS.TEXT_PRIMARY,
-                  lineHeight: 1.35,
+                  position: "relative",
+                  background: "rgba(255,255,255,0.5)",
+                  backdropFilter: "blur(24px)",
+                  WebkitBackdropFilter: "blur(24px)",
+                  borderRadius: 28,
+                  padding: "1.5px",
+                  border: "1px solid rgba(139, 92, 246, 0.15)",
+                  boxShadow: "0 12px 40px rgba(139, 92, 246, 0.08), 0 0 0 1px rgba(139, 92, 246, 0.05)",
                 }}
               >
-                {question.text}
-              </p>
+                <div
+                  style={{
+                    background: "linear-gradient(to bottom right, rgba(255,255,255,0.8), rgba(255,255,255,0.6))",
+                    backdropFilter: "blur(16px)",
+                    WebkitBackdropFilter: "blur(16px)",
+                    borderRadius: 27,
+                    padding: "48px 24px",
+                    position: "relative",
+                    overflow: "hidden",
+                  }}
+                >
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      width: 64,
+                      height: 64,
+                      background: "linear-gradient(to bottom right, rgba(139,92,246,0.08), transparent)",
+                      borderBottomRightRadius: 999,
+                    }}
+                  />
+                  <div
+                    style={{
+                      position: "absolute",
+                      bottom: 0,
+                      right: 0,
+                      width: 64,
+                      height: 64,
+                      background: "linear-gradient(to top left, rgba(139,92,246,0.08), transparent)",
+                      borderTopLeftRadius: 999,
+                    }}
+                  />
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: 16,
+                      right: 20,
+                      fontSize: 10,
+                      fontWeight: 700,
+                      letterSpacing: "0.08em",
+                      color: "rgba(139,92,246,0.3)",
+                    }}
+                  >
+                    {formattedQuestionNumber}
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "center", marginBottom: "1.25rem" }}>
+                    <div
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 8,
+                        padding: "8px 16px",
+                        borderRadius: 9999,
+                        background: `linear-gradient(to right, ${COLORS.ACCENT_LIGHT}, ${COLORS.ACCENT})`,
+                        boxShadow: "0 4px 12px rgba(139,92,246,0.3)",
+                      }}
+                    >
+                      <Check size={16} strokeWidth={2} color="#FFFFFF" />
+                      <span style={{ fontSize: 14, fontWeight: 600, color: "#FFFFFF" }}>{t("today_ready")}</span>
+                    </div>
+                  </div>
+                  <p
+                    style={{
+                      margin: 0,
+                      fontSize: 22,
+                      fontWeight: 500,
+                      color: "#374151",
+                      textAlign: "center",
+                      lineHeight: 1.5,
+                      letterSpacing: "-0.01em",
+                      position: "relative",
+                      zIndex: 10,
+                    }}
+                  >
+                    {question.text}
+                  </p>
+                </div>
+              </div>
             </div>
             <button
               type="button"
@@ -1896,43 +1964,110 @@ function TodayView({
             <div
               style={{
                 width: "100%",
-                padding: "2.5rem 1.25rem",
-                marginBottom: "2rem",
-                borderRadius: 28,
-                background: "rgba(255,255,255,0.4)",
-                backdropFilter: GLASS.BLUR,
-                WebkitBackdropFilter: GLASS.BLUR,
-                border: "1px solid rgba(255,255,255,0.4)",
-                boxShadow: "0 4px 16px rgba(0,0,0,0.06)",
+                marginBottom: 48,
+                paddingLeft: 10,
+                paddingRight: 10,
               }}
             >
-              <p
+              <div
                 style={{
-                  margin: 0,
-                  fontSize: 20,
-                  fontWeight: 600,
-                  textAlign: "center",
-                  color: "#1F2937",
-                  lineHeight: 1.35,
+                  position: "relative",
+                  background: "rgba(255,255,255,0.5)",
+                  backdropFilter: "blur(24px)",
+                  WebkitBackdropFilter: "blur(24px)",
+                  borderRadius: 28,
+                  padding: "1.5px",
+                  border: "1px solid rgba(139, 92, 246, 0.15)",
+                  boxShadow: "0 12px 40px rgba(139, 92, 246, 0.08), 0 0 0 1px rgba(139, 92, 246, 0.05)",
                 }}
               >
-                {question.text}
-              </p>
+                <div
+                  style={{
+                    background: "linear-gradient(to bottom right, rgba(255,255,255,0.8), rgba(255,255,255,0.6))",
+                    backdropFilter: "blur(16px)",
+                    WebkitBackdropFilter: "blur(16px)",
+                    borderRadius: 27,
+                    padding: "48px 24px",
+                    position: "relative",
+                    overflow: "hidden",
+                  }}
+                >
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      width: 64,
+                      height: 64,
+                      background: "linear-gradient(to bottom right, rgba(139,92,246,0.08), transparent)",
+                      borderBottomRightRadius: 999,
+                    }}
+                  />
+                  <div
+                    style={{
+                      position: "absolute",
+                      bottom: 0,
+                      right: 0,
+                      width: 64,
+                      height: 64,
+                      background: "linear-gradient(to top left, rgba(139,92,246,0.08), transparent)",
+                      borderTopLeftRadius: 999,
+                    }}
+                  />
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: 16,
+                      right: 20,
+                      fontSize: 10,
+                      fontWeight: 700,
+                      letterSpacing: "0.08em",
+                      color: "rgba(139,92,246,0.3)",
+                    }}
+                  >
+                    {formattedQuestionNumber}
+                  </div>
+                  <p
+                    style={{
+                      margin: 0,
+                      fontSize: 22,
+                      fontWeight: 500,
+                      color: "#374151",
+                      textAlign: "center",
+                      lineHeight: 1.5,
+                      letterSpacing: "-0.01em",
+                      position: "relative",
+                      zIndex: 10,
+                    }}
+                  >
+                    {question.text}
+                  </p>
+                </div>
+              </div>
             </div>
             {!(showAnswerInput || isEditMode) ? (
-              <button
-                type="button"
-                onClick={() => setShowAnswerInput(true)}
+              <div
                 style={{
-                  ...primaryButtonStyle,
-                  marginTop: 0,
-                  padding: "0.65rem 1.35rem",
-                  fontSize: 14,
-                  height: "auto",
+                  width: "100%",
+                  paddingLeft: 10,
+                  paddingRight: 10,
                 }}
               >
-                {t("today_answer_question")}
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setShowAnswerInput(true)}
+                  style={{
+                    ...primaryButtonStyle,
+                    width: "100%",
+                    marginTop: 0,
+                    padding: "0.65rem 1.35rem",
+                    fontSize: 14,
+                    height: "auto",
+                  }}
+                >
+                  {t("today_answer_question")}
+                </button>
+              </div>
             ) : (
               <>
                 <textarea
@@ -2688,12 +2823,11 @@ function CalendarView({
           type="button"
           onClick={() => setShowYearPicker(true)}
           style={{
-            padding: "6px 14px",
+            padding: "4px 10px",
             borderRadius: 8,
-            border: "1px solid rgba(0,0,0,0.06)",
             background: "transparent",
             cursor: "pointer",
-            fontSize: "1rem",
+            fontSize: "0.875rem",
             fontWeight: 500,
             color: "#71717A",
           }}
@@ -2720,12 +2854,11 @@ function CalendarView({
           type="button"
           onClick={goToToday}
           style={{
-            padding: "6px 12px",
+            padding: "4px 10px",
             borderRadius: 8,
-            border: "1px solid rgba(0,0,0,0.06)",
             background: "transparent",
             cursor: "pointer",
-            fontSize: "0.9375rem",
+            fontSize: "0.8125rem",
             fontWeight: 500,
             color: isViewingCurrentMonth ? "#8B5CF6" : "#71717A",
           }}
@@ -3422,11 +3555,11 @@ async function saveAnswer(params: {
     throw new Error("Cannot submit: this date is outside the 7-day window.");
   }
 
-  console.log("Saving answer payload:", {
+  console.log("Saving answer payload:", JSON.stringify({
     user_id: userId,
     question_date: dayKey,
     answer_text: draft,
-  });
+  }));
 
   const { data: upserted, error: upsertError } = await supabase
     .from("answers")

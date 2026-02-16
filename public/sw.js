@@ -1,6 +1,6 @@
 // Service worker with aggressive update strategy for new deployments
 
-const CACHE_NAME = "dailyq-shell-v2"; // Increment version on each deployment
+const CACHE_NAME = "dailyq-shell-v3"; // Increment version on each deployment
 const OFFLINE_URLS = ["/", "/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {

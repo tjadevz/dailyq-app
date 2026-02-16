@@ -700,11 +700,8 @@ function Home() {
   const headerDateLabel = formatHeaderDate(now, lang);
 
   return (
-    <motion.div
+    <div
       data-app-root
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.2, ease: "easeOut" }}
       style={{
         display: "flex",
         flexDirection: "column",
@@ -1153,7 +1150,7 @@ function Home() {
         </div>,
         document.body
       )}
-    </motion.div>
+    </div>
   );
 }
 
@@ -2368,6 +2365,7 @@ function TodayView({
                     padding: "48px 16px",
                     position: "relative",
                     overflow: "hidden",
+                    minHeight: 140,
                   }}
                 >
                   <div
@@ -3678,6 +3676,21 @@ function SettingsView({ user, onShowLoadingScreen, onShowOnboardingScreen }: { u
         </div>
       </button>
 
+      <a
+        href="https://www.instagram.com/thedailyq.app/?hl=en"
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Follow DailyQ on Instagram"
+        style={{ ...settingsCardStyle, width: "100%", textAlign: "left", cursor: "pointer", border: "none", fontFamily: "inherit", textDecoration: "none", color: "inherit", display: "block" }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ width: 32, height: 32, borderRadius: 10, background: "rgba(253,224,239,0.8)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Instagram size={16} strokeWidth={1.5} color="#E4405F" />
+          </div>
+          <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.TEXT_PRIMARY }}>Follow DailyQ on Instagram</div>
+        </div>
+      </a>
+
       {showLanguageModal && typeof document !== "undefined" && createPortal(
         <div style={{ ...MODAL.WRAPPER, pointerEvents: "auto" }} onClick={() => setShowLanguageModal(false)}>
           <div style={MODAL.BACKDROP} aria-hidden />
@@ -3739,12 +3752,6 @@ function SettingsView({ user, onShowLoadingScreen, onShowOnboardingScreen }: { u
         </div>
       </div>
 
-      {user && user.email && (
-        <p style={{ fontSize: 14, color: COLORS.TEXT_SECONDARY, marginTop: 16, marginBottom: 8 }}>
-          {t("settings_signed_in_as")} {user.email}
-        </p>
-      )}
-
       <button
         type="button"
         onClick={handleSignOut}
@@ -3762,6 +3769,12 @@ function SettingsView({ user, onShowLoadingScreen, onShowOnboardingScreen }: { u
           </div>
         </div>
       </button>
+
+      {user && user.email && (
+        <p style={{ fontSize: 14, color: COLORS.TEXT_SECONDARY, marginTop: 16, marginBottom: 8 }}>
+          {t("settings_signed_in_as")} {user.email}
+        </p>
+      )}
 
       {onShowLoadingScreen && (
         <button
@@ -3800,21 +3813,6 @@ function SettingsView({ user, onShowLoadingScreen, onShowOnboardingScreen }: { u
         </button>
       )}
 
-      <a
-        href="https://www.instagram.com/thedailyq.app/?hl=en"
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label="DailyQ on Instagram"
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          marginTop: "1.5rem",
-          color: COLORS.ACCENT,
-        }}
-      >
-        <Instagram size={24} strokeWidth={1.5} />
-      </a>
     </div>
   );
 }

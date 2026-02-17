@@ -22,6 +22,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabaseClient";
 import { getNow } from "@/utils/dateProvider";
 import { registerServiceWorker } from "./register-sw";
 import { LanguageProvider, useLanguage } from "./LanguageContext";
+import { getStoredLanguage } from "./translations";
 
 type Question = {
   id: string;
@@ -401,7 +402,11 @@ function Home() {
         }
         const effectiveId = u?.id ?? (process.env.NODE_ENV === 'development' ? DEV_USER.id : undefined);
         if (effectiveId) {
-          const preload = await fetchTodayQuestionForPreload(lang, effectiveId);
+          const storedLang = getStoredLanguage();
+          // #region agent log
+          fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:initAuth-preload',message:'Preload with stored language',data:{storedLang,effectiveId:effectiveId?.slice(0,8)},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+          // #endregion
+          const preload = await fetchTodayQuestionForPreload(storedLang, effectiveId);
           setInitialTodayQuestion(preload);
         }
         const elapsed = Date.now() - loadingScreenShownAtRef.current;
@@ -423,7 +428,8 @@ function Home() {
           // Preload today's question when user just signed in so TodayView doesn't show "Loading question of the day"
           const effectiveId = session?.user?.id ?? (process.env.NODE_ENV === "development" ? DEV_USER.id : undefined);
           if (effectiveId) {
-            fetchTodayQuestionForPreload(lang, effectiveId).then((preload) => {
+            const storedLang = getStoredLanguage();
+            fetchTodayQuestionForPreload(storedLang, effectiveId).then((preload) => {
               setInitialTodayQuestion(preload);
             }).catch(() => {});
           }
@@ -440,7 +446,8 @@ function Home() {
         if (process.env.NODE_ENV === 'development') {
           console.warn('⚠️ Supabase auth failed, using dev user');
           setUser(DEV_USER);
-          const preload = await fetchTodayQuestionForPreload(lang, DEV_USER.id);
+          const storedLang = getStoredLanguage();
+          const preload = await fetchTodayQuestionForPreload(storedLang, DEV_USER.id);
           setInitialTodayQuestion(preload);
         }
         console.error('Auth error:', authError);

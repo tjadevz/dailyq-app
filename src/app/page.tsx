@@ -1662,6 +1662,7 @@ function TodayView({
   const [editConfirmationClosing, setEditConfirmationClosing] = useState(false);
   const [showSubmitSuccess, setShowSubmitSuccess] = useState(false);
   const delaySubmitSuccessRef = useRef(false);
+  const langUsedForPreloadRef = useRef<"en" | "nl" | null>(null);
 
   const today = new Date();
   const questionNumber = getDayOfYear(today);
@@ -1711,11 +1712,13 @@ function TodayView({
       const dayKey = initialQuestionDayKey ?? getLocalDayKey(getNow());
       const isToday = dayKey === getLocalDayKey(getNow());
 
-      // Use preloaded question from loading screen so we never show "loading today's question"
-      if (initialQuestion !== undefined && isToday) {
+      // Use preloaded question only when it was fetched for the current language; when lang changes, refetch from the correct table
+      const preloadMatchesLang = langUsedForPreloadRef.current === null || langUsedForPreloadRef.current === lang;
+      if (initialQuestion !== undefined && isToday && preloadMatchesLang) {
         // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:TodayView-effect',message:'Using preload, skipping fetch',data:{isToday},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
+        fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:TodayView-effect',message:'Using preload, skipping fetch',data:{isToday,lang},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
         // #endregion
+        langUsedForPreloadRef.current = lang;
         setQuestion(initialQuestion ?? null);
         setLoading(false);
         if (effectiveUser?.id === "dev-user") {
@@ -1748,6 +1751,7 @@ function TodayView({
         // In development with dev user, skip database and use mock data
         if (effectiveUser?.id === 'dev-user') {
           console.log('👤 Mock user detected - using mock question immediately');
+          langUsedForPreloadRef.current = lang;
           setQuestion({
             id: 'dev-question-id',
             text: 'Waar heb je vandaag om gelachen?',
@@ -1781,6 +1785,9 @@ function TodayView({
 
           const supabase = createSupabaseBrowserClient();
           const tableName = lang === 'en' ? 'daily_questions_en' : 'questions';
+          // #region agent log
+          fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:TodayView-fetch',message:'Fetching question',data:{lang,tableName},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+          // #endregion
 
           const queryPromise =
             tableName === 'daily_questions_en'
@@ -1836,12 +1843,14 @@ function TodayView({
         }
 
         if (!questionData) {
+          langUsedForPreloadRef.current = lang;
           setQuestion(null);
           setLoading(false);
           return;
         }
 
         setQuestion(questionData);
+        langUsedForPreloadRef.current = lang;
 
         // Load existing answer only for real users
         if (effectiveUser && effectiveUser.id !== 'dev-user') {
@@ -1898,7 +1907,7 @@ function TodayView({
     }
 
     return undefined;
-  }, [initialQuestionDayKey]);
+  }, [initialQuestionDayKey, lang]);
 
   const handleSubmit = async () => {
     if (!question || !draft.trim() || submitting) {

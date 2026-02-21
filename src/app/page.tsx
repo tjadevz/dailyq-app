@@ -95,11 +95,11 @@ const JOKER = {
   SHADOW: "0 4px 12px rgba(245,158,11,0.2)",
 };
 
-/** Calendar day cell when filled with a joker (yellow/gold, matches joker color scheme) */
+/** Calendar day cell when filled with a joker (gold, matches joker color scheme) */
 const CALENDAR_JOKER = {
-  BACKGROUND: "#F59E0B",
-  BORDER: "1px solid rgba(245,158,11,0.6)",
-  SHADOW: "0 2px 10px rgba(245,158,11,0.35)",
+  BACKGROUND: "#FBBF24",
+  BORDER: "1px solid rgba(251,191,36,0.65)",
+  SHADOW: "0 2px 10px rgba(251,191,36,0.3)",
 };
 
 const MODAL_CLOSE_MS = 200;
@@ -533,7 +533,7 @@ function Home() {
       return;
     }
     if (effectiveUser.id === "dev-user") {
-      setProfile({ id: "dev-user", joker_balance: 2, last_joker_grant_month: null });
+      setProfile({ id: "dev-user", joker_balance: 99, last_joker_grant_month: null });
       return;
     }
     if (grantCheckedRef.current && lastGrantUserIdRef.current === effectiveUser.id) return;
@@ -3373,6 +3373,19 @@ function CalendarView({
     setUseJokerError(null);
     setUseJokerLoading(true);
     try {
+      if (process.env.NODE_ENV === "development" && user?.id === "dev-user") {
+        const keyToOpen = missedDayKey;
+        setClosingMissedModal(true);
+        setSelectedDateIsJoker(true);
+        setTimeout(() => {
+          setMissedDayModal(null);
+          setMissedDayKey(null);
+          setClosingMissedModal(false);
+          setUseJokerLoading(false);
+          requestAnimationFrame(() => setSelectedDateForAnswer(keyToOpen));
+        }, MODAL_CLOSE_MS);
+        return;
+      }
       const supabase = createSupabaseBrowserClient();
       const { data, error: rpcError } = await supabase.rpc("use_joker");
       if (rpcError) {

@@ -992,6 +992,20 @@ function Home() {
               setShowStreakPopup(true);
             }
           }}
+          onRefetchProfile={
+            effectiveUser?.id && effectiveUser.id !== "dev-user"
+              ? async () => {
+                  const supabase = createSupabaseBrowserClient();
+                  const { data } = await supabase
+                    .from("profiles")
+                    .select("id, joker_balance, last_joker_grant_month")
+                    .eq("id", effectiveUser.id)
+                    .single();
+                  if (data) setProfile(data);
+                  return Number(data?.joker_balance) ?? 0;
+                }
+              : undefined
+          }
         />
         </div>
         <div
@@ -1923,6 +1937,7 @@ function TodayView({
   modalContainerRef,
   currentStreak,
   onJokerEarned,
+  onRefetchProfile,
 }: {
   user: any;
   onCalendarUpdate: ((dayKey: string, questionText: string, answerText: string) => void) | null;
@@ -1935,6 +1950,7 @@ function TodayView({
   modalContainerRef?: React.RefObject<HTMLDivElement | null>;
   currentStreak?: number;
   onJokerEarned?: (milestone: 7 | 30 | 100) => void;
+  onRefetchProfile?: () => Promise<number>;
 }) {
   const { t, lang } = useLanguage();
   const [loading, setLoading] = useState(initialQuestion === undefined);
@@ -2270,7 +2286,9 @@ function TodayView({
         }
       } else {
         const supabase = createSupabaseBrowserClient();
+        // 1. Fetch profile BEFORE insert (get joker_balance)
         const balanceBefore = await getJokerBalance(supabase, effectiveUser.id);
+        // 2. Insert answer and await it
         try {
           await saveAnswer({
             supabase,
@@ -2293,7 +2311,11 @@ function TodayView({
             throw dbError;
           }
         }
-        const balanceAfter = await getJokerBalance(supabase, effectiveUser.id);
+        // 3. Immediately refetch profile AFTER insert; 4. Update local joker state from the new profile (via onRefetchProfile)
+        const balanceAfter = onRefetchProfile
+          ? await onRefetchProfile()
+          : await getJokerBalance(supabase, effectiveUser.id);
+        // 5. Only show popup if new joker_balance > old joker_balance (6. ensures popup is not triggered again on app reload)
         if (balanceAfter > balanceBefore && typeof currentStreak === "number" && currentStreak >= 7 && onJokerEarned) {
           const milestone: 7 | 30 | 100 =
             currentStreak >= 100 ? 100 : currentStreak >= 30 ? 30 : 7;
@@ -2414,11 +2436,6 @@ function TodayView({
       }}
     >
       <section style={{ flex: 1, display: "flex", flexDirection: "column", position: "relative" }}>
-        {dateLabel && (
-          <p style={{ fontSize: 12, fontWeight: 500, color: "#71717A", margin: "0 0 0.5rem", textAlign: "center" }}>
-            {dateLabel}
-          </p>
-        )}
         {showSubmitSuccess && (
           <motion.div
             initial={{ opacity: 0 }}

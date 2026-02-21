@@ -89,10 +89,10 @@ const CALENDAR = {
 };
 
 const JOKER = {
-  GRADIENT: "linear-gradient(to bottom right, #FDE68A, #FCD34D, #F59E0B)",
-  BORDER: "1px solid rgba(245,158,11,0.3)",
+  GRADIENT: "linear-gradient(to bottom right, #FEF3C7, #FDE68A, #FBBF24)",
+  BORDER: "1px solid rgba(251,191,36,0.4)",
   TEXT: "#92400E",
-  SHADOW: "0 4px 12px rgba(245,158,11,0.2)",
+  SHADOW: "0 4px 12px rgba(251,191,36,0.22)",
 };
 
 /** Calendar day cell when filled with a joker (faded gold, like other past-answered days) */

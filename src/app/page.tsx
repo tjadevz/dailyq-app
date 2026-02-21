@@ -95,11 +95,11 @@ const JOKER = {
   SHADOW: "0 4px 12px rgba(245,158,11,0.2)",
 };
 
-/** Calendar day cell when filled with a joker (gold style) */
+/** Calendar day cell when filled with a joker (yellow/gold, matches joker color scheme) */
 const CALENDAR_JOKER = {
-  BACKGROUND: "linear-gradient(135deg, #FDE68A 0%, #F59E0B 100%)",
-  BORDER: "1px solid rgba(245,158,11,0.4)",
-  SHADOW: "0 2px 8px rgba(245,158,11,0.25)",
+  BACKGROUND: "#F59E0B",
+  BORDER: "1px solid rgba(245,158,11,0.6)",
+  SHADOW: "0 2px 10px rgba(245,158,11,0.35)",
 };
 
 const MODAL_CLOSE_MS = 200;
@@ -263,7 +263,7 @@ function getCalendarStyle({
     return style;
   }
 
-  /* Joker-filled day: gold gradient, soft shadow */
+  /* Joker-filled day: yellow/gold solid, matches joker color scheme */
   if (hasAnswer && isJoker) {
     style.color = "#FFFFFF";
     style.background = CALENDAR_JOKER.BACKGROUND;
@@ -365,9 +365,9 @@ function Home() {
   const fetchStreaks = useCallback(async (userId: string) => {
     const supabase = createSupabaseBrowserClient();
     const { data } = await supabase.rpc("get_user_streaks", { p_user_id: userId });
-    if (data && typeof data === "object" && "visual_streak" in data && "real_streak" in data) {
-      setVisualStreak(Number((data as { visual_streak: number; real_streak: number }).visual_streak) || 0);
-      setRealStreak(Number((data as { visual_streak: number; real_streak: number }).real_streak) || 0);
+    if (data && Array.isArray(data) && data.length > 0) {
+      setVisualStreak(Number(data[0].visual_streak) || 0);
+      setRealStreak(Number(data[0].real_streak) || 0);
     }
   }, []);
 
@@ -917,7 +917,7 @@ function Home() {
         {/* Header: logo top left, date center (hidden on calendar tab) */}
         <header
           style={{
-            padding: "24px",
+            padding: "12px 24px",
             background: "transparent",
             display: "flex",
             alignItems: "center",
@@ -3124,10 +3124,13 @@ function CalendarView({
       try {
         // In development with mock user, show empty calendar
         if (process.env.NODE_ENV === 'development' && user.id === 'dev-user') {
-          console.log('📅 Dev mode: Showing calendar with one seed completed day');
+          console.log('📅 Dev mode: Showing calendar with one normal day + one joker day');
           const yesterday = new Date(getNow());
           yesterday.setDate(yesterday.getDate() - 1);
+          const twoDaysAgo = new Date(getNow());
+          twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
           const seedKey = getLocalDayKey(yesterday);
+          const jokerKey = getLocalDayKey(twoDaysAgo);
           setAnswersMap(
             new Map([
               [
@@ -3135,6 +3138,14 @@ function CalendarView({
                 {
                   questionText: "Waar heb je gisteren om gelachen?",
                   answerText: "Een voorbeeldantwoord om de voltooide dag-styling te bekijken.",
+                },
+              ],
+              [
+                jokerKey,
+                {
+                  questionText: "Joker day (dev)",
+                  answerText: "Gevuld met joker.",
+                  isJoker: true,
                 },
               ],
             ])
@@ -3436,7 +3447,7 @@ function CalendarView({
       style={{ 
         height: "100%",
         width: "100%",
-        marginTop: -4,
+        marginTop: 0,
         padding: "0 24px 24px",
         position: "relative",
         overflowY: "hidden",
@@ -3446,7 +3457,7 @@ function CalendarView({
       }}
     >
       {/* Year above month: tap to open year picker */}
-      <div style={{ display: "flex", justifyContent: "center", marginBottom: 4 }}>
+      <div style={{ display: "flex", justifyContent: "center", marginBottom: 2 }}>
         <button
           type="button"
           onClick={() => setShowYearPicker(true)}
@@ -3466,7 +3477,7 @@ function CalendarView({
       </div>
 
       {/* Month nav: month on top, Today underneath */}
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, marginBottom: 10 }}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5, marginBottom: 8 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 20 }}>
           <button type="button" onClick={prevMonth} style={yearButtonStyle} aria-label={t("calendar_prev")}>
             ‹
@@ -3511,7 +3522,7 @@ function CalendarView({
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(7, 1fr)",
-            gridTemplateRows: "auto repeat(6, 30px)",
+            gridTemplateRows: "auto repeat(6, 32px)",
             gap: 4,
             minWidth: 0,
             boxSizing: "border-box",
@@ -3568,8 +3579,8 @@ function CalendarView({
                       isFuture,
                       isBeforeAccountStart: beforeStart,
                     }),
-                    width: 30,
-                    height: 30,
+                    width: 32,
+                    height: 32,
                     flexShrink: 0,
                     cursor: tappable ? "pointer" : "default",
                     padding: 0,

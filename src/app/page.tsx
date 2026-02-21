@@ -329,25 +329,6 @@ function Home() {
   const [achievedStreak, setAchievedStreak] = useState<7 | 30 | 100 | null>(null);
   const streakPopupShownForRef = useRef<{ 7: boolean; 30: boolean; 100: boolean }>({ 7: false, 30: false, 100: false });
 
-  // #region agent log
-  useEffect(() => {
-    if (!showStreakPopup && !(recapModal.open && recapModal.count !== null)) return;
-    const t = setTimeout(() => {
-      const portalTarget = modalContainerRef?.current ?? document.body;
-      const isBody = portalTarget === document.body;
-      const portalRect = portalTarget.getBoundingClientRect();
-      const portalStyle = portalTarget instanceof Element ? getComputedStyle(portalTarget) : null;
-      const streakCard = portalTarget.querySelector('[data-debug="streak-card"]');
-      const recapCard = portalTarget.querySelector('[data-debug="recap-card"]');
-      const cardEl = (showStreakPopup ? streakCard : recapCard) || streakCard || recapCard;
-      const cardRect = cardEl ? cardEl.getBoundingClientRect() : null;
-      const cardCS = cardEl ? getComputedStyle(cardEl) : null;
-      fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f03475'},body:JSON.stringify({sessionId:'f03475',location:'page.tsx:popup-position-debug',message:'Popup open position check',data:{which:showStreakPopup?'streak':'recap',portalIsBody:isBody,portalRect:{w:portalRect.width,h:portalRect.height,top:portalRect.top,left:portalRect.left},portalTransform:portalStyle?.transform||'N/A',cardRect:cardRect?{w:cardRect.width,h:cardRect.height,top:cardRect.top,left:cardRect.left}:null,cardPosition:cardCS?.position||'N/A',cardTransform:cardCS?.transform||'N/A',cardLeft:cardCS?.left||'N/A',viewportW:typeof window!=='undefined'?window.innerWidth:0,viewportH:typeof window!=='undefined'?window.innerHeight:0},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
-    }, 100);
-    return () => clearTimeout(t);
-  }, [showStreakPopup, recapModal.open, recapModal.count]);
-  // #endregion
-
   const closeJokerModal = () => {
     if (jokerModalClosingRef.current) return;
     jokerModalClosingRef.current = true;
@@ -425,9 +406,6 @@ function Home() {
         const effectiveId = u?.id ?? (process.env.NODE_ENV === 'development' ? DEV_USER.id : undefined);
         if (effectiveId) {
           const storedLang = getStoredLanguage();
-          // #region agent log
-          fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:initAuth-preload',message:'Preload with stored language',data:{storedLang,effectiveId:effectiveId?.slice(0,8)},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
-          // #endregion
           const preload = await fetchTodayQuestionForPreload(storedLang, effectiveId);
           setInitialTodayQuestion(preload);
         }
@@ -438,9 +416,6 @@ function Home() {
         // Listen for auth changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
           console.log('🔄 Auth state changed:', _event);
-          // #region agent log
-          fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:onAuthStateChange',message:'Auth state changed',data:{event:_event,hasSession:Boolean(session?.user),userId:session?.user?.id?.slice(0,8)},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
-          // #endregion
           // In development, keep dev user when session is null so submit still works
           if (process.env.NODE_ENV === "development" && !session?.user) {
             setUser(DEV_USER);
@@ -503,16 +478,10 @@ function Home() {
           document.body.style.overflow = "hidden";
         };
         scrollReset();
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:scroll-reset',message:'Scroll reset after login',data:{before,afterScrollY:window.scrollY},timestamp:Date.now(),hypothesisId:'H5'})}).catch(()=>{});
-        // #endregion
         // Run again after layout/paint so scroll doesn't reappear
         requestAnimationFrame(() => {
           scrollReset();
-          requestAnimationFrame(() => {
-            scrollReset();
-            fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:scroll-after-raf',message:'Scroll state one frame after reset',data:{scrollY:window.scrollY,bodyScrollHeight:document.body.scrollHeight,docClientHeight:document.documentElement.clientHeight},timestamp:Date.now(),hypothesisId:'H6'})}).catch(()=>{});
-          });
+          requestAnimationFrame(() => scrollReset());
         });
       }
     }
@@ -726,12 +695,6 @@ function Home() {
   if (!effectiveUser) {
     return <OnboardingScreen />;
   }
-
-  // #region agent log
-  if (typeof window !== "undefined") {
-    fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:Home-render-app',message:'Rendering main app with user',data:{initialTodayQuestionDefined:initialTodayQuestion !== undefined,userId:effectiveUser?.id?.slice(0,8)},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
-  }
-  // #endregion
 
   const now = getNow();
   const headerDateLabel = formatHeaderDate(now, lang);
@@ -1231,7 +1194,6 @@ function Home() {
                   aria-hidden
                 />
                 <motion.div
-                  data-debug="streak-card"
                   initial={{ opacity: 0, scale: 0.9, y: 20 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -1494,58 +1456,6 @@ function OnboardingScreen({ onClose }: { onClose?: () => void }) {
   const [name, setName] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // #region agent log
-  useEffect(() => {
-    if (typeof document === "undefined") return;
-    fetch("http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        location: "page.tsx:OnboardingScreen-auth-mounted",
-        message: "Auth step mounted",
-        data: { hypothesisId: "E", authStepVisible: true },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    const t = setTimeout(() => {
-      const form = document.querySelector('form input[type="email"]')?.closest("form") ?? document.querySelector('input[placeholder="Email"]')?.closest("form");
-      const h2 = form?.previousElementSibling?.previousElementSibling;
-      const p = form?.previousElementSibling;
-      const submitBtn = form?.querySelector('button[type="submit"]');
-      const toggleBtn = form?.nextElementSibling;
-      const h2Style = h2 ? getComputedStyle(h2) : null;
-      const pStyle = p ? getComputedStyle(p) : null;
-      const formStyle = form ? getComputedStyle(form) : null;
-      const btnStyle = submitBtn ? getComputedStyle(submitBtn) : null;
-      const toggleStyle = toggleBtn ? getComputedStyle(toggleBtn) : null;
-      fetch("http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          location: "page.tsx:OnboardingScreen-auth-spacing",
-          message: "Auth step computed spacing",
-          data: {
-            hypothesisId: "A_B_C_D",
-            formFound: !!form,
-            h2ClassName: (h2 as HTMLElement)?.className ?? null,
-            h2MarginBottom: h2Style?.marginBottom ?? null,
-            pClassName: (p as HTMLElement)?.className ?? null,
-            pMarginBottom: pStyle?.marginBottom ?? null,
-            formClassName: (form as HTMLElement)?.className ?? null,
-            formGap: formStyle?.gap ?? null,
-            formMarginBottom: formStyle?.marginBottom ?? null,
-            submitMarginTop: btnStyle?.marginTop ?? null,
-            submitMarginBottom: btnStyle?.marginBottom ?? null,
-            toggleMarginTop: toggleStyle?.marginTop ?? null,
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-    }, 400);
-    return () => clearTimeout(t);
-  }, []);
-  // #endregion
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1819,7 +1729,6 @@ function MondayRecapModal({
   const isPerfect = total > 0 && count === total;
   return (
     <motion.div
-      data-debug="recap-card"
       initial={{ opacity: 0, scale: 0.9, y: 20 }}
       animate={{ opacity: isClosing ? 0 : 1, scale: isClosing ? 0.9 : 1, y: isClosing ? 20 : 0 }}
       exit={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -1997,10 +1906,6 @@ function TodayView({
   useEffect(() => {
     registerServiceWorker();
 
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:TodayView-effect',message:'TodayView effect run',data:{initialQuestionDefined:initialQuestion !== undefined,isToday: (initialQuestionDayKey ?? getLocalDayKey(getNow())) === getLocalDayKey(getNow())},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
-    // #endregion
-
     const load = async () => {
       console.log('🔧 TodayView: Starting to load...');
       
@@ -2012,9 +1917,6 @@ function TodayView({
       // Use preloaded question only when it was fetched for the current language; when lang changes, refetch from the correct table
       const preloadMatchesLang = langUsedForPreloadRef.current === null || langUsedForPreloadRef.current === lang;
       if (initialQuestion !== undefined && isToday && preloadMatchesLang) {
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:TodayView-effect',message:'Using preload, skipping fetch',data:{isToday,lang},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
-        // #endregion
         langUsedForPreloadRef.current = lang;
         setQuestion(initialQuestion ?? null);
         setLoading(false);
@@ -2082,9 +1984,6 @@ function TodayView({
 
           const supabase = createSupabaseBrowserClient();
           const tableName = lang === 'en' ? 'daily_questions_en' : 'questions';
-          // #region agent log
-          fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:TodayView-fetch',message:'Fetching question',data:{lang,tableName},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
-          // #endregion
 
           const queryPromise =
             tableName === 'daily_questions_en'

@@ -226,3 +226,344 @@
 {"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771669968916,"hypothesisId":"H2"}
 {"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670002301,"hypothesisId":"H2"}
 {"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670002309,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670018915,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670018918,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670061919,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670061920,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670073164,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670073165,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670073779,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670073780,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670112362,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670112364,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670252310,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670252321,"hypothesisId":"H2"}
+{"location":"page.tsx:scroll-reset","message":"Scroll reset after login","data":{"before":{"scrollY":0,"bodyScrollHeight":820,"docClientHeight":820,"bodyScrollTop":0},"afterScrollY":0},"timestamp":1771670255099,"hypothesisId":"H5"}
+{"location":"page.tsx:scroll-after-raf","message":"Scroll state one frame after reset","data":{"scrollY":0,"bodyScrollHeight":820,"docClientHeight":820},"timestamp":1771670255115,"hypothesisId":"H6"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670257288,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670257291,"hypothesisId":"H2"}
+{"location":"page.tsx:TodayView-effect","message":"TodayView effect run","data":{"initialQuestionDefined":true,"isToday":true},"timestamp":1771670257302,"hypothesisId":"H3"}
+{"location":"page.tsx:TodayView-effect","message":"Using preload, skipping fetch","data":{"isToday":true,"lang":"nl"},"timestamp":1771670257303,"hypothesisId":"H4"}
+{"location":"page.tsx:TodayView-effect","message":"TodayView effect run","data":{"initialQuestionDefined":true,"isToday":true},"timestamp":1771670257304,"hypothesisId":"H3"}
+{"location":"page.tsx:TodayView-effect","message":"Using preload, skipping fetch","data":{"isToday":true,"lang":"nl"},"timestamp":1771670257304,"hypothesisId":"H4"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670257309,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670257309,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670282139,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670282141,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670294801,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670294802,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670302807,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670302812,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670302824,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670302825,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670315335,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670315336,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670315345,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670315346,"hypothesisId":"H2"}
+{"location":"page.tsx:scroll-reset","message":"Scroll reset after login","data":{"before":{"scrollY":0,"bodyScrollHeight":820,"docClientHeight":820,"bodyScrollTop":0},"afterScrollY":0},"timestamp":1771670323264,"hypothesisId":"H5"}
+{"location":"page.tsx:scroll-after-raf","message":"Scroll state one frame after reset","data":{"scrollY":0,"bodyScrollHeight":820,"docClientHeight":820},"timestamp":1771670323279,"hypothesisId":"H6"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670325455,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670325457,"hypothesisId":"H2"}
+{"location":"page.tsx:TodayView-effect","message":"TodayView effect run","data":{"initialQuestionDefined":true,"isToday":true},"timestamp":1771670325464,"hypothesisId":"H3"}
+{"location":"page.tsx:TodayView-effect","message":"Using preload, skipping fetch","data":{"isToday":true,"lang":"nl"},"timestamp":1771670325465,"hypothesisId":"H4"}
+{"location":"page.tsx:TodayView-effect","message":"TodayView effect run","data":{"initialQuestionDefined":true,"isToday":true},"timestamp":1771670325465,"hypothesisId":"H3"}
+{"location":"page.tsx:TodayView-effect","message":"Using preload, skipping fetch","data":{"isToday":true,"lang":"nl"},"timestamp":1771670325465,"hypothesisId":"H4"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670325467,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670325466,"hypothesisId":"H2"}
+{"location":"page.tsx:scroll-reset","message":"Scroll reset after login","data":{"before":{"scrollY":0,"bodyScrollHeight":820,"docClientHeight":820,"bodyScrollTop":0},"afterScrollY":0},"timestamp":1771670326622,"hypothesisId":"H5"}
+{"location":"page.tsx:scroll-after-raf","message":"Scroll state one frame after reset","data":{"scrollY":0,"bodyScrollHeight":820,"docClientHeight":820},"timestamp":1771670326636,"hypothesisId":"H6"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670328819,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670328821,"hypothesisId":"H2"}
+{"location":"page.tsx:TodayView-effect","message":"TodayView effect run","data":{"initialQuestionDefined":true,"isToday":true},"timestamp":1771670328830,"hypothesisId":"H3"}
+{"location":"page.tsx:TodayView-effect","message":"Using preload, skipping fetch","data":{"isToday":true,"lang":"nl"},"timestamp":1771670328830,"hypothesisId":"H4"}
+{"location":"page.tsx:TodayView-effect","message":"TodayView effect run","data":{"initialQuestionDefined":true,"isToday":true},"timestamp":1771670328830,"hypothesisId":"H3"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670328831,"hypothesisId":"H2"}
+{"location":"page.tsx:TodayView-effect","message":"Using preload, skipping fetch","data":{"isToday":true,"lang":"nl"},"timestamp":1771670328830,"hypothesisId":"H4"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670328832,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670333014,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670333015,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670333744,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670333746,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670340585,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670340587,"hypothesisId":"H2"}
+{"location":"page.tsx:TodayView-effect","message":"TodayView effect run","data":{"initialQuestionDefined":true,"isToday":true},"timestamp":1771670340597,"hypothesisId":"H3"}
+{"location":"page.tsx:TodayView-effect","message":"Using preload, skipping fetch","data":{"isToday":true,"lang":"nl"},"timestamp":1771670340598,"hypothesisId":"H4"}
+{"location":"page.tsx:TodayView-effect","message":"TodayView effect run","data":{"initialQuestionDefined":true,"isToday":true},"timestamp":1771670340598,"hypothesisId":"H3"}
+{"location":"page.tsx:TodayView-effect","message":"Using preload, skipping fetch","data":{"isToday":true,"lang":"nl"},"timestamp":1771670340598,"hypothesisId":"H4"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670340599,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670340600,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670342345,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670342347,"hypothesisId":"H2"}
+{"location":"page.tsx:OnboardingScreen-auth-mounted","message":"Auth step mounted","data":{"hypothesisId":"E","authStepVisible":true},"timestamp":1771670342360}
+{"location":"page.tsx:OnboardingScreen-auth-mounted","message":"Auth step mounted","data":{"hypothesisId":"E","authStepVisible":true},"timestamp":1771670342361}
+{"location":"page.tsx:OnboardingScreen-auth-spacing","message":"Auth step computed spacing","data":{"hypothesisId":"A_B_C_D","formFound":true,"h2ClassName":null,"h2MarginBottom":null,"pClassName":"text-[32px] leading-tight font-bold text-gray-800","pMarginBottom":"64px","formClassName":"","formGap":"20px","formMarginBottom":"20px","submitMarginTop":"24px","submitMarginBottom":"0px","toggleMarginTop":"0px"},"timestamp":1771670342762}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670353628,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670353630,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670359534,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670359536,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670365680,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670365682,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670367261,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670367262,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670449126,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670449133,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670452816,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670452818,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670462007,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670462011,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670469577,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670469582,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670486203,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670486206,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670491287,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670491289,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670492816,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670492818,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670497082,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670497083,"hypothesisId":"H2"}
+{"location":"page.tsx:scroll-reset","message":"Scroll reset after login","data":{"before":{"scrollY":0,"bodyScrollHeight":820,"docClientHeight":820,"bodyScrollTop":0},"afterScrollY":0},"timestamp":1771670501335,"hypothesisId":"H5"}
+{"location":"page.tsx:scroll-after-raf","message":"Scroll state one frame after reset","data":{"scrollY":0,"bodyScrollHeight":820,"docClientHeight":820},"timestamp":1771670501347,"hypothesisId":"H6"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670503526,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670503528,"hypothesisId":"H2"}
+{"location":"page.tsx:TodayView-effect","message":"TodayView effect run","data":{"initialQuestionDefined":true,"isToday":true},"timestamp":1771670503539,"hypothesisId":"H3"}
+{"location":"page.tsx:TodayView-effect","message":"Using preload, skipping fetch","data":{"isToday":true,"lang":"nl"},"timestamp":1771670503539,"hypothesisId":"H4"}
+{"location":"page.tsx:TodayView-effect","message":"TodayView effect run","data":{"initialQuestionDefined":true,"isToday":true},"timestamp":1771670503540,"hypothesisId":"H3"}
+{"location":"page.tsx:TodayView-effect","message":"Using preload, skipping fetch","data":{"isToday":true,"lang":"nl"},"timestamp":1771670503540,"hypothesisId":"H4"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670503541,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670503542,"hypothesisId":"H2"}
+{"location":"page.tsx:scroll-reset","message":"Scroll reset after login","data":{"before":{"scrollY":0,"bodyScrollHeight":820,"docClientHeight":820,"bodyScrollTop":0},"afterScrollY":0},"timestamp":1771670503747,"hypothesisId":"H5"}
+{"location":"page.tsx:scroll-after-raf","message":"Scroll state one frame after reset","data":{"scrollY":0,"bodyScrollHeight":820,"docClientHeight":820},"timestamp":1771670503753,"hypothesisId":"H6"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670505948,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670505954,"hypothesisId":"H2"}
+{"location":"page.tsx:TodayView-effect","message":"TodayView effect run","data":{"initialQuestionDefined":true,"isToday":true},"timestamp":1771670505967,"hypothesisId":"H3"}
+{"location":"page.tsx:TodayView-effect","message":"Using preload, skipping fetch","data":{"isToday":true,"lang":"nl"},"timestamp":1771670505967,"hypothesisId":"H4"}
+{"location":"page.tsx:TodayView-effect","message":"TodayView effect run","data":{"initialQuestionDefined":true,"isToday":true},"timestamp":1771670505968,"hypothesisId":"H3"}
+{"location":"page.tsx:TodayView-effect","message":"Using preload, skipping fetch","data":{"isToday":true,"lang":"nl"},"timestamp":1771670505968,"hypothesisId":"H4"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670505969,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670505970,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670559152,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670559161,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670560429,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670560430,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670566375,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670566377,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670575764,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670575770,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670577643,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670577644,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670579643,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670579644,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670580959,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670580960,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670584212,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670584214,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670585009,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670585012,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670587148,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670587149,"hypothesisId":"H2"}
+{"location":"page.tsx:scroll-reset","message":"Scroll reset after login","data":{"before":{"scrollY":0,"bodyScrollHeight":554,"docClientHeight":554,"bodyScrollTop":0},"afterScrollY":0},"timestamp":1771670595159,"hypothesisId":"H5"}
+{"location":"page.tsx:scroll-after-raf","message":"Scroll state one frame after reset","data":{"scrollY":0,"bodyScrollHeight":554,"docClientHeight":554},"timestamp":1771670595170,"hypothesisId":"H6"}
+{"location":"page.tsx:scroll-reset","message":"Scroll reset after login","data":{"before":{"scrollY":0,"bodyScrollHeight":554,"docClientHeight":554,"bodyScrollTop":0},"afterScrollY":0},"timestamp":1771670596295,"hypothesisId":"H5"}
+{"location":"page.tsx:scroll-after-raf","message":"Scroll state one frame after reset","data":{"scrollY":0,"bodyScrollHeight":554,"docClientHeight":554},"timestamp":1771670596326,"hypothesisId":"H6"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670597859,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670597860,"hypothesisId":"H2"}
+{"location":"page.tsx:TodayView-effect","message":"TodayView effect run","data":{"initialQuestionDefined":true,"isToday":true},"timestamp":1771670597868,"hypothesisId":"H3"}
+{"location":"page.tsx:TodayView-effect","message":"Using preload, skipping fetch","data":{"isToday":true,"lang":"nl"},"timestamp":1771670597868,"hypothesisId":"H4"}
+{"location":"page.tsx:TodayView-effect","message":"TodayView effect run","data":{"initialQuestionDefined":true,"isToday":true},"timestamp":1771670597869,"hypothesisId":"H3"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670597872,"hypothesisId":"H2"}
+{"location":"page.tsx:TodayView-effect","message":"Using preload, skipping fetch","data":{"isToday":true,"lang":"nl"},"timestamp":1771670597870,"hypothesisId":"H4"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670597871,"hypothesisId":"H2"}
+{"location":"page.tsx:scroll-reset","message":"Scroll reset after login","data":{"before":{"scrollY":0,"bodyScrollHeight":554,"docClientHeight":554,"bodyScrollTop":0},"afterScrollY":0},"timestamp":1771670598437,"hypothesisId":"H5"}
+{"location":"page.tsx:scroll-reset","message":"Scroll reset after login","data":{"before":{"scrollY":0,"bodyScrollHeight":554,"docClientHeight":554,"bodyScrollTop":0},"afterScrollY":0},"timestamp":1771670598442,"hypothesisId":"H5"}
+{"location":"page.tsx:scroll-reset","message":"Scroll reset after login","data":{"before":{"scrollY":0,"bodyScrollHeight":554,"docClientHeight":554,"bodyScrollTop":0},"afterScrollY":0},"timestamp":1771670598451,"hypothesisId":"H5"}
+{"location":"page.tsx:scroll-reset","message":"Scroll reset after login","data":{"before":{"scrollY":0,"bodyScrollHeight":554,"docClientHeight":554,"bodyScrollTop":0},"afterScrollY":0},"timestamp":1771670598451,"hypothesisId":"H5"}
+{"location":"page.tsx:scroll-after-raf","message":"Scroll state one frame after reset","data":{"scrollY":0,"bodyScrollHeight":554,"docClientHeight":554},"timestamp":1771670598455,"hypothesisId":"H6"}
+{"location":"page.tsx:scroll-after-raf","message":"Scroll state one frame after reset","data":{"scrollY":0,"bodyScrollHeight":554,"docClientHeight":554},"timestamp":1771670598468,"hypothesisId":"H6"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670600650,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670600679,"hypothesisId":"H2"}
+{"location":"page.tsx:TodayView-effect","message":"TodayView effect run","data":{"initialQuestionDefined":true,"isToday":true},"timestamp":1771670600709,"hypothesisId":"H3"}
+{"location":"page.tsx:TodayView-effect","message":"Using preload, skipping fetch","data":{"isToday":true,"lang":"nl"},"timestamp":1771670600710,"hypothesisId":"H4"}
+{"location":"page.tsx:TodayView-effect","message":"TodayView effect run","data":{"initialQuestionDefined":true,"isToday":true},"timestamp":1771670600711,"hypothesisId":"H3"}
+{"location":"page.tsx:TodayView-effect","message":"Using preload, skipping fetch","data":{"isToday":true,"lang":"nl"},"timestamp":1771670600712,"hypothesisId":"H4"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670600718,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670600719,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670600863,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670600865,"hypothesisId":"H2"}
+{"location":"page.tsx:TodayView-effect","message":"TodayView effect run","data":{"initialQuestionDefined":true,"isToday":true},"timestamp":1771670600873,"hypothesisId":"H3"}
+{"location":"page.tsx:TodayView-effect","message":"Using preload, skipping fetch","data":{"isToday":true,"lang":"nl"},"timestamp":1771670600873,"hypothesisId":"H4"}
+{"location":"page.tsx:TodayView-effect","message":"TodayView effect run","data":{"initialQuestionDefined":true,"isToday":true},"timestamp":1771670600874,"hypothesisId":"H3"}
+{"location":"page.tsx:TodayView-effect","message":"Using preload, skipping fetch","data":{"isToday":true,"lang":"nl"},"timestamp":1771670600875,"hypothesisId":"H4"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670600875,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670600877,"hypothesisId":"H2"}
+{"location":"page.tsx:scroll-reset","message":"Scroll reset after login","data":{"before":{"scrollY":0,"bodyScrollHeight":835,"docClientHeight":835,"bodyScrollTop":0},"afterScrollY":0},"timestamp":1771670603327,"hypothesisId":"H5"}
+{"location":"page.tsx:scroll-after-raf","message":"Scroll state one frame after reset","data":{"scrollY":0,"bodyScrollHeight":835,"docClientHeight":835},"timestamp":1771670603416,"hypothesisId":"H6"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670605504,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670605529,"hypothesisId":"H2"}
+{"location":"page.tsx:TodayView-effect","message":"TodayView effect run","data":{"initialQuestionDefined":true,"isToday":true},"timestamp":1771670605559,"hypothesisId":"H3"}
+{"location":"page.tsx:TodayView-effect","message":"Using preload, skipping fetch","data":{"isToday":true,"lang":"nl"},"timestamp":1771670605561,"hypothesisId":"H4"}
+{"location":"page.tsx:TodayView-effect","message":"TodayView effect run","data":{"initialQuestionDefined":true,"isToday":true},"timestamp":1771670605564,"hypothesisId":"H3"}
+{"location":"page.tsx:TodayView-effect","message":"Using preload, skipping fetch","data":{"isToday":true,"lang":"nl"},"timestamp":1771670605565,"hypothesisId":"H4"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670605571,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670605573,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670606213,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670606215,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670607367,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670607369,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670608099,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670608100,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670609614,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670609618,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670609634,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670609636,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670609684,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670609685,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670609824,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670609826,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670615385,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670615388,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670616579,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670616580,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670619984,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670619986,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670628352,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670628353,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670629400,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670629401,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670630748,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670630749,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670630951,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670630952,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670631664,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670631665,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670642161,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670642163,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670642177,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670642179,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670642228,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670642231,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670689471,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670689468,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670689482,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670689486,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670689548,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670689553,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670696033,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670696048,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670696047,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670696049,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670696134,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670696139,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670708908,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670708910,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670709110,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670709111,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670710158,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670710159,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670742829,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670742832,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670742837,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670742843,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670742899,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670742897,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670742899,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670742900,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670742911,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670742913,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670742933,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670742934,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670757840,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670757847,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670758959,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670758963,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670758973,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670758975,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670759162,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670759168,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670765090,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670765092,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670765093,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670765098,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670765161,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670765167,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670795460,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670795464,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670795907,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670795908,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670796757,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670796758,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670797558,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670797560,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670799308,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670799311,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670799509,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670799511,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670865773,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670865781,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670866740,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670866743,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670871108,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670871110,"hypothesisId":"H2"}
+{"location":"page.tsx:TodayView-effect","message":"TodayView effect run","data":{"initialQuestionDefined":true,"isToday":true},"timestamp":1771670871129,"hypothesisId":"H3"}
+{"location":"page.tsx:TodayView-effect","message":"Using preload, skipping fetch","data":{"isToday":true,"lang":"nl"},"timestamp":1771670871132,"hypothesisId":"H4"}
+{"location":"page.tsx:TodayView-effect","message":"TodayView effect run","data":{"initialQuestionDefined":true,"isToday":true},"timestamp":1771670871134,"hypothesisId":"H3"}
+{"location":"page.tsx:TodayView-effect","message":"Using preload, skipping fetch","data":{"isToday":true,"lang":"nl"},"timestamp":1771670871137,"hypothesisId":"H4"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670871139,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670871142,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670875641,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670875642,"hypothesisId":"H2"}
+{"location":"page.tsx:TodayView-effect","message":"TodayView effect run","data":{"initialQuestionDefined":true,"isToday":true},"timestamp":1771670875649,"hypothesisId":"H3"}
+{"location":"page.tsx:TodayView-effect","message":"Using preload, skipping fetch","data":{"isToday":true,"lang":"nl"},"timestamp":1771670875650,"hypothesisId":"H4"}
+{"location":"page.tsx:TodayView-effect","message":"TodayView effect run","data":{"initialQuestionDefined":true,"isToday":true},"timestamp":1771670875650,"hypothesisId":"H3"}
+{"location":"page.tsx:TodayView-effect","message":"Using preload, skipping fetch","data":{"isToday":true,"lang":"nl"},"timestamp":1771670875650,"hypothesisId":"H4"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670875651,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670875652,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670877405,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670877407,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670920976,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670920989,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670920985,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670920989,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670921055,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670921052,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670921055,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670921056,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670921148,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670921352,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670921355,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771670921181,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771671187248,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771671187256,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771671187247,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771671187254,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771671187394,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771671187414,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771671198456,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771671198457,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771671198474,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771671198475,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771671198583,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771671198593,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771671245634,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771671245638,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771671245647,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771671245652,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771671245720,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771671245725,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771671247366,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771671247368,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771671247375,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771671247377,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771671247447,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771671247455,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771671252606,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771671252609,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771671252619,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771671252621,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771671252731,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771671252739,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771671254659,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771671254660,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771671254660,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771671254661,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771671254767,"hypothesisId":"H2"}
+{"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771671254772,"hypothesisId":"H2"}

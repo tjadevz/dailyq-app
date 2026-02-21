@@ -17,6 +17,7 @@ import {
   Info,
   LogOut,
   Instagram,
+  Sparkles,
 } from "lucide-react";
 import { createSupabaseBrowserClient } from "@/lib/supabaseClient";
 import { getNow } from "@/utils/dateProvider";
@@ -324,6 +325,9 @@ function Home() {
   const LOADING_SCREEN_MIN_MS = 2200;
   const [showLoadingScreen, setShowLoadingScreen] = useState(false);
   const [showOnboardingOverlay, setShowOnboardingOverlay] = useState(false);
+  const [showStreakPopup, setShowStreakPopup] = useState(false);
+  const [achievedStreak, setAchievedStreak] = useState<7 | 30 | 100 | null>(null);
+  const streakPopupShownForRef = useRef<{ 7: boolean; 30: boolean; 100: boolean }>({ 7: false, 30: false, 100: false });
 
   const closeJokerModal = () => {
     if (jokerModalClosingRef.current) return;
@@ -646,12 +650,20 @@ function Home() {
                 initial={{ scale: 0.8, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ duration: 0.5, ease: "easeOut" }}
-                style={{ marginBottom: 32 }}
+                style={{ marginBottom: 32, display: "flex", flexDirection: "column", alignItems: "center", width: "100%", maxWidth: "min(220px, 55vw)" }}
               >
-                <h1 style={{ fontSize: "1.875rem", fontWeight: 600, color: "#1F2937", letterSpacing: "0.08em", textAlign: "center", margin: 0 }}>
-                  DailyQ
-                </h1>
-                <p style={{ fontSize: 14, color: "#9CA3AF", fontWeight: 500, letterSpacing: "0.025em", textAlign: "center", margin: "8px 0 0" }}>
+                <img
+                  src="/icons/logo.nobg.png"
+                  alt="DailyQ"
+                  style={{
+                    width: "100%",
+                    height: "auto",
+                    maxHeight: 88,
+                    objectFit: "contain",
+                    display: "block",
+                  }}
+                />
+                <p style={{ fontSize: 14, color: "#9CA3AF", fontWeight: 500, letterSpacing: "0.025em", textAlign: "center", margin: "12px 0 0" }}>
                   One question. Every day.
                 </p>
               </motion.div>
@@ -855,7 +867,7 @@ function Home() {
                 alignItems: "center",
                 gap: 6,
                 padding: "6px 12px",
-                background: JOKER.GRADIENT,
+                background: "linear-gradient(to bottom right, #FEF3C7, #FDE68A, #FCD34D)",
                 border: JOKER.BORDER,
                 borderRadius: 9999,
                 boxShadow: JOKER.SHADOW,
@@ -883,7 +895,7 @@ function Home() {
           </div>
         )}
 
-        {/* Header: hide DailyQ + date on calendar tab */}
+        {/* Header: logo top left, date center (hidden on calendar tab) */}
         <header
           style={{
             padding: "24px",
@@ -895,33 +907,19 @@ function Home() {
             flexShrink: 0,
           }}
         >
-          <div style={{ flex: 1, minWidth: 0 }} />
-          {activeTab !== "calendar" && (
-            <div
+          <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center" }}>
+            <img
+              src="/icons/logo.nobg.png"
+              alt="DailyQ"
               style={{
-                position: "absolute",
-                left: "50%",
-                top: "50%",
-                transform: "translate(-50%, -50%)",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: 6,
+                height: 42,
+                width: "auto",
+                maxWidth: 180,
+                objectFit: "contain",
+                display: "block",
               }}
-            >
-              <span
-                style={{
-                  fontSize: "1.125rem",
-                  letterSpacing: "0.12em",
-                  fontWeight: 700,
-                  color: "#18181B",
-                }}
-              >
-                DailyQ
-              </span>
-              <span style={{ fontSize: 12, fontWeight: 500, color: "#71717A" }}>{headerDateLabel}</span>
-            </div>
-          )}
+            />
+          </div>
           <div style={{ flex: 1, minWidth: 0, minHeight: 30 }} />
         </header>
 
@@ -947,6 +945,7 @@ function Home() {
           onAfterAnswerSaved={onAfterAnswerSaved}
           initialQuestionDayKey={initialQuestionDayKey}
           initialQuestion={initialTodayQuestion}
+          dateLabel={headerDateLabel}
           onClearInitialDay={() => setInitialQuestionDayKey(null)}
           onShowRecapTest={
             process.env.NODE_ENV === "development"
@@ -954,6 +953,26 @@ function Home() {
               : undefined
           }
           modalContainerRef={modalContainerRef}
+          currentStreak={(() => {
+            let s = 1;
+            const today = getNow();
+            for (let offset = 1; offset < 365; offset++) {
+              const d = new Date(today);
+              d.setDate(d.getDate() - offset);
+              const key = getLocalDayKey(d);
+              if (effectiveUser && isBeforeAccountStart(d, effectiveUser)) break;
+              if (!calendarAnswersMap.has(key)) break;
+              s++;
+            }
+            return s;
+          })()}
+          onJokerEarned={(milestone) => {
+            if (!streakPopupShownForRef.current[milestone]) {
+              streakPopupShownForRef.current[milestone] = true;
+              setAchievedStreak(milestone);
+              setShowStreakPopup(true);
+            }
+          }}
         />
         </div>
         <div
@@ -968,6 +987,14 @@ function Home() {
           setAnswersMap={setCalendarAnswersMap}
           user={effectiveUser}
           profile={profile}
+          onStreakMilestone={(streak) => {
+            const m = streak === 100 ? 100 : streak === 30 ? 30 : streak === 7 ? 7 : null;
+            if (m !== null && !streakPopupShownForRef.current[m]) {
+              streakPopupShownForRef.current[m] = true;
+              setAchievedStreak(m);
+              setShowStreakPopup(true);
+            }
+          }}
           onProfileRefetch={async () => {
             if (!effectiveUser?.id || effectiveUser.id === "dev-user") return;
             const supabase = createSupabaseBrowserClient();
@@ -1004,6 +1031,14 @@ function Home() {
             onShowOnboardingScreen={
               process.env.NODE_ENV === "development" ? () => setShowOnboardingOverlay(true) : undefined
             }
+            onPreviewStreakPopup={
+              process.env.NODE_ENV === "development"
+                ? () => {
+                    setAchievedStreak(7);
+                    setShowStreakPopup(true);
+                  }
+                : undefined
+            }
           />
         </div>
       </main>
@@ -1016,11 +1051,11 @@ function Home() {
           display: "flex",
           flexDirection: "row",
           alignItems: "center",
-          gap: 4,
+          gap: 3,
           position: "relative",
           width: "fit-content",
           margin: 0,
-          padding: "8px 8px max(8px, env(safe-area-inset-bottom)) 8px",
+          padding: "7px 7px max(7px, env(safe-area-inset-bottom)) 7px",
           background: "rgba(255,255,255,0.5)",
           backdropFilter: "blur(100px)",
           WebkitBackdropFilter: "blur(100px)",
@@ -1032,14 +1067,14 @@ function Home() {
         <motion.div
           initial={false}
           animate={{
-            left: activeTab === "today" ? "8px" : activeTab === "calendar" ? "calc(33.33% + 1px)" : "calc(66.66% - 6px)",
-            width: "calc(33.33% - 4px)",
+            left: activeTab === "today" ? "7px" : activeTab === "calendar" ? "calc(33.33% + 1px)" : "calc(66.66% - 5px)",
+            width: "calc(33.33% - 3px)",
           }}
           transition={{ type: "spring", stiffness: 400, damping: 35 }}
           style={{
             position: "absolute",
-            top: 8,
-            bottom: 8,
+            top: 7,
+            bottom: 7,
             borderRadius: 9999,
             background: "rgba(255,255,255,0.6)",
             backdropFilter: "blur(16px)",
@@ -1057,9 +1092,9 @@ function Home() {
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
-            gap: 4,
+            gap: 3,
             width: "33.33%",
-            padding: "10px 28px",
+            padding: "8px 24px",
             borderRadius: 9999,
             position: "relative",
             zIndex: 10,
@@ -1069,13 +1104,13 @@ function Home() {
           }}
         >
           <CircleHelp
-            size={28}
+            size={24}
             strokeWidth={2}
             color={activeTab === "today" ? "#7C3AED" : "#4B5563"}
           />
           <span
             style={{
-              fontSize: 10,
+              fontSize: 9,
               fontWeight: 600,
               color: activeTab === "today" ? "#7C3AED" : "#4B5563",
             }}
@@ -1092,9 +1127,9 @@ function Home() {
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
-            gap: 4,
+            gap: 3,
             width: "33.33%",
-            padding: "10px 28px",
+            padding: "8px 24px",
             borderRadius: 9999,
             position: "relative",
             zIndex: 10,
@@ -1104,13 +1139,13 @@ function Home() {
           }}
         >
           <CalendarIcon
-            size={28}
+            size={24}
             strokeWidth={2}
             color={activeTab === "calendar" ? "#7C3AED" : "#4B5563"}
           />
           <span
             style={{
-              fontSize: 10,
+              fontSize: 9,
               fontWeight: 600,
               color: activeTab === "calendar" ? "#7C3AED" : "#4B5563",
             }}
@@ -1127,9 +1162,9 @@ function Home() {
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
-            gap: 4,
+            gap: 3,
             width: "33.33%",
-            padding: "10px 28px",
+            padding: "8px 24px",
             borderRadius: 9999,
             position: "relative",
             zIndex: 10,
@@ -1139,13 +1174,13 @@ function Home() {
           }}
         >
           <SettingsIcon
-            size={28}
+            size={24}
             strokeWidth={2}
             color={activeTab === "settings" ? "#7C3AED" : "#4B5563"}
           />
           <span
             style={{
-              fontSize: 10,
+              fontSize: 9,
               fontWeight: 600,
               color: activeTab === "settings" ? "#7C3AED" : "#4B5563",
             }}
@@ -1156,26 +1191,195 @@ function Home() {
       </nav>
       </div>
 
-      {recapModal.open && recapModal.count !== null && recapModal.total !== null && (
-        <div role="dialog" aria-modal="true" style={MODAL.WRAPPER}>
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: recapClosing ? 0 : 1 }}
-            transition={{ duration: 0.2 }}
-            style={MODAL.BACKDROP}
-            onClick={() => handleRecapClose()}
-            aria-hidden
-          />
-          <div style={{ position: "relative", zIndex: 1 }}>
-            <MondayRecapModal
-              count={recapModal.count}
-              total={recapModal.total}
-              onClose={() => handleRecapClose()}
-              onAnswerMissedDay={() => handleRecapClose(true)}
-              isClosing={recapClosing}
-            />
-          </div>
-        </div>
+      {/* Streak achievement popup */}
+      {typeof document !== "undefined" &&
+        createPortal(
+          <AnimatePresence>
+            {showStreakPopup && achievedStreak !== null && (
+              <>
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  style={{
+                    position: "fixed",
+                    inset: 0,
+                    background: "rgba(0,0,0,0.4)",
+                    backdropFilter: "blur(4px)",
+                    WebkitBackdropFilter: "blur(4px)",
+                    zIndex: 30,
+                    pointerEvents: "auto",
+                  }}
+                  onClick={() => setShowStreakPopup(false)}
+                  aria-hidden
+                />
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                  transition={{ type: "spring", duration: 0.5, bounce: 0.3 }}
+                  style={{
+                    position: "fixed",
+                    left: "50%",
+                    top: "50%",
+                    transform: "translate(-50%, -50%)",
+                    width: "85%",
+                    maxWidth: 360,
+                    background: "rgba(255,254,249,0.75)",
+                    backdropFilter: "blur(40px)",
+                    WebkitBackdropFilter: "blur(40px)",
+                    borderRadius: 32,
+                    padding: 32,
+                    zIndex: 40,
+                    border: "1px solid rgba(255,255,255,0.6)",
+                    boxShadow: "0 8px 32px rgba(0,0,0,0.12), inset 0 1px 2px rgba(255,255,255,0.7)",
+                    pointerEvents: "auto",
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setShowStreakPopup(false)}
+                    aria-label={t("common_close")}
+                    style={{
+                      position: "absolute",
+                      top: 16,
+                      right: 16,
+                      width: 32,
+                      height: 32,
+                      borderRadius: "50%",
+                      background: "rgba(255,255,255,0.6)",
+                      backdropFilter: "blur(40px)",
+                      border: "1px solid rgba(255,255,255,0.5)",
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <X size={16} strokeWidth={2.5} color="#4B5563" />
+                  </button>
+                  <div style={{ textAlign: "center", marginBottom: 28 }}>
+                    <div style={{ position: "relative", display: "inline-block" }}>
+                      <div
+                        style={{
+                          width: 80,
+                          height: 80,
+                          borderRadius: "50%",
+                          background: "linear-gradient(to bottom right, #FEF3C7, #FDE68A, #FCD34D)",
+                          margin: "0 auto 20px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          border: "1px solid rgba(245,158,11,0.3)",
+                          boxShadow: "0 10px 25px rgba(245,158,11,0.3)",
+                        }}
+                      >
+                        <Sparkles size={40} strokeWidth={2} color="#F59E0B" fill="#FCD34D" />
+                      </div>
+                    </div>
+                    <h3 style={{ fontSize: "1.5rem", fontWeight: 600, color: "#1F2937", margin: "0 0 8px" }}>
+                      {achievedStreak === 7 ? t("streak_popup_title_7") : achievedStreak === 30 ? t("streak_popup_title_30") : t("streak_popup_title_100")}
+                    </h3>
+                    <p style={{ fontSize: 14, color: COLORS.TEXT_SECONDARY, margin: "0 0 4px" }}>
+                      {achievedStreak === 7 ? t("streak_popup_subtitle_7") : achievedStreak === 30 ? t("streak_popup_subtitle_30") : t("streak_popup_subtitle_100")}
+                    </p>
+                  </div>
+                  <div
+                    style={{
+                      background: "rgba(255,255,255,0.5)",
+                      backdropFilter: "blur(40px)",
+                      borderRadius: 24,
+                      padding: 24,
+                      marginBottom: 28,
+                      border: "1px solid rgba(255,255,255,0.6)",
+                      boxShadow: "0 4px 16px rgba(0,0,0,0.06), inset 0 1px 2px rgba(255,255,255,0.7)",
+                    }}
+                  >
+                    <div style={{ textAlign: "center" }}>
+                      <p style={{ fontSize: 14, color: COLORS.TEXT_SECONDARY, marginBottom: 12, fontWeight: 500 }}>
+                        {t("streak_popup_earned")}
+                      </p>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 12 }}>
+                        <div
+                          style={{
+                            width: 48,
+                            height: 48,
+                            borderRadius: "50%",
+                            background: "linear-gradient(to bottom right, #FEF3C7, #FDE68A, #FCD34D)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            border: "1px solid rgba(245,158,11,0.3)",
+                            boxShadow: "0 4px 12px rgba(245,158,11,0.2)",
+                          }}
+                        >
+                          <Crown size={24} strokeWidth={2.5} color="#F59E0B" fill="#FCD34D" />
+                        </div>
+                      </div>
+                      <p style={{ fontSize: "1.125rem", fontWeight: 600, color: "#1F2937" }}>{t("streak_popup_joker_count")}</p>
+                      <p style={{ fontSize: 12, color: COLORS.TEXT_SECONDARY, marginTop: 4 }}>{t("streak_popup_joker_hint")}</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowStreakPopup(false)}
+                    style={{
+                      width: "100%",
+                      padding: "14px 32px",
+                      background: "rgba(139,92,246,0.9)",
+                      color: "#FFFFFF",
+                      borderRadius: 9999,
+                      border: "none",
+                      fontWeight: 600,
+                      fontSize: 14,
+                      letterSpacing: "0.02em",
+                      cursor: "pointer",
+                      boxShadow: "0 6px 24px rgba(139,92,246,0.3)",
+                    }}
+                  >
+                    {t("streak_popup_cta")}
+                  </button>
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>,
+          modalContainerRef?.current ?? document.body
+        )}
+
+      {recapModal.open && recapModal.count !== null && recapModal.total !== null && typeof document !== "undefined" && createPortal(
+        <div role="dialog" aria-modal="true" style={{ ...MODAL.WRAPPER, pointerEvents: "auto" }}>
+          <AnimatePresence>
+            <>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: recapClosing ? 0 : 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                style={{
+                  position: "fixed",
+                  inset: 0,
+                  background: "rgba(0,0,0,0.4)",
+                  backdropFilter: "blur(4px)",
+                  WebkitBackdropFilter: "blur(4px)",
+                  zIndex: 30,
+                  borderRadius: 48,
+                }}
+                onClick={() => handleRecapClose()}
+                aria-hidden
+              />
+              <MondayRecapModal
+                count={recapModal.count}
+                total={recapModal.total}
+                onClose={() => handleRecapClose()}
+                onAnswerMissedDay={() => handleRecapClose(true)}
+                isClosing={recapClosing}
+              />
+            </>
+          </AnimatePresence>
+        </div>,
+        modalContainerRef?.current ?? document.body
       )}
 
       {showJokerModal && (() => {
@@ -1614,93 +1818,137 @@ function MondayRecapModal({
     <motion.div
       initial={{ opacity: 0, scale: 0.9, y: 20 }}
       animate={{ opacity: isClosing ? 0 : 1, scale: isClosing ? 0.9 : 1, y: isClosing ? 20 : 0 }}
-      transition={{ type: "spring", bounce: 0.3, duration: 0.4 }}
+      exit={{ opacity: 0, scale: 0.9, y: 20 }}
+      transition={{ type: "spring", bounce: 0.3, duration: 0.5 }}
       style={{
-        ...MODAL.CARD,
-        textAlign: "center",
-        maxWidth: "22rem",
-        padding: "1.5rem 1.25rem",
+        position: "fixed",
+        left: "50%",
+        top: "50%",
+        transform: "translate(-50%, -50%)",
+        width: "85%",
+        maxWidth: 360,
+        background: "rgba(255,254,249,0.75)",
+        backdropFilter: "blur(40px)",
+        WebkitBackdropFilter: "blur(40px)",
+        borderRadius: 32,
+        padding: 32,
+        zIndex: 40,
+        border: "1px solid rgba(255,255,255,0.6)",
+        boxShadow: "0 8px 32px rgba(0,0,0,0.12), inset 0 1px 2px rgba(255,255,255,0.7)",
+        pointerEvents: "auto",
       }}
       onClick={(e) => e.stopPropagation()}
     >
-      <button type="button" aria-label={t("common_close")} onClick={onClose} style={MODAL.CLOSE_BUTTON}>
-        <X size={16} strokeWidth={2.5} />
-      </button>
-      <p
+      <button
+        type="button"
+        aria-label={t("common_close")}
+        onClick={onClose}
         style={{
-          fontSize: "0.9375rem",
-          color: COLORS.TEXT_PRIMARY,
-          marginTop: "2rem",
-          marginBottom: "1.25rem",
-          paddingLeft: "0.5rem",
-          paddingRight: "0.5rem",
-          lineHeight: 1.5,
+          position: "absolute",
+          top: 16,
+          right: 16,
+          width: 32,
+          height: 32,
+          borderRadius: "50%",
+          background: "rgba(255,255,255,0.6)",
+          backdropFilter: "blur(40px)",
+          border: "1px solid rgba(255,255,255,0.5)",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          cursor: "pointer",
         }}
       >
-        {t("recap_body", { count: String(count), total: String(total) })}
-      </p>
-      {isPerfect && (
-        <p style={{ fontSize: "1.25rem", fontWeight: 600, color: COLORS.ACCENT, marginBottom: "1rem" }}>🎉</p>
-      )}
-      <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", alignItems: "center" }}>
+        <X size={16} strokeWidth={2.5} color="#4B5563" />
+      </button>
+      <div style={{ textAlign: "center", marginBottom: 28 }}>
+        <div
+          style={{
+            width: 56,
+            height: 56,
+            borderRadius: "50%",
+            background: "rgba(255,255,255,0.6)",
+            backdropFilter: "blur(40px)",
+            margin: "0 auto 16px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            border: "1px solid rgba(255,255,255,0.5)",
+            boxShadow: "0 4px 16px rgba(139,92,246,0.12), inset 0 1px 2px rgba(255,255,255,0.6)",
+          }}
+        >
+          <CalendarIcon size={28} strokeWidth={2} color={COLORS.ACCENT} />
+        </div>
+        <h3 style={{ fontSize: "1.5rem", fontWeight: 600, color: "#1F2937", margin: "0 0 6px" }}>
+          {t("recap_title")}
+        </h3>
+        <p style={{ fontSize: 14, color: COLORS.TEXT_SECONDARY }}>{t("recap_subtitle")}</p>
+      </div>
+      <div
+        style={{
+          background: "rgba(255,255,255,0.5)",
+          backdropFilter: "blur(40px)",
+          borderRadius: 24,
+          padding: 28,
+          marginBottom: 28,
+          border: "1px solid rgba(255,255,255,0.6)",
+          boxShadow: "0 4px 16px rgba(0,0,0,0.06), inset 0 1px 2px rgba(255,255,255,0.7)",
+        }}
+      >
+        <div style={{ textAlign: "center" }}>
+          <p style={{ fontSize: 14, color: COLORS.TEXT_SECONDARY, marginBottom: 16, fontWeight: 500 }}>
+            {t("recap_stats_intro")}
+          </p>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginBottom: 4, flexWrap: "wrap" }}>
+            <span style={{ fontSize: "3rem", fontWeight: 700, color: COLORS.ACCENT }}>{count}</span>
+            <span style={{ fontSize: "1.25rem", color: "#9CA3AF", fontWeight: 400 }}>{t("recap_out_of")}</span>
+            <span style={{ fontSize: "3rem", fontWeight: 700, color: "#9CA3AF" }}>{total}</span>
+          </div>
+          <p style={{ fontSize: 14, color: COLORS.TEXT_SECONDARY, fontWeight: 500 }}>{t("recap_days")}</p>
+        </div>
+      </div>
+      <div>
         {isPerfect ? (
           <button
             type="button"
             onClick={onClose}
             style={{
-              height: 44,
-              padding: "0 1.5rem",
+              width: "100%",
+              padding: "14px 32px",
+              background: "rgba(139,92,246,0.9)",
+              color: "#FFFFFF",
               borderRadius: 9999,
               border: "none",
-              background: `linear-gradient(to right, ${COLORS.ACCENT_LIGHT}, ${COLORS.ACCENT})`,
-              color: "#FFFFFF",
-              fontSize: 14,
               fontWeight: 600,
-              letterSpacing: "0.2px",
+              fontSize: 14,
+              letterSpacing: "0.02em",
               cursor: "pointer",
-              boxShadow: "0 4px 12px rgba(139,92,246,0.3)",
+              boxShadow: "0 6px 24px rgba(139,92,246,0.3)",
             }}
           >
-            {t("recap_mooi")}
+            🎉 {t("recap_perfect_cta")}
           </button>
         ) : (
-          <>
-            <button
-              type="button"
-              onClick={onAnswerMissedDay}
-              style={{
-                minHeight: 44,
-                padding: "0.75rem 1.5rem",
-                borderRadius: 9999,
-                border: JOKER.BORDER,
-                background: JOKER.GRADIENT,
-                color: JOKER.TEXT,
-                fontSize: 14,
-                fontWeight: 600,
-                letterSpacing: "0.2px",
-                cursor: "pointer",
-                boxShadow: JOKER.SHADOW,
-                whiteSpace: "normal",
-                lineHeight: 1.3,
-              }}
-            >
-              {t("recap_answer_missed")}
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              style={{
-                padding: "0.5rem",
-                fontSize: 14,
-                border: "none",
-                background: "transparent",
-                color: COLORS.TEXT_SECONDARY,
-                cursor: "pointer",
-              }}
-            >
-              {t("common_close")}
-            </button>
-          </>
+          <button
+            type="button"
+            onClick={onAnswerMissedDay}
+            style={{
+              width: "100%",
+              padding: "14px 32px",
+              background: "rgba(139,92,246,0.9)",
+              color: "#FFFFFF",
+              borderRadius: 9999,
+              border: "none",
+              fontWeight: 600,
+              fontSize: 14,
+              letterSpacing: "0.02em",
+              cursor: "pointer",
+              boxShadow: "0 6px 24px rgba(139,92,246,0.3)",
+            }}
+          >
+            {t("recap_joker_cta")}
+          </button>
         )}
       </div>
     </motion.div>
@@ -1714,18 +1962,24 @@ function TodayView({
   onAfterAnswerSaved,
   initialQuestionDayKey,
   initialQuestion,
+  dateLabel,
   onClearInitialDay,
   onShowRecapTest,
   modalContainerRef,
+  currentStreak,
+  onJokerEarned,
 }: {
   user: any;
   onCalendarUpdate: ((dayKey: string, questionText: string, answerText: string) => void) | null;
   onAfterAnswerSaved?: (dayKey: string) => void | Promise<void>;
   initialQuestionDayKey?: string | null;
   initialQuestion?: Question | null;
+  dateLabel?: string;
   onClearInitialDay?: () => void;
   onShowRecapTest?: () => void;
   modalContainerRef?: React.RefObject<HTMLDivElement | null>;
+  currentStreak?: number;
+  onJokerEarned?: (milestone: 7 | 30 | 100) => void;
 }) {
   const { t, lang } = useLanguage();
   const [loading, setLoading] = useState(initialQuestion === undefined);
@@ -2061,6 +2315,7 @@ function TodayView({
         }
       } else {
         const supabase = createSupabaseBrowserClient();
+        const balanceBefore = await getJokerBalance(supabase, effectiveUser.id);
         try {
           await saveAnswer({
             supabase,
@@ -2082,6 +2337,12 @@ function TodayView({
           } else {
             throw dbError;
           }
+        }
+        const balanceAfter = await getJokerBalance(supabase, effectiveUser.id);
+        if (balanceAfter > balanceBefore && typeof currentStreak === "number" && currentStreak >= 7 && onJokerEarned) {
+          const milestone: 7 | 30 | 100 =
+            currentStreak >= 100 ? 100 : currentStreak >= 30 ? 30 : 7;
+          onJokerEarned(milestone);
         }
         if (editingExisting) {
           setShowEditConfirmation(true);
@@ -2198,6 +2459,11 @@ function TodayView({
       }}
     >
       <section style={{ flex: 1, display: "flex", flexDirection: "column", position: "relative" }}>
+        {dateLabel && (
+          <p style={{ fontSize: 12, fontWeight: 500, color: "#71717A", margin: "0 0 0.5rem", textAlign: "center" }}>
+            {dateLabel}
+          </p>
+        )}
         {showSubmitSuccess && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -2912,6 +3178,7 @@ function CalendarView({
   profile,
   onProfileRefetch,
   onAnswerMissedDay,
+  onStreakMilestone,
   modalContainerRef,
 }: {
   answersMap: Map<string, { questionText: string; answerText: string }>;
@@ -2920,11 +3187,13 @@ function CalendarView({
   profile: { id: string; joker_balance: number; last_joker_grant_month: string | null } | null;
   onProfileRefetch: () => Promise<void>;
   onAnswerMissedDay?: (dayKey: string) => void;
+  onStreakMilestone?: (streak: number) => void;
   modalContainerRef?: React.RefObject<HTMLDivElement | null>;
 }) {
   const { t, lang } = useLanguage();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const lastReportedStreakRef = useRef(0);
   const [displayYear, setDisplayYear] = useState(() => getNow().getFullYear());
   const [displayMonth, setDisplayMonth] = useState(() => getNow().getMonth());
   const [selectedDay, setSelectedDay] = useState<{
@@ -3039,6 +3308,24 @@ function CalendarView({
 
     void fetchAnswers();
   }, [user, displayYear, displayMonth]);
+
+  useEffect(() => {
+    if (!user || !onStreakMilestone || answersMap.size === 0) return;
+    let streak = 0;
+    const today = getNow();
+    for (let offset = 0; offset < 365; offset++) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - offset);
+      const key = getLocalDayKey(d);
+      if (isBeforeAccountStart(d, user)) break;
+      if (!answersMap.has(key)) break;
+      streak++;
+    }
+    if ((streak === 7 || streak === 30 || streak === 100) && lastReportedStreakRef.current !== streak) {
+      lastReportedStreakRef.current = streak;
+      onStreakMilestone(streak);
+    }
+  }, [user, answersMap, onStreakMilestone]);
 
   if (!user) {
     return (
@@ -3693,7 +3980,7 @@ function CalendarView({
 }
 
 // ============ SETTINGS VIEW ============
-function SettingsView({ user, onShowLoadingScreen, onShowOnboardingScreen }: { user: any; onShowLoadingScreen?: () => void; onShowOnboardingScreen?: () => void }) {
+function SettingsView({ user, onShowLoadingScreen, onShowOnboardingScreen, onPreviewStreakPopup }: { user: any; onShowLoadingScreen?: () => void; onShowOnboardingScreen?: () => void; onPreviewStreakPopup?: () => void }) {
   const { t, lang, setLang } = useLanguage();
   const [signingOut, setSigningOut] = useState(false);
   const [showLanguageModal, setShowLanguageModal] = useState(false);
@@ -3902,6 +4189,24 @@ function SettingsView({ user, onShowLoadingScreen, onShowOnboardingScreen }: { u
           Show onboarding screen
         </button>
       )}
+      {onPreviewStreakPopup && (
+        <button
+          type="button"
+          onClick={onPreviewStreakPopup}
+          style={{
+            marginTop: "0.5rem",
+            padding: "0.5rem 1rem",
+            fontSize: "0.8rem",
+            color: COLORS.TEXT_SECONDARY,
+            background: "transparent",
+            border: "1px dashed rgba(156,163,175,0.5)",
+            borderRadius: 999,
+            cursor: "pointer",
+          }}
+        >
+          Preview streak reward popup
+        </button>
+      )}
 
     </div>
   );
@@ -3996,6 +4301,19 @@ async function fetchPreviousWeekAnswerCount(userId: string): Promise<number> {
     .lte("question_date", end);
   if (error) return 0;
   return (data ?? []).length;
+}
+
+async function getJokerBalance(
+  supabase: ReturnType<typeof createSupabaseBrowserClient>,
+  userId: string
+): Promise<number> {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("joker_balance")
+    .eq("id", userId)
+    .maybeSingle();
+  if (error || data == null) return 0;
+  return Number(data.joker_balance) || 0;
 }
 
 async function saveAnswer(params: {

@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable no-console */
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "motion/react";
@@ -75,8 +75,8 @@ const CALENDAR = {
   TODAY_EDGE_INSET: "inset 0 0 0 3px rgba(139,92,246,0.9), inset 0 0 0 1px rgba(255,255,255,0.9)",
   /** Subtle shadow for current day cell */
   CELL_SHADOW: "0 2px 6px rgba(139,92,246,0.25)",
-  /** Missed days: edge only, no fill (reference image) */
-  MISSED_EDGE: "0 0 0 2px rgba(156,163,175,0.45)",
+  /** Missed days: edge only, no fill; inset so cell size matches answered days */
+  MISSED_EDGE: "inset 0 0 0 2px rgba(156,163,175,0.45)",
   MISSED_COLOR: "rgba(156,163,175,1)",
   FUTURE_BG: "rgba(255,255,255,0.15)",
   FUTURE_BORDER: "1px solid rgba(229,231,235,0.25)",
@@ -89,10 +89,17 @@ const CALENDAR = {
 };
 
 const JOKER = {
-  GRADIENT: "linear-gradient(to bottom right, #FDE68A, #FCD34D, #FBBF24)",
+  GRADIENT: "linear-gradient(to bottom right, #FDE68A, #FCD34D, #F59E0B)",
   BORDER: "1px solid rgba(245,158,11,0.3)",
   TEXT: "#92400E",
   SHADOW: "0 4px 12px rgba(245,158,11,0.2)",
+};
+
+/** Calendar day cell when filled with a joker (faded gold, like other past-answered days) */
+const CALENDAR_JOKER = {
+  BACKGROUND: "rgba(251,191,36,0.55)",
+  BORDER: "1px solid rgba(251,191,36,0.45)",
+  SHADOW: "0 1px 4px rgba(251,191,36,0.2)",
 };
 
 const MODAL_CLOSE_MS = 200;
@@ -222,11 +229,13 @@ function formatHeaderDate(date: Date, lang: "en" | "nl"): string {
 
 function getCalendarStyle({
   hasAnswer,
+  isJoker,
   isToday,
   isFuture,
   isBeforeAccountStart,
 }: {
   hasAnswer: boolean;
+  isJoker?: boolean;
   isToday: boolean;
   isFuture: boolean;
   isBeforeAccountStart: boolean;
@@ -251,6 +260,15 @@ function getCalendarStyle({
     style.color = CALENDAR.BEFORE_START_COLOR;
     style.background = CALENDAR.BEFORE_START_BG;
     style.border = CALENDAR.BEFORE_START_BORDER;
+    return style;
+  }
+
+  /* Joker-filled day: yellow/gold solid, matches joker color scheme */
+  if (hasAnswer && isJoker) {
+    style.color = "#FFFFFF";
+    style.background = CALENDAR_JOKER.BACKGROUND;
+    style.border = CALENDAR_JOKER.BORDER;
+    style.boxShadow = CALENDAR_JOKER.SHADOW;
     return style;
   }
 
@@ -302,7 +320,7 @@ function Home() {
   const [user, setUser] = useState<any>(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [calendarAnswersMap, setCalendarAnswersMap] = useState<
-    Map<string, { questionText: string; answerText: string }>
+    Map<string, { questionText: string; answerText: string; isJoker?: boolean }>
   >(new Map());
   const [recapModal, setRecapModal] = useState<{ open: boolean; count: number | null; total: number | null }>({
     open: false,
@@ -328,25 +346,8 @@ function Home() {
   const [showStreakPopup, setShowStreakPopup] = useState(false);
   const [achievedStreak, setAchievedStreak] = useState<7 | 30 | 100 | null>(null);
   const streakPopupShownForRef = useRef<{ 7: boolean; 30: boolean; 100: boolean }>({ 7: false, 30: false, 100: false });
-
-  // #region agent log
-  useEffect(() => {
-    if (!showStreakPopup && !(recapModal.open && recapModal.count !== null)) return;
-    const t = setTimeout(() => {
-      const portalTarget = modalContainerRef?.current ?? document.body;
-      const isBody = portalTarget === document.body;
-      const portalRect = portalTarget.getBoundingClientRect();
-      const portalStyle = portalTarget instanceof Element ? getComputedStyle(portalTarget) : null;
-      const streakCard = portalTarget.querySelector('[data-debug="streak-card"]');
-      const recapCard = portalTarget.querySelector('[data-debug="recap-card"]');
-      const cardEl = (showStreakPopup ? streakCard : recapCard) || streakCard || recapCard;
-      const cardRect = cardEl ? cardEl.getBoundingClientRect() : null;
-      const cardCS = cardEl ? getComputedStyle(cardEl) : null;
-      fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f03475'},body:JSON.stringify({sessionId:'f03475',location:'page.tsx:popup-position-debug',message:'Popup open position check',data:{which:showStreakPopup?'streak':'recap',portalIsBody:isBody,portalRect:{w:portalRect.width,h:portalRect.height,top:portalRect.top,left:portalRect.left},portalTransform:portalStyle?.transform||'N/A',cardRect:cardRect?{w:cardRect.width,h:cardRect.height,top:cardRect.top,left:cardRect.left}:null,cardPosition:cardCS?.position||'N/A',cardTransform:cardCS?.transform||'N/A',cardLeft:cardCS?.left||'N/A',viewportW:typeof window!=='undefined'?window.innerWidth:0,viewportH:typeof window!=='undefined'?window.innerHeight:0},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
-    }, 100);
-    return () => clearTimeout(t);
-  }, [showStreakPopup, recapModal.open, recapModal.count]);
-  // #endregion
+  const [visualStreak, setVisualStreak] = useState(0);
+  const [realStreak, setRealStreak] = useState(0);
 
   const closeJokerModal = () => {
     if (jokerModalClosingRef.current) return;
@@ -361,12 +362,29 @@ function Home() {
   const grantCheckedRef = useRef(false);
   const lastGrantUserIdRef = useRef<string | null>(null);
 
+  const fetchStreaks = useCallback(async (userId: string) => {
+    const supabase = createSupabaseBrowserClient();
+    const { data } = await supabase.rpc("get_user_streaks", { p_user_id: userId });
+    if (data && Array.isArray(data) && data.length > 0) {
+      setVisualStreak(Number(data[0].visual_streak) || 0);
+      setRealStreak(Number(data[0].real_streak) || 0);
+    }
+  }, []);
+
+  useEffect(() => {
+    const uid = getCurrentUser(user)?.id;
+    if (!uid || uid === "dev-user") return;
+    fetchStreaks(uid);
+  }, [user, fetchStreaks]);
+
   const onCalendarUpdate = (dayKey: string, questionText: string, answerText: string) => {
     setCalendarAnswersMap((prev) => {
       const next = new Map(prev);
       next.set(dayKey, { questionText, answerText });
       return next;
     });
+    const uid = getCurrentUser(user)?.id;
+    if (uid && uid !== "dev-user") fetchStreaks(uid);
   };
 
   const onAfterAnswerSaved = async (dayKey: string) => {
@@ -425,9 +443,6 @@ function Home() {
         const effectiveId = u?.id ?? (process.env.NODE_ENV === 'development' ? DEV_USER.id : undefined);
         if (effectiveId) {
           const storedLang = getStoredLanguage();
-          // #region agent log
-          fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:initAuth-preload',message:'Preload with stored language',data:{storedLang,effectiveId:effectiveId?.slice(0,8)},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
-          // #endregion
           const preload = await fetchTodayQuestionForPreload(storedLang, effectiveId);
           setInitialTodayQuestion(preload);
         }
@@ -438,9 +453,6 @@ function Home() {
         // Listen for auth changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
           console.log('🔄 Auth state changed:', _event);
-          // #region agent log
-          fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:onAuthStateChange',message:'Auth state changed',data:{event:_event,hasSession:Boolean(session?.user),userId:session?.user?.id?.slice(0,8)},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
-          // #endregion
           // In development, keep dev user when session is null so submit still works
           if (process.env.NODE_ENV === "development" && !session?.user) {
             setUser(DEV_USER);
@@ -503,16 +515,10 @@ function Home() {
           document.body.style.overflow = "hidden";
         };
         scrollReset();
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:scroll-reset',message:'Scroll reset after login',data:{before,afterScrollY:window.scrollY},timestamp:Date.now(),hypothesisId:'H5'})}).catch(()=>{});
-        // #endregion
         // Run again after layout/paint so scroll doesn't reappear
         requestAnimationFrame(() => {
           scrollReset();
-          requestAnimationFrame(() => {
-            scrollReset();
-            fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:scroll-after-raf',message:'Scroll state one frame after reset',data:{scrollY:window.scrollY,bodyScrollHeight:document.body.scrollHeight,docClientHeight:document.documentElement.clientHeight},timestamp:Date.now(),hypothesisId:'H6'})}).catch(()=>{});
-          });
+          requestAnimationFrame(() => scrollReset());
         });
       }
     }
@@ -527,7 +533,7 @@ function Home() {
       return;
     }
     if (effectiveUser.id === "dev-user") {
-      setProfile({ id: "dev-user", joker_balance: 2, last_joker_grant_month: null });
+      setProfile({ id: "dev-user", joker_balance: 99, last_joker_grant_month: null });
       return;
     }
     if (grantCheckedRef.current && lastGrantUserIdRef.current === effectiveUser.id) return;
@@ -727,12 +733,6 @@ function Home() {
     return <OnboardingScreen />;
   }
 
-  // #region agent log
-  if (typeof window !== "undefined") {
-    fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:Home-render-app',message:'Rendering main app with user',data:{initialTodayQuestionDefined:initialTodayQuestion !== undefined,userId:effectiveUser?.id?.slice(0,8)},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
-  }
-  // #endregion
-
   const now = getNow();
   const headerDateLabel = formatHeaderDate(now, lang);
 
@@ -886,7 +886,7 @@ function Home() {
                 alignItems: "center",
                 gap: 6,
                 padding: "6px 12px",
-                background: "linear-gradient(to bottom right, #FEF3C7, #FDE68A, #FCD34D)",
+                background: "linear-gradient(to bottom right, #FDE68A, #FCD34D, #FBBF24)",
                 border: JOKER.BORDER,
                 borderRadius: 9999,
                 boxShadow: JOKER.SHADOW,
@@ -909,7 +909,7 @@ function Home() {
               <span style={{ width: 16, height: 16, borderRadius: "50%", background: "rgba(255,255,255,0.9)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 1px 2px rgba(0,0,0,0.1)" }}>
                 <Crown size={10} color="#FBBF24" strokeWidth={2.5} fill="#FDE68A" />
               </span>
-              <span style={{ fontSize: 14, fontWeight: 700, color: JOKER.TEXT }}>{profile?.joker_balance ?? 0}</span>
+              <span style={{ fontSize: 14, fontWeight: 700, color: "#FFFFFF" }}>{profile?.joker_balance ?? 0}</span>
             </button>
           </div>
         )}
@@ -917,7 +917,7 @@ function Home() {
         {/* Header: logo top left, date center (hidden on calendar tab) */}
         <header
           style={{
-            padding: "24px",
+            padding: "12px 24px",
             background: "transparent",
             display: "flex",
             alignItems: "center",
@@ -972,19 +972,7 @@ function Home() {
               : undefined
           }
           modalContainerRef={modalContainerRef}
-          currentStreak={(() => {
-            let s = 1;
-            const today = getNow();
-            for (let offset = 1; offset < 365; offset++) {
-              const d = new Date(today);
-              d.setDate(d.getDate() - offset);
-              const key = getLocalDayKey(d);
-              if (effectiveUser && isBeforeAccountStart(d, effectiveUser)) break;
-              if (!calendarAnswersMap.has(key)) break;
-              s++;
-            }
-            return s;
-          })()}
+          currentStreak={realStreak}
           onJokerEarned={(milestone) => {
             if (!streakPopupShownForRef.current[milestone]) {
               streakPopupShownForRef.current[milestone] = true;
@@ -1034,6 +1022,9 @@ function Home() {
             setInitialQuestionDayKey(dayKey);
             setActiveTab("today");
           }}
+          visualStreak={visualStreak}
+          realStreak={realStreak}
+          onStreaksRefetch={effectiveUser?.id && effectiveUser.id !== "dev-user" ? () => fetchStreaks(effectiveUser.id) : undefined}
           modalContainerRef={modalContainerRef}
         />
         </div>
@@ -1231,7 +1222,6 @@ function Home() {
                   aria-hidden
                 />
                 <motion.div
-                  data-debug="streak-card"
                   initial={{ opacity: 0, scale: 0.9, y: 20 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -1423,7 +1413,7 @@ function Home() {
                 <X size={16} strokeWidth={2.5} />
               </button>
               <div style={{ width: 64, height: 64, borderRadius: "50%", background: JOKER.GRADIENT, margin: "0 auto 1.25rem", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 8px 24px rgba(245,158,11,0.3)" }}>
-                <Crown size={32} color={COLORS.HEADER_Q} strokeWidth={2.5} fill="#FCD34D" />
+                <Crown size={32} color="#FFFFFF" strokeWidth={2.5} fill="#FFFFFF" />
               </div>
               <p
                 style={{
@@ -1494,58 +1484,6 @@ function OnboardingScreen({ onClose }: { onClose?: () => void }) {
   const [name, setName] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // #region agent log
-  useEffect(() => {
-    if (typeof document === "undefined") return;
-    fetch("http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        location: "page.tsx:OnboardingScreen-auth-mounted",
-        message: "Auth step mounted",
-        data: { hypothesisId: "E", authStepVisible: true },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    const t = setTimeout(() => {
-      const form = document.querySelector('form input[type="email"]')?.closest("form") ?? document.querySelector('input[placeholder="Email"]')?.closest("form");
-      const h2 = form?.previousElementSibling?.previousElementSibling;
-      const p = form?.previousElementSibling;
-      const submitBtn = form?.querySelector('button[type="submit"]');
-      const toggleBtn = form?.nextElementSibling;
-      const h2Style = h2 ? getComputedStyle(h2) : null;
-      const pStyle = p ? getComputedStyle(p) : null;
-      const formStyle = form ? getComputedStyle(form) : null;
-      const btnStyle = submitBtn ? getComputedStyle(submitBtn) : null;
-      const toggleStyle = toggleBtn ? getComputedStyle(toggleBtn) : null;
-      fetch("http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          location: "page.tsx:OnboardingScreen-auth-spacing",
-          message: "Auth step computed spacing",
-          data: {
-            hypothesisId: "A_B_C_D",
-            formFound: !!form,
-            h2ClassName: (h2 as HTMLElement)?.className ?? null,
-            h2MarginBottom: h2Style?.marginBottom ?? null,
-            pClassName: (p as HTMLElement)?.className ?? null,
-            pMarginBottom: pStyle?.marginBottom ?? null,
-            formClassName: (form as HTMLElement)?.className ?? null,
-            formGap: formStyle?.gap ?? null,
-            formMarginBottom: formStyle?.marginBottom ?? null,
-            submitMarginTop: btnStyle?.marginTop ?? null,
-            submitMarginBottom: btnStyle?.marginBottom ?? null,
-            toggleMarginTop: toggleStyle?.marginTop ?? null,
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-    }, 400);
-    return () => clearTimeout(t);
-  }, []);
-  // #endregion
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1819,7 +1757,6 @@ function MondayRecapModal({
   const isPerfect = total > 0 && count === total;
   return (
     <motion.div
-      data-debug="recap-card"
       initial={{ opacity: 0, scale: 0.9, y: 20 }}
       animate={{ opacity: isClosing ? 0 : 1, scale: isClosing ? 0.9 : 1, y: isClosing ? 20 : 0 }}
       exit={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -1997,10 +1934,6 @@ function TodayView({
   useEffect(() => {
     registerServiceWorker();
 
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:TodayView-effect',message:'TodayView effect run',data:{initialQuestionDefined:initialQuestion !== undefined,isToday: (initialQuestionDayKey ?? getLocalDayKey(getNow())) === getLocalDayKey(getNow())},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
-    // #endregion
-
     const load = async () => {
       console.log('🔧 TodayView: Starting to load...');
       
@@ -2012,9 +1945,6 @@ function TodayView({
       // Use preloaded question only when it was fetched for the current language; when lang changes, refetch from the correct table
       const preloadMatchesLang = langUsedForPreloadRef.current === null || langUsedForPreloadRef.current === lang;
       if (initialQuestion !== undefined && isToday && preloadMatchesLang) {
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:TodayView-effect',message:'Using preload, skipping fetch',data:{isToday,lang},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
-        // #endregion
         langUsedForPreloadRef.current = lang;
         setQuestion(initialQuestion ?? null);
         setLoading(false);
@@ -2082,9 +2012,6 @@ function TodayView({
 
           const supabase = createSupabaseBrowserClient();
           const tableName = lang === 'en' ? 'daily_questions_en' : 'questions';
-          // #region agent log
-          fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:TodayView-fetch',message:'Fetching question',data:{lang,tableName},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
-          // #endregion
 
           const queryPromise =
             tableName === 'daily_questions_en'
@@ -2873,13 +2800,15 @@ function TodayView({
 function MissedDayAnswerModal({
   dayKey,
   user,
+  isJoker,
   onClose,
   onSuccess,
 }: {
   dayKey: string;
   user: any;
+  isJoker?: boolean;
   onClose: () => void;
-  onSuccess: (dayKey: string, questionText: string, answerText: string) => void;
+  onSuccess: (dayKey: string, questionText: string, answerText: string, isJoker?: boolean) => void;
 }) {
   const { t, lang } = useLanguage();
   const [question, setQuestion] = useState<Question | null>(null);
@@ -2993,7 +2922,7 @@ function MissedDayAnswerModal({
         } catch (_) {}
         setIsClosing(true);
         setTimeout(() => {
-          onSuccess(dayKey, question.text, draft);
+          onSuccess(dayKey, question.text, draft, isJoker);
           onClose();
         }, MODAL_CLOSE_MS);
         setSubmitting(false);
@@ -3008,11 +2937,12 @@ function MissedDayAnswerModal({
         questionText: question.text,
         setAnswer: () => {},
         onCalendarUpdate: null,
+        isJoker: isJoker ?? false,
         userCreatedAt: user.created_at,
       });
       setIsClosing(true);
       setTimeout(() => {
-        onSuccess(dayKey, question.text, draft);
+        onSuccess(dayKey, question.text, draft, isJoker);
         onClose();
       }, MODAL_CLOSE_MS);
     } catch (e: any) {
@@ -3143,14 +3073,20 @@ function CalendarView({
   profile,
   onProfileRefetch,
   onAnswerMissedDay,
+  visualStreak,
+  realStreak,
+  onStreaksRefetch,
   modalContainerRef,
 }: {
-  answersMap: Map<string, { questionText: string; answerText: string }>;
-  setAnswersMap: React.Dispatch<React.SetStateAction<Map<string, { questionText: string; answerText: string }>>>;
+  answersMap: Map<string, { questionText: string; answerText: string; isJoker?: boolean }>;
+  setAnswersMap: React.Dispatch<React.SetStateAction<Map<string, { questionText: string; answerText: string; isJoker?: boolean }>>>;
   user: any;
   profile: { id: string; joker_balance: number; last_joker_grant_month: string | null } | null;
   onProfileRefetch: () => Promise<void>;
   onAnswerMissedDay?: (dayKey: string) => void;
+  visualStreak: number;
+  realStreak: number;
+  onStreaksRefetch?: () => void;
   modalContainerRef?: React.RefObject<HTMLDivElement | null>;
 }) {
   const { t, lang } = useLanguage();
@@ -3167,6 +3103,7 @@ function CalendarView({
   const [missedDayModal, setMissedDayModal] = useState<"missed_has_joker" | "missed_no_joker" | "closed" | null>(null);
   const [missedDayKey, setMissedDayKey] = useState<string | null>(null);
   const [selectedDateForAnswer, setSelectedDateForAnswer] = useState<string | null>(null);
+  const [selectedDateIsJoker, setSelectedDateIsJoker] = useState(false);
   const [closingMissedModal, setClosingMissedModal] = useState(false);
   const [useJokerLoading, setUseJokerLoading] = useState(false);
   const [useJokerError, setUseJokerError] = useState<string | null>(null);
@@ -3187,10 +3124,13 @@ function CalendarView({
       try {
         // In development with mock user, show empty calendar
         if (process.env.NODE_ENV === 'development' && user.id === 'dev-user') {
-          console.log('📅 Dev mode: Showing calendar with one seed completed day');
+          console.log('📅 Dev mode: Showing calendar with one normal day + one joker day');
           const yesterday = new Date(getNow());
           yesterday.setDate(yesterday.getDate() - 1);
+          const twoDaysAgo = new Date(getNow());
+          twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
           const seedKey = getLocalDayKey(yesterday);
+          const jokerKey = getLocalDayKey(twoDaysAgo);
           setAnswersMap(
             new Map([
               [
@@ -3198,6 +3138,14 @@ function CalendarView({
                 {
                   questionText: "Waar heb je gisteren om gelachen?",
                   answerText: "Een voorbeeldantwoord om de voltooide dag-styling te bekijken.",
+                },
+              ],
+              [
+                jokerKey,
+                {
+                  questionText: "Joker day (dev)",
+                  answerText: "Gevuld met joker.",
+                  isJoker: true,
                 },
               ],
             ])
@@ -3215,7 +3163,7 @@ function CalendarView({
 
         const { data: answersData, error: answersError } = await supabase
           .from("answers")
-          .select("answer_text, question_date")
+          .select("answer_text, question_date, is_joker")
           .eq("user_id", user.id)
           .gte("question_date", startStr)
           .lte("question_date", endStr);
@@ -3242,14 +3190,15 @@ function CalendarView({
 
         const map = new Map<
           string,
-          { questionText: string; answerText: string }
+          { questionText: string; answerText: string; isJoker?: boolean }
         >();
         if (answersData) {
-          for (const row of answersData) {
+          for (const row of answersData as { question_date: string; answer_text: string | null; is_joker?: boolean }[]) {
             if (row.question_date) {
               map.set(row.question_date, {
                 questionText: dayToText.get(row.question_date) ?? "",
                 answerText: row.answer_text ?? "",
+                isJoker: row.is_joker === true,
               });
             }
           }
@@ -3378,17 +3327,10 @@ function CalendarView({
     days.push(d);
   }
 
-  // Streak: consecutive days with answers ending at today
-  let streakCount = 0;
-  const today = getNow();
-  for (let offset = 0; offset < 365; offset++) {
-    const d = new Date(today);
-    d.setDate(d.getDate() - offset);
-    const key = getLocalDayKey(d);
-    if (isBeforeAccountStart(d, user)) break;
-    if (!answersMap.has(key)) break;
-    streakCount++;
-  }
+  const STREAK_MILESTONES = [7, 14, 30, 60, 100, 180, 365];
+  const nextMilestone = STREAK_MILESTONES.find((m) => m > realStreak) ?? null;
+  const daysLeft = nextMilestone != null ? nextMilestone - realStreak : 0;
+  const progressPercent = nextMilestone != null ? (realStreak / nextMilestone) * 100 : 0;
 
   const dowLabels = lang === "nl" ? ["ma", "di", "wo", "do", "vr", "za", "zo"] : ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -3431,6 +3373,19 @@ function CalendarView({
     setUseJokerError(null);
     setUseJokerLoading(true);
     try {
+      if (process.env.NODE_ENV === "development" && user?.id === "dev-user") {
+        const keyToOpen = missedDayKey;
+        setClosingMissedModal(true);
+        setSelectedDateIsJoker(true);
+        setTimeout(() => {
+          setMissedDayModal(null);
+          setMissedDayKey(null);
+          setClosingMissedModal(false);
+          setUseJokerLoading(false);
+          requestAnimationFrame(() => setSelectedDateForAnswer(keyToOpen));
+        }, MODAL_CLOSE_MS);
+        return;
+      }
       const supabase = createSupabaseBrowserClient();
       const { data, error: rpcError } = await supabase.rpc("use_joker");
       if (rpcError) {
@@ -3442,6 +3397,7 @@ function CalendarView({
         await onProfileRefetch();
         const keyToOpen = missedDayKey;
         setClosingMissedModal(true);
+        setSelectedDateIsJoker(true);
         setTimeout(() => {
           setMissedDayModal(null);
           setMissedDayKey(null);
@@ -3485,14 +3441,14 @@ function CalendarView({
   const isViewingCurrentMonth = displayYear === now.getFullYear() && displayMonth === now.getMonth();
 
   const yearButtonStyle = {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
+    width: 32,
+    height: 32,
+    borderRadius: 10,
     border: "none",
     background: "#FFFFFF",
     boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
     cursor: "pointer" as const,
-    fontSize: "1.125rem",
+    fontSize: "1rem",
     color: "#3F3F46",
     display: "flex" as const,
     alignItems: "center" as const,
@@ -3504,16 +3460,17 @@ function CalendarView({
       style={{ 
         height: "100%",
         width: "100%",
-        padding: "0.5rem 24px 1.5rem",
+        marginTop: 0,
+        padding: "0 24px 24px",
         position: "relative",
-        overflowY: "auto",
+        overflowY: "hidden",
         overflowX: "hidden",
         boxSizing: "border-box",
         background: "transparent",
       }}
     >
       {/* Year above month: tap to open year picker */}
-      <div style={{ display: "flex", justifyContent: "center", marginBottom: "0.5rem" }}>
+      <div style={{ display: "flex", justifyContent: "center", marginBottom: 2 }}>
         <button
           type="button"
           onClick={() => setShowYearPicker(true)}
@@ -3533,12 +3490,12 @@ function CalendarView({
       </div>
 
       {/* Month nav: month on top, Today underneath */}
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, marginBottom: "1.5rem" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 24 }}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5, marginBottom: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 20 }}>
           <button type="button" onClick={prevMonth} style={yearButtonStyle} aria-label={t("calendar_prev")}>
             ‹
           </button>
-          <h2 style={{ fontSize: "1.5rem", fontWeight: 700, color: "#18181B", margin: 0 }}>
+          <h2 style={{ fontSize: "1.25rem", fontWeight: 700, color: "#18181B", margin: 0 }}>
             {monthNames[displayMonth]}
           </h2>
           <button type="button" onClick={nextMonth} style={yearButtonStyle} aria-label={t("calendar_next")}>
@@ -3570,7 +3527,7 @@ function CalendarView({
           WebkitBackdropFilter: GLASS.BLUR,
           border: "1px solid rgba(255,255,255,0.5)",
           boxShadow: "0 4px 16px rgba(0,0,0,0.08), inset 0 1px 1px rgba(255,255,255,0.6)",
-          padding: 24,
+          padding: 16,
           boxSizing: "border-box",
         }}
       >
@@ -3578,10 +3535,11 @@ function CalendarView({
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(7, 1fr)",
-            gap: 8,
+            gridTemplateRows: "auto repeat(6, 32px)",
+            gap: 4,
             minWidth: 0,
             boxSizing: "border-box",
-            marginBottom: 16,
+            marginBottom: 12,
           }}
         >
           {dowLabels.map((dow) => (
@@ -3589,7 +3547,7 @@ function CalendarView({
               key={dow}
               style={{
                 textAlign: "center",
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: 600,
                 color: COLORS.TEXT_SECONDARY,
                 textTransform: "uppercase",
@@ -3605,6 +3563,7 @@ function CalendarView({
             }
             const dayDate = new Date(displayYear, displayMonth, day);
             const dayKey = getLocalDayKey(dayDate);
+            const entry = answersMap.get(dayKey);
             const hasAnswer = answersMap.has(dayKey);
             const isToday = dayKey === todayKey;
             const isFuture = dayKey > todayKey;
@@ -3613,53 +3572,98 @@ function CalendarView({
             const tappable = !beforeStart && (hasAnswer || isMissed);
 
             return (
-              <button
+              <div
                 key={day}
-                type="button"
-                onClick={() => tappable && handleDayTap(day)}
                 style={{
-                  ...getCalendarStyle({
-                    hasAnswer,
-                    isToday,
-                    isFuture,
-                    isBeforeAccountStart: beforeStart,
-                  }),
-                  cursor: tappable ? "pointer" : "default",
-                  padding: 0,
-                  minWidth: 0,
-                  border: "none",
-                  fontFamily: "inherit",
-                  fontSize: "0.9375rem",
-                  fontWeight: 500,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  minHeight: 0,
                 }}
               >
-                {day}
-              </button>
+                <button
+                  type="button"
+                  onClick={() => tappable && handleDayTap(day)}
+                  style={{
+                    ...getCalendarStyle({
+                      hasAnswer,
+                      isJoker: entry?.isJoker,
+                      isToday,
+                      isFuture,
+                      isBeforeAccountStart: beforeStart,
+                    }),
+                    width: 32,
+                    height: 32,
+                    flexShrink: 0,
+                    cursor: tappable ? "pointer" : "default",
+                    padding: 0,
+                    border: "none",
+                    fontFamily: "inherit",
+                    fontSize: "0.8125rem",
+                    fontWeight: 500,
+                  }}
+                >
+                  {day}
+                </button>
+              </div>
             );
           })}
         </div>
 
         <div
           style={{
-            marginTop: 32,
-            paddingTop: 24,
+            marginTop: 12,
+            paddingTop: 12,
             borderTop: "1px solid rgba(229,231,235,0.4)",
             display: "flex",
             flexDirection: "column",
-            gap: 10,
+            gap: 6,
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: "1.125rem", fontWeight: 600, color: COLORS.HEADER_Q }}>{capturedThisMonth}</span>
-            <span style={{ fontSize: 14, color: COLORS.TEXT_SECONDARY }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontSize: "1rem", fontWeight: 600, color: COLORS.HEADER_Q }}>{capturedThisMonth}</span>
+            <span style={{ fontSize: 13, color: COLORS.TEXT_SECONDARY }}>
               {lang === "nl" ? "van de" : "out of"} {answerableDaysThisMonth} {lang === "nl" ? "dagen beantwoord" : "days answered"}
             </span>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: "1.125rem", fontWeight: 600, color: COLORS.ACCENT }}>{streakCount}</span>
-            <span style={{ fontSize: 14, color: COLORS.TEXT_SECONDARY }}>{lang === "nl" ? "dagen streak" : "day streak"}</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontSize: "1rem", fontWeight: 600, color: COLORS.ACCENT }}>{realStreak}</span>
+            <span style={{ fontSize: 13, color: COLORS.TEXT_SECONDARY }}>{lang === "nl" ? "dagen streak" : "day streak"}</span>
           </div>
         </div>
+
+        {nextMilestone != null && (
+          <div style={{ marginTop: 16, marginBottom: 4 }}>
+            <div
+              className="bg-gradient-to-br from-[#FEF3C7]/40 via-[#FDE68A]/30 to-[#FCD34D]/20 rounded-[20px] border border-[#F59E0B]/20"
+              style={{ padding: 14, boxShadow: "0 4px 16px rgba(245, 158, 11, 0.1)" }}
+            >
+              <div className="flex items-center gap-2.5" style={{ marginBottom: 10 }}>
+                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#FEF3C7] via-[#FDE68A] to-[#FCD34D] flex items-center justify-center border border-[#F59E0B]/30 shadow-md shadow-amber-400/20">
+                  <Crown className="w-4 h-4 text-[#F59E0B]" strokeWidth={2.5} fill="#FCD34D" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[11px] text-gray-600 font-medium mb-0.5">{t("calendar_next_reward")}</div>
+                  <div className="text-sm font-bold text-gray-800">{t("calendar_next_reward_milestone", { count: nextMilestone })}</div>
+                </div>
+              </div>
+              <div style={{ marginTop: 2 }}>
+                <div className="flex items-center justify-between text-[11px]" style={{ marginBottom: 6 }}>
+                  <span className="text-gray-600 font-medium">
+                    {daysLeft === 1 ? t("calendar_next_reward_days_left_one") : t("calendar_next_reward_days_left_other", { count: daysLeft })}
+                  </span>
+                  <span className="text-[#F59E0B] font-bold">{realStreak}/{nextMilestone}</span>
+                </div>
+                <div className="w-full h-2 bg-white/60 rounded-full overflow-hidden backdrop-blur-sm border border-white/40">
+                  <div
+                    className="h-full bg-gradient-to-r from-[#FDE68A] to-[#F59E0B] rounded-full transition-all duration-500"
+                    style={{ width: `${progressPercent}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {showYearPicker &&
@@ -3907,14 +3911,20 @@ function CalendarView({
           <MissedDayAnswerModal
             dayKey={selectedDateForAnswer}
             user={user}
-            onClose={() => setSelectedDateForAnswer(null)}
-            onSuccess={(dayKey, questionText, answerText) => {
+            isJoker={selectedDateIsJoker}
+            onClose={() => {
+              setSelectedDateForAnswer(null);
+              setSelectedDateIsJoker(false);
+            }}
+            onSuccess={(dayKey, questionText, answerText, isJoker) => {
               setAnswersMap((prev) => {
                 const next = new Map(prev);
-                next.set(dayKey, { questionText, answerText });
+                next.set(dayKey, { questionText, answerText, isJoker });
                 return next;
               });
+              onStreaksRefetch?.();
               setSelectedDateForAnswer(null);
+              setSelectedDateIsJoker(false);
             }}
           />,
           modalContainerRef?.current ?? document.body
@@ -4269,9 +4279,10 @@ async function saveAnswer(params: {
   setAnswer: (a: Answer) => void;
   onCalendarUpdate: ((dayKey: string, questionText: string, answerText: string) => void) | null;
   isEdit?: boolean;
+  isJoker?: boolean;
   userCreatedAt?: string;
 }) {
-  const { supabase, userId, draft, dayKey, questionText, setAnswer, onCalendarUpdate, isEdit, userCreatedAt } =
+  const { supabase, userId, draft, dayKey, questionText, setAnswer, onCalendarUpdate, isEdit, isJoker, userCreatedAt } =
     params;
 
   const dayKeyAsDate = new Date(dayKey + "T12:00:00");
@@ -4289,6 +4300,7 @@ async function saveAnswer(params: {
     user_id: userId,
     question_date: dayKey,
     answer_text: draft,
+    is_joker: isJoker ?? false,
   }));
 
   const { data: upserted, error: upsertError } = await supabase
@@ -4298,6 +4310,7 @@ async function saveAnswer(params: {
         user_id: userId,
         question_date: dayKey,
         answer_text: draft,
+        ...(isJoker ? { is_joker: true } : {}),
       },
       {
         onConflict: "user_id,question_date",

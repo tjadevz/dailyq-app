@@ -17,6 +17,7 @@ import {
   Info,
   LogOut,
   Instagram,
+  Sparkles,
 } from "lucide-react";
 import { createSupabaseBrowserClient } from "@/lib/supabaseClient";
 import { getNow } from "@/utils/dateProvider";
@@ -84,11 +85,11 @@ const CALENDAR = {
   BEFORE_START_BG: "rgba(255,255,255,0.22)",
   BEFORE_START_BORDER: "1px solid rgba(229,231,235,0.35)",
   BEFORE_START_COLOR: "rgba(156,163,175,0.78)",
-  BORDER_RADIUS: 8,
+  BORDER_RADIUS: "50%",
 };
 
 const JOKER = {
-  GRADIENT: "linear-gradient(to bottom right, #FEF3C7, #FDE68A, #FCD34D)",
+  GRADIENT: "linear-gradient(to bottom right, #FDE68A, #FCD34D, #FBBF24)",
   BORDER: "1px solid rgba(245,158,11,0.3)",
   TEXT: "#92400E",
   SHADOW: "0 4px 12px rgba(245,158,11,0.2)",
@@ -223,13 +224,11 @@ function getCalendarStyle({
   hasAnswer,
   isToday,
   isFuture,
-  isTooOld,
   isBeforeAccountStart,
 }: {
   hasAnswer: boolean;
   isToday: boolean;
   isFuture: boolean;
-  isTooOld: boolean;
   isBeforeAccountStart: boolean;
 }): React.CSSProperties {
   const style: React.CSSProperties = {
@@ -247,7 +246,8 @@ function getCalendarStyle({
     style.border = CALENDAR.FUTURE_BORDER;
     return style;
   }
-  if (isTooOld || isBeforeAccountStart) {
+  /* Only dim days before account existed; days >7 days ago use same look as recent days */
+  if (isBeforeAccountStart) {
     style.color = CALENDAR.BEFORE_START_COLOR;
     style.background = CALENDAR.BEFORE_START_BG;
     style.border = CALENDAR.BEFORE_START_BORDER;
@@ -325,6 +325,28 @@ function Home() {
   const LOADING_SCREEN_MIN_MS = 2200;
   const [showLoadingScreen, setShowLoadingScreen] = useState(false);
   const [showOnboardingOverlay, setShowOnboardingOverlay] = useState(false);
+  const [showStreakPopup, setShowStreakPopup] = useState(false);
+  const [achievedStreak, setAchievedStreak] = useState<7 | 30 | 100 | null>(null);
+  const streakPopupShownForRef = useRef<{ 7: boolean; 30: boolean; 100: boolean }>({ 7: false, 30: false, 100: false });
+
+  // #region agent log
+  useEffect(() => {
+    if (!showStreakPopup && !(recapModal.open && recapModal.count !== null)) return;
+    const t = setTimeout(() => {
+      const portalTarget = modalContainerRef?.current ?? document.body;
+      const isBody = portalTarget === document.body;
+      const portalRect = portalTarget.getBoundingClientRect();
+      const portalStyle = portalTarget instanceof Element ? getComputedStyle(portalTarget) : null;
+      const streakCard = portalTarget.querySelector('[data-debug="streak-card"]');
+      const recapCard = portalTarget.querySelector('[data-debug="recap-card"]');
+      const cardEl = (showStreakPopup ? streakCard : recapCard) || streakCard || recapCard;
+      const cardRect = cardEl ? cardEl.getBoundingClientRect() : null;
+      const cardCS = cardEl ? getComputedStyle(cardEl) : null;
+      fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f03475'},body:JSON.stringify({sessionId:'f03475',location:'page.tsx:popup-position-debug',message:'Popup open position check',data:{which:showStreakPopup?'streak':'recap',portalIsBody:isBody,portalRect:{w:portalRect.width,h:portalRect.height,top:portalRect.top,left:portalRect.left},portalTransform:portalStyle?.transform||'N/A',cardRect:cardRect?{w:cardRect.width,h:cardRect.height,top:cardRect.top,left:cardRect.left}:null,cardPosition:cardCS?.position||'N/A',cardTransform:cardCS?.transform||'N/A',cardLeft:cardCS?.left||'N/A',viewportW:typeof window!=='undefined'?window.innerWidth:0,viewportH:typeof window!=='undefined'?window.innerHeight:0},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+    }, 100);
+    return () => clearTimeout(t);
+  }, [showStreakPopup, recapModal.open, recapModal.count]);
+  // #endregion
 
   const closeJokerModal = () => {
     if (jokerModalClosingRef.current) return;
@@ -647,12 +669,20 @@ function Home() {
                 initial={{ scale: 0.8, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ duration: 0.5, ease: "easeOut" }}
-                style={{ marginBottom: 32 }}
+                style={{ marginBottom: 32, display: "flex", flexDirection: "column", alignItems: "center", width: "100%", maxWidth: "min(220px, 55vw)" }}
               >
-                <h1 style={{ fontSize: "1.875rem", fontWeight: 600, color: "#1F2937", letterSpacing: "0.08em", textAlign: "center", margin: 0 }}>
-                  DailyQ
-                </h1>
-                <p style={{ fontSize: 14, color: "#9CA3AF", fontWeight: 500, letterSpacing: "0.025em", textAlign: "center", margin: "8px 0 0" }}>
+                <img
+                  src="/icons/logo.nobg.png"
+                  alt="DailyQ"
+                  style={{
+                    width: "100%",
+                    height: "auto",
+                    maxHeight: 88,
+                    objectFit: "contain",
+                    display: "block",
+                  }}
+                />
+                <p style={{ fontSize: 14, color: "#9CA3AF", fontWeight: 500, letterSpacing: "0.025em", textAlign: "center", margin: "12px 0 0" }}>
                   One question. Every day.
                 </p>
               </motion.div>
@@ -856,7 +886,7 @@ function Home() {
                 alignItems: "center",
                 gap: 6,
                 padding: "6px 12px",
-                background: JOKER.GRADIENT,
+                background: "linear-gradient(to bottom right, #FEF3C7, #FDE68A, #FCD34D)",
                 border: JOKER.BORDER,
                 borderRadius: 9999,
                 boxShadow: JOKER.SHADOW,
@@ -877,14 +907,14 @@ function Home() {
               onMouseUp={(e) => { e.currentTarget.style.transform = "scale(1.05)"; }}
             >
               <span style={{ width: 16, height: 16, borderRadius: "50%", background: "rgba(255,255,255,0.9)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 1px 2px rgba(0,0,0,0.1)" }}>
-                <Crown size={10} color={COLORS.HEADER_Q} strokeWidth={2.5} fill="#FCD34D" />
+                <Crown size={10} color="#FBBF24" strokeWidth={2.5} fill="#FDE68A" />
               </span>
               <span style={{ fontSize: 14, fontWeight: 700, color: JOKER.TEXT }}>{profile?.joker_balance ?? 0}</span>
             </button>
           </div>
         )}
 
-        {/* Header: hide DailyQ + date on calendar tab */}
+        {/* Header: logo top left, date center (hidden on calendar tab) */}
         <header
           style={{
             padding: "24px",
@@ -896,33 +926,19 @@ function Home() {
             flexShrink: 0,
           }}
         >
-          <div style={{ flex: 1, minWidth: 0 }} />
-          {activeTab !== "calendar" && (
-            <div
+          <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center" }}>
+            <img
+              src="/icons/logo.nobg.png"
+              alt="DailyQ"
               style={{
-                position: "absolute",
-                left: "50%",
-                top: "50%",
-                transform: "translate(-50%, -50%)",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: 6,
+                height: 48,
+                width: "auto",
+                maxWidth: 207,
+                objectFit: "contain",
+                display: "block",
               }}
-            >
-              <span
-                style={{
-                  fontSize: "1.125rem",
-                  letterSpacing: "0.12em",
-                  fontWeight: 700,
-                  color: "#18181B",
-                }}
-              >
-                DailyQ
-              </span>
-              <span style={{ fontSize: 12, fontWeight: 500, color: "#71717A" }}>{headerDateLabel}</span>
-            </div>
-          )}
+            />
+          </div>
           <div style={{ flex: 1, minWidth: 0, minHeight: 30 }} />
         </header>
 
@@ -948,6 +964,7 @@ function Home() {
           onAfterAnswerSaved={onAfterAnswerSaved}
           initialQuestionDayKey={initialQuestionDayKey}
           initialQuestion={initialTodayQuestion}
+          dateLabel={headerDateLabel}
           onClearInitialDay={() => setInitialQuestionDayKey(null)}
           onShowRecapTest={
             process.env.NODE_ENV === "development"
@@ -955,6 +972,40 @@ function Home() {
               : undefined
           }
           modalContainerRef={modalContainerRef}
+          currentStreak={(() => {
+            let s = 1;
+            const today = getNow();
+            for (let offset = 1; offset < 365; offset++) {
+              const d = new Date(today);
+              d.setDate(d.getDate() - offset);
+              const key = getLocalDayKey(d);
+              if (effectiveUser && isBeforeAccountStart(d, effectiveUser)) break;
+              if (!calendarAnswersMap.has(key)) break;
+              s++;
+            }
+            return s;
+          })()}
+          onJokerEarned={(milestone) => {
+            if (!streakPopupShownForRef.current[milestone]) {
+              streakPopupShownForRef.current[milestone] = true;
+              setAchievedStreak(milestone);
+              setShowStreakPopup(true);
+            }
+          }}
+          onRefetchProfile={
+            effectiveUser?.id && effectiveUser.id !== "dev-user"
+              ? async () => {
+                  const supabase = createSupabaseBrowserClient();
+                  const { data } = await supabase
+                    .from("profiles")
+                    .select("id, joker_balance, last_joker_grant_month")
+                    .eq("id", effectiveUser.id)
+                    .single();
+                  if (data) setProfile(data);
+                  return Number(data?.joker_balance) ?? 0;
+                }
+              : undefined
+          }
         />
         </div>
         <div
@@ -1005,68 +1056,333 @@ function Home() {
             onShowOnboardingScreen={
               process.env.NODE_ENV === "development" ? () => setShowOnboardingOverlay(true) : undefined
             }
+            onPreviewStreakPopup={
+              process.env.NODE_ENV === "development"
+                ? () => {
+                    setAchievedStreak(7);
+                    setShowStreakPopup(true);
+                  }
+                : undefined
+            }
           />
         </div>
       </main>
       </div>
 
-      {/* Tab bar */}
+      {/* Tab bar – same width as main content card (margin 16px 16px 8px) */}
+      <div style={{ display: "flex", justifyContent: "stretch", padding: "0 16px 24px", boxSizing: "border-box" }}>
       <nav
         style={{
           display: "flex",
           flexDirection: "row",
-          justifyContent: "space-around",
           alignItems: "center",
-          background: GLASS.NAV_BG,
-          backdropFilter: GLASS.BLUR,
-          WebkitBackdropFilter: GLASS.BLUR,
-          border: GLASS.NAV_BORDER,
-          borderRadius: 24,
-          boxShadow: GLASS.TAB_SHADOW,
-          padding: "12px 16px max(12px, env(safe-area-inset-bottom)) 16px",
-          margin: "0 16px 24px",
+          gap: 3,
+          position: "relative",
+          width: "100%",
+          margin: 0,
+          boxSizing: "border-box",
+          padding: "7px 7px max(7px, env(safe-area-inset-bottom)) 7px",
+          background: "rgba(255,255,255,0.5)",
+          backdropFilter: "blur(100px)",
+          WebkitBackdropFilter: "blur(100px)",
+          borderRadius: 9999,
+          border: "1px solid rgba(255,255,255,0.8)",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.12), inset 0 1px 2px rgba(255,255,255,0.9)",
         }}
       >
-        <TabButton
-          active={activeTab === "today"}
+        <motion.div
+          initial={false}
+          animate={{
+            left: activeTab === "today" ? "12px" : activeTab === "calendar" ? "calc(33.33% + 6.5px)" : "calc(66.66% + 0.5px)",
+            width: "calc(33.33% - 14px)",
+          }}
+          transition={{ type: "spring", stiffness: 400, damping: 35 }}
+          style={{
+            position: "absolute",
+            top: 7,
+            bottom: 7,
+            borderRadius: 9999,
+            background: "rgba(255,255,255,0.6)",
+            backdropFilter: "blur(16px)",
+            WebkitBackdropFilter: "blur(16px)",
+            border: "1px solid rgba(255,255,255,0.9)",
+            boxShadow: "0 4px 16px rgba(124,58,237,0.15), inset 0 1px 2px rgba(255,255,255,0.9)",
+          }}
+        />
+        <button
+          type="button"
           onClick={() => setActiveTab("today")}
-          label={t("tabs_today")}
-          icon={<CircleHelp size={24} strokeWidth={1.5} />}
-        />
-        <TabButton
-          active={activeTab === "calendar"}
-          onClick={() => setActiveTab("calendar")}
-          label={t("tabs_calendar")}
-          icon={<CalendarIcon size={24} strokeWidth={1.5} />}
-        />
-        <TabButton
-          active={activeTab === "settings"}
-          onClick={() => setActiveTab("settings")}
-          label={t("tabs_settings")}
-          icon={<SettingsIcon size={24} strokeWidth={1.5} />}
-        />
-      </nav>
-
-      {recapModal.open && recapModal.count !== null && recapModal.total !== null && (
-        <div role="dialog" aria-modal="true" style={MODAL.WRAPPER}>
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: recapClosing ? 0 : 1 }}
-            transition={{ duration: 0.2 }}
-            style={MODAL.BACKDROP}
-            onClick={() => handleRecapClose()}
-            aria-hidden
+          aria-label={t("tabs_today")}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 3,
+            width: "33.33%",
+            padding: "8px 24px",
+            borderRadius: 9999,
+            position: "relative",
+            zIndex: 10,
+            border: "none",
+            cursor: "pointer",
+            background: "transparent",
+          }}
+        >
+          <CircleHelp
+            size={24}
+            strokeWidth={2}
+            color={activeTab === "today" ? "#7C3AED" : "#4B5563"}
           />
-          <div style={{ position: "relative", zIndex: 1 }}>
-            <MondayRecapModal
-              count={recapModal.count}
-              total={recapModal.total}
-              onClose={() => handleRecapClose()}
-              onAnswerMissedDay={() => handleRecapClose(true)}
-              isClosing={recapClosing}
-            />
-          </div>
-        </div>
+          <span
+            style={{
+              fontSize: 9,
+              fontWeight: 600,
+              color: activeTab === "today" ? "#7C3AED" : "#4B5563",
+            }}
+          >
+            {t("tabs_today")}
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("calendar")}
+          aria-label={t("tabs_calendar")}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 3,
+            width: "33.33%",
+            padding: "8px 24px",
+            borderRadius: 9999,
+            position: "relative",
+            zIndex: 10,
+            border: "none",
+            cursor: "pointer",
+            background: "transparent",
+          }}
+        >
+          <CalendarIcon
+            size={24}
+            strokeWidth={2}
+            color={activeTab === "calendar" ? "#7C3AED" : "#4B5563"}
+          />
+          <span
+            style={{
+              fontSize: 9,
+              fontWeight: 600,
+              color: activeTab === "calendar" ? "#7C3AED" : "#4B5563",
+            }}
+          >
+            {t("tabs_calendar")}
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("settings")}
+          aria-label={t("tabs_settings")}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 3,
+            width: "33.33%",
+            padding: "8px 24px",
+            borderRadius: 9999,
+            position: "relative",
+            zIndex: 10,
+            border: "none",
+            cursor: "pointer",
+            background: "transparent",
+          }}
+        >
+          <SettingsIcon
+            size={24}
+            strokeWidth={2}
+            color={activeTab === "settings" ? "#7C3AED" : "#4B5563"}
+          />
+          <span
+            style={{
+              fontSize: 9,
+              fontWeight: 600,
+              color: activeTab === "settings" ? "#7C3AED" : "#4B5563",
+            }}
+          >
+            {t("tabs_settings")}
+          </span>
+        </button>
+      </nav>
+      </div>
+
+      {/* Streak achievement popup – same layout as calendar day modal (WRAPPER flex-centers card) */}
+      {typeof document !== "undefined" &&
+        createPortal(
+          <AnimatePresence>
+            {showStreakPopup && achievedStreak !== null && (
+              <div role="dialog" aria-modal="true" style={{ ...MODAL.WRAPPER, pointerEvents: "auto" }} onClick={() => setShowStreakPopup(false)}>
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  style={MODAL.BACKDROP}
+                  aria-hidden
+                />
+                <motion.div
+                  data-debug="streak-card"
+                  initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                  transition={{ type: "spring", duration: 0.5, bounce: 0.3 }}
+                  style={{
+                    position: "relative",
+                    zIndex: 1,
+                    width: "85%",
+                    maxWidth: 360,
+                    background: "rgba(255,254,249,0.75)",
+                    backdropFilter: "blur(40px)",
+                    WebkitBackdropFilter: "blur(40px)",
+                    borderRadius: 32,
+                    padding: 32,
+                    border: "1px solid rgba(255,255,255,0.6)",
+                    boxShadow: "0 8px 32px rgba(0,0,0,0.12), inset 0 1px 2px rgba(255,255,255,0.7)",
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setShowStreakPopup(false)}
+                    aria-label={t("common_close")}
+                    style={{
+                      position: "absolute",
+                      top: 16,
+                      right: 16,
+                      width: 32,
+                      height: 32,
+                      borderRadius: "50%",
+                      background: "rgba(255,255,255,0.6)",
+                      backdropFilter: "blur(40px)",
+                      border: "1px solid rgba(255,255,255,0.5)",
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <X size={16} strokeWidth={2.5} color="#4B5563" />
+                  </button>
+                  <div style={{ textAlign: "center", marginBottom: 28 }}>
+                    <div style={{ position: "relative", display: "inline-block" }}>
+                      <div
+                        style={{
+                          width: 80,
+                          height: 80,
+                          borderRadius: "50%",
+                          background: "linear-gradient(to bottom right, #FEF3C7, #FDE68A, #FCD34D)",
+                          margin: "0 auto 20px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          border: "1px solid rgba(245,158,11,0.3)",
+                          boxShadow: "0 10px 25px rgba(245,158,11,0.3)",
+                        }}
+                      >
+                        <Sparkles size={40} strokeWidth={2} color="#F59E0B" fill="#FCD34D" />
+                      </div>
+                    </div>
+                    <h3 style={{ fontSize: "1.5rem", fontWeight: 600, color: "#1F2937", margin: 0 }}>
+                      {achievedStreak === 7 ? t("streak_popup_title_7") : achievedStreak === 30 ? t("streak_popup_title_30") : t("streak_popup_title_100")}
+                    </h3>
+                  </div>
+                  <div
+                    style={{
+                      background: "rgba(255,255,255,0.5)",
+                      backdropFilter: "blur(40px)",
+                      borderRadius: 24,
+                      padding: 24,
+                      marginBottom: 28,
+                      border: "1px solid rgba(255,255,255,0.6)",
+                      boxShadow: "0 4px 16px rgba(0,0,0,0.06), inset 0 1px 2px rgba(255,255,255,0.7)",
+                    }}
+                  >
+                    <div style={{ textAlign: "center" }}>
+                      <p style={{ fontSize: 14, color: COLORS.TEXT_SECONDARY, marginBottom: 12, fontWeight: 500 }}>
+                        {t("streak_popup_earned")}
+                      </p>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 12 }}>
+                        <div
+                          style={{
+                            width: 48,
+                            height: 48,
+                            borderRadius: "50%",
+                            background: "linear-gradient(to bottom right, #FEF3C7, #FDE68A, #FCD34D)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            border: "1px solid rgba(245,158,11,0.3)",
+                            boxShadow: "0 4px 12px rgba(245,158,11,0.2)",
+                          }}
+                        >
+                          <Crown size={24} strokeWidth={2.5} color="#F59E0B" fill="#FCD34D" />
+                        </div>
+                      </div>
+                      <p style={{ fontSize: "1.125rem", fontWeight: 600, color: "#1F2937" }}>{t("streak_popup_joker_count")}</p>
+                      <p style={{ fontSize: 12, color: COLORS.TEXT_SECONDARY, marginTop: 4 }}>{t("streak_popup_joker_hint")}</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowStreakPopup(false)}
+                    style={{
+                      width: "100%",
+                      padding: "14px 32px",
+                      background: "rgba(139,92,246,0.9)",
+                      color: "#FFFFFF",
+                      borderRadius: 9999,
+                      border: "none",
+                      fontWeight: 600,
+                      fontSize: 14,
+                      letterSpacing: "0.02em",
+                      cursor: "pointer",
+                      boxShadow: "0 6px 24px rgba(139,92,246,0.3)",
+                    }}
+                  >
+                    {t("streak_popup_cta")}
+                  </button>
+                </motion.div>
+              </div>
+            )}
+          </AnimatePresence>,
+          modalContainerRef?.current ?? document.body
+        )}
+
+      {recapModal.open && recapModal.count !== null && recapModal.total !== null && typeof document !== "undefined" && createPortal(
+        <div role="dialog" aria-modal="true" style={{ ...MODAL.WRAPPER, pointerEvents: "auto" }}>
+          <AnimatePresence>
+            <>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: recapClosing ? 0 : 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                style={MODAL.BACKDROP}
+                onClick={() => handleRecapClose()}
+                aria-hidden
+              />
+              <MondayRecapModal
+                count={recapModal.count}
+                total={recapModal.total}
+                onClose={() => handleRecapClose()}
+                onAnswerMissedDay={() => handleRecapClose(true)}
+                isClosing={recapClosing}
+              />
+            </>
+          </AnimatePresence>
+        </div>,
+        modalContainerRef?.current ?? document.body
       )}
 
       {showJokerModal && (() => {
@@ -1166,43 +1482,6 @@ export default function Page() {
     <LanguageProvider>
       <Home />
     </LanguageProvider>
-  );
-}
-
-function TabButton({
-  active,
-  onClick,
-  label,
-  icon,
-}: {
-  active: boolean;
-  onClick: () => void;
-  label: string;
-  icon: React.ReactNode;
-}) {
-  const color = active ? COLORS.ACCENT : COLORS.TEXT_SECONDARY;
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={label}
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: 4,
-        border: "none",
-        padding: "4px 8px",
-        cursor: "pointer",
-        transition: "150ms ease",
-        background: "transparent",
-        color,
-        opacity: active ? 1 : 0.6,
-      }}
-    >
-      <span style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>{icon}</span>
-      <span style={{ fontSize: 12, fontWeight: active ? 600 : 500 }}>{label}</span>
-    </button>
   );
 }
 
@@ -1540,96 +1819,99 @@ function MondayRecapModal({
   const isPerfect = total > 0 && count === total;
   return (
     <motion.div
+      data-debug="recap-card"
       initial={{ opacity: 0, scale: 0.9, y: 20 }}
       animate={{ opacity: isClosing ? 0 : 1, scale: isClosing ? 0.9 : 1, y: isClosing ? 20 : 0 }}
-      transition={{ type: "spring", bounce: 0.3, duration: 0.4 }}
+      exit={{ opacity: 0, scale: 0.9, y: 20 }}
+      transition={{ type: "spring", bounce: 0.3, duration: 0.5 }}
       style={{
-        ...MODAL.CARD,
-        textAlign: "center",
-        maxWidth: "22rem",
-        padding: "1.5rem 1.25rem",
+        position: "relative",
+        zIndex: 1,
+        width: "90%",
+        maxWidth: "24rem",
+        padding: "2rem",
+        boxShadow: "0 8px 32px rgba(0, 0, 0, 0.12), inset 0 1px 2px rgba(255, 255, 255, 0.7)",
       }}
+      className="bg-[#FFFEF9]/75 backdrop-blur-xl rounded-[32px] border border-white/60"
       onClick={(e) => e.stopPropagation()}
     >
-      <button type="button" aria-label={t("common_close")} onClick={onClose} style={MODAL.CLOSE_BUTTON}>
-        <X size={16} strokeWidth={2.5} />
-      </button>
-      <p
-        style={{
-          fontSize: "0.9375rem",
-          color: COLORS.TEXT_PRIMARY,
-          marginTop: "2rem",
-          marginBottom: "1.25rem",
-          paddingLeft: "0.5rem",
-          paddingRight: "0.5rem",
-          lineHeight: 1.5,
-        }}
+      <button
+        type="button"
+        aria-label={t("common_close")}
+        onClick={onClose}
+        style={MODAL.CLOSE_BUTTON}
+        className="rounded-full bg-white/60 backdrop-blur-xl hover:bg-white/80 border-white/50 z-10 flex items-center justify-center"
       >
-        {t("recap_body", { count: String(count), total: String(total) })}
-      </p>
-      {isPerfect && (
-        <p style={{ fontSize: "1.25rem", fontWeight: 600, color: COLORS.ACCENT, marginBottom: "1rem" }}>🎉</p>
-      )}
-      <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", alignItems: "center" }}>
-        {isPerfect ? (
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              height: 44,
-              padding: "0 1.5rem",
-              borderRadius: 9999,
-              border: "none",
-              background: `linear-gradient(to right, ${COLORS.ACCENT_LIGHT}, ${COLORS.ACCENT})`,
-              color: "#FFFFFF",
-              fontSize: 14,
-              fontWeight: 600,
-              letterSpacing: "0.2px",
-              cursor: "pointer",
-              boxShadow: "0 4px 12px rgba(139,92,246,0.3)",
-            }}
-          >
-            {t("recap_mooi")}
-          </button>
-        ) : (
-          <>
-            <button
-              type="button"
-              onClick={onAnswerMissedDay}
-              style={{
-                minHeight: 44,
-                padding: "0.75rem 1.5rem",
-                borderRadius: 9999,
-                border: JOKER.BORDER,
-                background: JOKER.GRADIENT,
-                color: JOKER.TEXT,
-                fontSize: 14,
-                fontWeight: 600,
-                letterSpacing: "0.2px",
-                cursor: "pointer",
-                boxShadow: JOKER.SHADOW,
-                whiteSpace: "normal",
-                lineHeight: 1.3,
-              }}
+        <X size={16} strokeWidth={2.5} color="#4B5563" />
+      </button>
+
+      <div>
+        {/* Header */}
+        <div className="text-center" style={{ marginBottom: "1.5rem" }}>
+          <div className="relative inline-block">
+            <div
+              className="w-20 h-20 rounded-full bg-gradient-to-br from-[#E0E7FF] via-[#C7D2FE] to-[#A5B4FC] mx-auto flex items-center justify-center border border-[#7C3AED]/30 shadow-lg shadow-purple-400/30"
+              style={{ animation: "pulse-soft 2s ease-in-out infinite", marginBottom: "1.25rem" }}
             >
-              {t("recap_answer_missed")}
-            </button>
+              <CalendarIcon className="w-10 h-10 text-[#7C3AED]" strokeWidth={2.5} />
+            </div>
+            {isPerfect ? (
+              <>
+                <div className="absolute -top-2 -right-2 text-2xl animate-bounce" style={{ animationDelay: "0ms" }}>🎉</div>
+                <div className="absolute -top-3 -left-3 text-xl animate-bounce" style={{ animationDelay: "200ms" }}>⭐</div>
+                <div className="absolute -bottom-1 -right-1 text-lg animate-bounce" style={{ animationDelay: "400ms" }}>✨</div>
+              </>
+            ) : (
+              <>
+                <div className="absolute -top-2 -right-2 text-2xl animate-bounce" style={{ animationDelay: "0ms" }}>📅</div>
+                <div className="absolute -bottom-1 -left-1 text-lg animate-bounce" style={{ animationDelay: "200ms" }}>💪</div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Stats Card */}
+        <div
+          className="bg-white/50 backdrop-blur-xl rounded-[24px] border border-white/60"
+          style={{
+            padding: "1.5rem",
+            marginBottom: "1.5rem",
+            boxShadow: "0 4px 16px rgba(0, 0, 0, 0.06), inset 0 1px 2px rgba(255, 255, 255, 0.7)",
+          }}
+        >
+          <div className="text-center">
+            <p className="text-sm text-gray-500 font-medium" style={{ marginBottom: "1rem" }}>{t("recap_stats_intro")}</p>
+            <div className="flex items-center justify-center gap-2.5" style={{ marginBottom: "0.25rem" }}>
+              <span className="text-5xl font-bold text-[#7C3AED]">{count}</span>
+              <span className="text-xl text-gray-400 font-normal">{t("recap_out_of")}</span>
+              <span className="text-5xl font-bold text-gray-400">{total}</span>
+            </div>
+            <p className="text-sm text-gray-500 font-medium">{t("recap_days")}</p>
+          </div>
+        </div>
+
+        {/* Action Button */}
+        <div>
+          {isPerfect ? (
             <button
               type="button"
               onClick={onClose}
-              style={{
-                padding: "0.5rem",
-                fontSize: 14,
-                border: "none",
-                background: "transparent",
-                color: COLORS.TEXT_SECONDARY,
-                cursor: "pointer",
-              }}
+              className="w-full bg-[#7C3AED]/90 backdrop-blur-xl text-white rounded-full hover:bg-[#7C3AED] transition-all font-semibold text-sm tracking-wide"
+              style={{ padding: "14px 32px", boxShadow: "0 6px 24px rgba(124, 58, 237, 0.3)" }}
             >
-              {t("common_close")}
+              {t("recap_perfect_cta")}
             </button>
-          </>
-        )}
+          ) : (
+            <button
+              type="button"
+              onClick={onAnswerMissedDay}
+              className="w-full bg-[#7C3AED]/90 backdrop-blur-xl text-white rounded-full hover:bg-[#7C3AED] transition-all font-semibold text-sm tracking-wide"
+              style={{ padding: "14px 32px", boxShadow: "0 6px 24px rgba(124, 58, 237, 0.3)" }}
+            >
+              {t("recap_joker_cta")}
+            </button>
+          )}
+        </div>
       </div>
     </motion.div>
   );
@@ -1642,18 +1924,26 @@ function TodayView({
   onAfterAnswerSaved,
   initialQuestionDayKey,
   initialQuestion,
+  dateLabel,
   onClearInitialDay,
   onShowRecapTest,
   modalContainerRef,
+  currentStreak,
+  onJokerEarned,
+  onRefetchProfile,
 }: {
   user: any;
   onCalendarUpdate: ((dayKey: string, questionText: string, answerText: string) => void) | null;
   onAfterAnswerSaved?: (dayKey: string) => void | Promise<void>;
   initialQuestionDayKey?: string | null;
   initialQuestion?: Question | null;
+  dateLabel?: string;
   onClearInitialDay?: () => void;
   onShowRecapTest?: () => void;
   modalContainerRef?: React.RefObject<HTMLDivElement | null>;
+  currentStreak?: number;
+  onJokerEarned?: (milestone: 7 | 30 | 100) => void;
+  onRefetchProfile?: () => Promise<number>;
 }) {
   const { t, lang } = useLanguage();
   const [loading, setLoading] = useState(initialQuestion === undefined);
@@ -1989,6 +2279,9 @@ function TodayView({
         }
       } else {
         const supabase = createSupabaseBrowserClient();
+        // 1. Fetch profile BEFORE insert (get joker_balance)
+        const balanceBefore = await getJokerBalance(supabase, effectiveUser.id);
+        // 2. Insert answer and await it
         try {
           await saveAnswer({
             supabase,
@@ -2010,6 +2303,16 @@ function TodayView({
           } else {
             throw dbError;
           }
+        }
+        // 3. Immediately refetch profile AFTER insert; 4. Update local joker state from the new profile (via onRefetchProfile)
+        const balanceAfter = onRefetchProfile
+          ? await onRefetchProfile()
+          : await getJokerBalance(supabase, effectiveUser.id);
+        // 5. Only show popup if new joker_balance > old joker_balance (6. ensures popup is not triggered again on app reload)
+        if (balanceAfter > balanceBefore && typeof currentStreak === "number" && currentStreak >= 7 && onJokerEarned) {
+          const milestone: 7 | 30 | 100 =
+            currentStreak >= 100 ? 100 : currentStreak >= 30 ? 30 : 7;
+          onJokerEarned(milestone);
         }
         if (editingExisting) {
           setShowEditConfirmation(true);
@@ -3262,7 +3565,7 @@ function CalendarView({
       <div
         style={{
           borderRadius: 24,
-          background: "rgba(255,254,249,0.75)",
+          background: "rgba(255,254,249,0.62)",
           backdropFilter: GLASS.BLUR,
           WebkitBackdropFilter: GLASS.BLUR,
           border: "1px solid rgba(255,255,255,0.5)",
@@ -3305,7 +3608,6 @@ function CalendarView({
             const hasAnswer = answersMap.has(dayKey);
             const isToday = dayKey === todayKey;
             const isFuture = dayKey > todayKey;
-            const isTooOld = !canAnswerDate(dayDate);
             const beforeStart = isBeforeAccountStart(dayDate, user);
             const isMissed = isMissedDay(dayDate, user, hasAnswer);
             const tappable = !beforeStart && (hasAnswer || isMissed);
@@ -3320,7 +3622,6 @@ function CalendarView({
                     hasAnswer,
                     isToday,
                     isFuture,
-                    isTooOld,
                     isBeforeAccountStart: beforeStart,
                   }),
                   cursor: tappable ? "pointer" : "default",
@@ -3514,7 +3815,7 @@ function CalendarView({
               <button type="button" aria-label={t("common_close")} onClick={handleCloseMissedModal} style={MODAL.CLOSE_BUTTON}>
                 <X size={16} strokeWidth={2.5} />
               </button>
-              <div style={{ display: "flex", flexDirection: "column", gap: "1rem", marginBottom: "1.25rem", marginTop: 0 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "1rem", marginBottom: "1.25rem", marginTop: "2.25rem" }}>
                 {(t("missed_use_joker_message").split(/\n\n+/).filter(Boolean).map((paragraph, i) => (
                   <p key={i} style={{ fontSize: "1.125rem", lineHeight: 1.5, margin: 0, color: COLORS.TEXT_PRIMARY, fontWeight: 500 }}>
                     {paragraph}
@@ -3570,8 +3871,10 @@ function CalendarView({
               <button type="button" aria-label={t("common_close")} onClick={handleCloseMissedModal} style={MODAL.CLOSE_BUTTON}>
                 <X size={16} strokeWidth={2.5} />
               </button>
-              <h3 style={{ fontSize: "1.25rem", marginBottom: "0.75rem", color: COLORS.TEXT_PRIMARY }}>{t("missed_title")}</h3>
-              <p style={{ fontSize: 16, lineHeight: 1.45, marginBottom: "1.5rem", color: COLORS.TEXT_SECONDARY }}>{t("missed_no_jokers_body")}</p>
+              <div style={{ marginTop: "2.25rem" }}>
+                <h3 style={{ fontSize: "1.25rem", marginBottom: "0.75rem", color: COLORS.TEXT_PRIMARY }}>{t("missed_title")}</h3>
+                <p style={{ fontSize: 16, lineHeight: 1.45, marginBottom: "1.5rem", color: COLORS.TEXT_SECONDARY }}>{t("missed_no_jokers_body")}</p>
+              </div>
               <button type="button" onClick={handleCloseMissedModal} style={{ height: 54, padding: "0 1.5rem", borderRadius: 9999, border: "none", background: `linear-gradient(to right, ${COLORS.ACCENT_LIGHT}, ${COLORS.ACCENT})`, color: "#FFFFFF", fontSize: 16, fontWeight: 600, letterSpacing: "0.2px", cursor: "pointer", boxShadow: "0 4px 12px rgba(139,92,246,0.3)" }}>{t("common_ok")}</button>
             </motion.div>
           </div>,
@@ -3587,8 +3890,10 @@ function CalendarView({
               <button type="button" aria-label={t("common_close")} onClick={handleCloseMissedModal} style={MODAL.CLOSE_BUTTON}>
                 <X size={16} strokeWidth={2.5} />
               </button>
-              <h3 style={{ fontSize: "1.25rem", marginBottom: "0.75rem", color: COLORS.TEXT_PRIMARY }}>{t("closed_title")}</h3>
-              <p style={{ fontSize: 16, lineHeight: 1.45, marginBottom: "1.5rem", color: COLORS.TEXT_SECONDARY }}>{t("closed_body")}</p>
+              <div style={{ marginTop: "2.25rem" }}>
+                <h3 style={{ fontSize: "1.25rem", marginBottom: "0.75rem", color: COLORS.TEXT_PRIMARY }}>{t("closed_title")}</h3>
+                <p style={{ fontSize: 16, lineHeight: 1.45, marginBottom: "1.5rem", color: COLORS.TEXT_SECONDARY }}>{t("closed_body")}</p>
+              </div>
               <button type="button" onClick={handleCloseMissedModal} style={{ height: 54, padding: "0 1.5rem", borderRadius: 9999, border: "none", background: `linear-gradient(to right, ${COLORS.ACCENT_LIGHT}, ${COLORS.ACCENT})`, color: "#FFFFFF", fontSize: 16, fontWeight: 600, letterSpacing: "0.2px", cursor: "pointer", boxShadow: "0 4px 12px rgba(139,92,246,0.3)" }}>{t("common_ok")}</button>
             </motion.div>
           </div>,
@@ -3619,7 +3924,7 @@ function CalendarView({
 }
 
 // ============ SETTINGS VIEW ============
-function SettingsView({ user, onShowLoadingScreen, onShowOnboardingScreen }: { user: any; onShowLoadingScreen?: () => void; onShowOnboardingScreen?: () => void }) {
+function SettingsView({ user, onShowLoadingScreen, onShowOnboardingScreen, onPreviewStreakPopup }: { user: any; onShowLoadingScreen?: () => void; onShowOnboardingScreen?: () => void; onPreviewStreakPopup?: () => void }) {
   const { t, lang, setLang } = useLanguage();
   const [signingOut, setSigningOut] = useState(false);
   const [showLanguageModal, setShowLanguageModal] = useState(false);
@@ -3828,6 +4133,24 @@ function SettingsView({ user, onShowLoadingScreen, onShowOnboardingScreen }: { u
           Show onboarding screen
         </button>
       )}
+      {onPreviewStreakPopup && (
+        <button
+          type="button"
+          onClick={onPreviewStreakPopup}
+          style={{
+            marginTop: "0.5rem",
+            padding: "0.5rem 1rem",
+            fontSize: "0.8rem",
+            color: COLORS.TEXT_SECONDARY,
+            background: "transparent",
+            border: "1px dashed rgba(156,163,175,0.5)",
+            borderRadius: 999,
+            cursor: "pointer",
+          }}
+        >
+          Preview streak reward popup
+        </button>
+      )}
 
     </div>
   );
@@ -3922,6 +4245,19 @@ async function fetchPreviousWeekAnswerCount(userId: string): Promise<number> {
     .lte("question_date", end);
   if (error) return 0;
   return (data ?? []).length;
+}
+
+async function getJokerBalance(
+  supabase: ReturnType<typeof createSupabaseBrowserClient>,
+  userId: string
+): Promise<number> {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("joker_balance")
+    .eq("id", userId)
+    .maybeSingle();
+  if (error || data == null) return 0;
+  return Number(data.joker_balance) || 0;
 }
 
 async function saveAnswer(params: {

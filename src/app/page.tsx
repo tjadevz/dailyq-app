@@ -88,7 +88,7 @@ const CALENDAR = {
 };
 
 const JOKER = {
-  GRADIENT: "linear-gradient(to bottom right, #FEF3C7, #FDE68A, #FCD34D)",
+  GRADIENT: "linear-gradient(to bottom right, #FDE68A, #FCD34D, #FBBF24)",
   BORDER: "1px solid rgba(245,158,11,0.3)",
   TEXT: "#92400E",
   SHADOW: "0 4px 12px rgba(245,158,11,0.2)",
@@ -876,7 +876,7 @@ function Home() {
               onMouseUp={(e) => { e.currentTarget.style.transform = "scale(1.05)"; }}
             >
               <span style={{ width: 16, height: 16, borderRadius: "50%", background: "rgba(255,255,255,0.9)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 1px 2px rgba(0,0,0,0.1)" }}>
-                <Crown size={10} color={COLORS.HEADER_Q} strokeWidth={2.5} fill="#FCD34D" />
+                <Crown size={10} color="#FBBF24" strokeWidth={2.5} fill="#FDE68A" />
               </span>
               <span style={{ fontSize: 14, fontWeight: 700, color: JOKER.TEXT }}>{profile?.joker_balance ?? 0}</span>
             </button>
@@ -1009,42 +1009,152 @@ function Home() {
       </main>
       </div>
 
-      {/* Tab bar */}
+      {/* Tab bar – iOS 26-style glass pill with sliding indicator */}
+      <div style={{ display: "flex", justifyContent: "center", padding: "0 16px 24px 0" }}>
       <nav
         style={{
           display: "flex",
           flexDirection: "row",
-          justifyContent: "space-around",
           alignItems: "center",
-          background: GLASS.NAV_BG,
-          backdropFilter: GLASS.BLUR,
-          WebkitBackdropFilter: GLASS.BLUR,
-          border: GLASS.NAV_BORDER,
-          borderRadius: 24,
-          boxShadow: GLASS.TAB_SHADOW,
-          padding: "12px 16px max(12px, env(safe-area-inset-bottom)) 16px",
-          margin: "0 16px 24px",
+          gap: 4,
+          position: "relative",
+          width: "fit-content",
+          margin: 0,
+          padding: "8px 8px max(8px, env(safe-area-inset-bottom)) 8px",
+          background: "rgba(255,255,255,0.5)",
+          backdropFilter: "blur(100px)",
+          WebkitBackdropFilter: "blur(100px)",
+          borderRadius: 9999,
+          border: "1px solid rgba(255,255,255,0.8)",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.12), inset 0 1px 2px rgba(255,255,255,0.9)",
         }}
       >
-        <TabButton
-          active={activeTab === "today"}
+        <motion.div
+          initial={false}
+          animate={{
+            left: activeTab === "today" ? "8px" : activeTab === "calendar" ? "calc(33.33% + 1px)" : "calc(66.66% - 6px)",
+            width: "calc(33.33% - 4px)",
+          }}
+          transition={{ type: "spring", stiffness: 400, damping: 35 }}
+          style={{
+            position: "absolute",
+            top: 8,
+            bottom: 8,
+            borderRadius: 9999,
+            background: "rgba(255,255,255,0.6)",
+            backdropFilter: "blur(16px)",
+            WebkitBackdropFilter: "blur(16px)",
+            border: "1px solid rgba(255,255,255,0.9)",
+            boxShadow: "0 4px 16px rgba(124,58,237,0.15), inset 0 1px 2px rgba(255,255,255,0.9)",
+          }}
+        />
+        <button
+          type="button"
           onClick={() => setActiveTab("today")}
-          label={t("tabs_today")}
-          icon={<CircleHelp size={24} strokeWidth={1.5} />}
-        />
-        <TabButton
-          active={activeTab === "calendar"}
+          aria-label={t("tabs_today")}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 4,
+            width: "33.33%",
+            padding: "10px 28px",
+            borderRadius: 9999,
+            position: "relative",
+            zIndex: 10,
+            border: "none",
+            cursor: "pointer",
+            background: "transparent",
+          }}
+        >
+          <CircleHelp
+            size={28}
+            strokeWidth={2}
+            color={activeTab === "today" ? "#7C3AED" : "#4B5563"}
+          />
+          <span
+            style={{
+              fontSize: 10,
+              fontWeight: 600,
+              color: activeTab === "today" ? "#7C3AED" : "#4B5563",
+            }}
+          >
+            {t("tabs_today")}
+          </span>
+        </button>
+        <button
+          type="button"
           onClick={() => setActiveTab("calendar")}
-          label={t("tabs_calendar")}
-          icon={<CalendarIcon size={24} strokeWidth={1.5} />}
-        />
-        <TabButton
-          active={activeTab === "settings"}
+          aria-label={t("tabs_calendar")}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 4,
+            width: "33.33%",
+            padding: "10px 28px",
+            borderRadius: 9999,
+            position: "relative",
+            zIndex: 10,
+            border: "none",
+            cursor: "pointer",
+            background: "transparent",
+          }}
+        >
+          <CalendarIcon
+            size={28}
+            strokeWidth={2}
+            color={activeTab === "calendar" ? "#7C3AED" : "#4B5563"}
+          />
+          <span
+            style={{
+              fontSize: 10,
+              fontWeight: 600,
+              color: activeTab === "calendar" ? "#7C3AED" : "#4B5563",
+            }}
+          >
+            {t("tabs_calendar")}
+          </span>
+        </button>
+        <button
+          type="button"
           onClick={() => setActiveTab("settings")}
-          label={t("tabs_settings")}
-          icon={<SettingsIcon size={24} strokeWidth={1.5} />}
-        />
+          aria-label={t("tabs_settings")}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 4,
+            width: "33.33%",
+            padding: "10px 28px",
+            borderRadius: 9999,
+            position: "relative",
+            zIndex: 10,
+            border: "none",
+            cursor: "pointer",
+            background: "transparent",
+          }}
+        >
+          <SettingsIcon
+            size={28}
+            strokeWidth={2}
+            color={activeTab === "settings" ? "#7C3AED" : "#4B5563"}
+          />
+          <span
+            style={{
+              fontSize: 10,
+              fontWeight: 600,
+              color: activeTab === "settings" ? "#7C3AED" : "#4B5563",
+            }}
+          >
+            {t("tabs_settings")}
+          </span>
+        </button>
       </nav>
+      </div>
 
       {recapModal.open && recapModal.count !== null && recapModal.total !== null && (
         <div role="dialog" aria-modal="true" style={MODAL.WRAPPER}>
@@ -1165,43 +1275,6 @@ export default function Page() {
     <LanguageProvider>
       <Home />
     </LanguageProvider>
-  );
-}
-
-function TabButton({
-  active,
-  onClick,
-  label,
-  icon,
-}: {
-  active: boolean;
-  onClick: () => void;
-  label: string;
-  icon: React.ReactNode;
-}) {
-  const color = active ? COLORS.ACCENT : COLORS.TEXT_SECONDARY;
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={label}
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: 4,
-        border: "none",
-        padding: "4px 8px",
-        cursor: "pointer",
-        transition: "150ms ease",
-        background: "transparent",
-        color,
-        opacity: active ? 1 : 0.6,
-      }}
-    >
-      <span style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>{icon}</span>
-      <span style={{ fontSize: 12, fontWeight: active ? 600 : 500 }}>{label}</span>
-    </button>
   );
 }
 
@@ -3261,7 +3334,7 @@ function CalendarView({
       <div
         style={{
           borderRadius: 24,
-          background: "rgba(255,254,249,0.75)",
+          background: "rgba(255,254,249,0.62)",
           backdropFilter: GLASS.BLUR,
           WebkitBackdropFilter: GLASS.BLUR,
           border: "1px solid rgba(255,255,255,0.5)",
@@ -3511,7 +3584,7 @@ function CalendarView({
               <button type="button" aria-label={t("common_close")} onClick={handleCloseMissedModal} style={MODAL.CLOSE_BUTTON}>
                 <X size={16} strokeWidth={2.5} />
               </button>
-              <div style={{ display: "flex", flexDirection: "column", gap: "1rem", marginBottom: "1.25rem", marginTop: 0 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "1rem", marginBottom: "1.25rem", marginTop: "2.25rem" }}>
                 {(t("missed_use_joker_message").split(/\n\n+/).filter(Boolean).map((paragraph, i) => (
                   <p key={i} style={{ fontSize: "1.125rem", lineHeight: 1.5, margin: 0, color: COLORS.TEXT_PRIMARY, fontWeight: 500 }}>
                     {paragraph}
@@ -3567,8 +3640,10 @@ function CalendarView({
               <button type="button" aria-label={t("common_close")} onClick={handleCloseMissedModal} style={MODAL.CLOSE_BUTTON}>
                 <X size={16} strokeWidth={2.5} />
               </button>
-              <h3 style={{ fontSize: "1.25rem", marginBottom: "0.75rem", color: COLORS.TEXT_PRIMARY }}>{t("missed_title")}</h3>
-              <p style={{ fontSize: 16, lineHeight: 1.45, marginBottom: "1.5rem", color: COLORS.TEXT_SECONDARY }}>{t("missed_no_jokers_body")}</p>
+              <div style={{ marginTop: "2.25rem" }}>
+                <h3 style={{ fontSize: "1.25rem", marginBottom: "0.75rem", color: COLORS.TEXT_PRIMARY }}>{t("missed_title")}</h3>
+                <p style={{ fontSize: 16, lineHeight: 1.45, marginBottom: "1.5rem", color: COLORS.TEXT_SECONDARY }}>{t("missed_no_jokers_body")}</p>
+              </div>
               <button type="button" onClick={handleCloseMissedModal} style={{ height: 54, padding: "0 1.5rem", borderRadius: 9999, border: "none", background: `linear-gradient(to right, ${COLORS.ACCENT_LIGHT}, ${COLORS.ACCENT})`, color: "#FFFFFF", fontSize: 16, fontWeight: 600, letterSpacing: "0.2px", cursor: "pointer", boxShadow: "0 4px 12px rgba(139,92,246,0.3)" }}>{t("common_ok")}</button>
             </motion.div>
           </div>,
@@ -3584,8 +3659,10 @@ function CalendarView({
               <button type="button" aria-label={t("common_close")} onClick={handleCloseMissedModal} style={MODAL.CLOSE_BUTTON}>
                 <X size={16} strokeWidth={2.5} />
               </button>
-              <h3 style={{ fontSize: "1.25rem", marginBottom: "0.75rem", color: COLORS.TEXT_PRIMARY }}>{t("closed_title")}</h3>
-              <p style={{ fontSize: 16, lineHeight: 1.45, marginBottom: "1.5rem", color: COLORS.TEXT_SECONDARY }}>{t("closed_body")}</p>
+              <div style={{ marginTop: "2.25rem" }}>
+                <h3 style={{ fontSize: "1.25rem", marginBottom: "0.75rem", color: COLORS.TEXT_PRIMARY }}>{t("closed_title")}</h3>
+                <p style={{ fontSize: 16, lineHeight: 1.45, marginBottom: "1.5rem", color: COLORS.TEXT_SECONDARY }}>{t("closed_body")}</p>
+              </div>
               <button type="button" onClick={handleCloseMissedModal} style={{ height: 54, padding: "0 1.5rem", borderRadius: 9999, border: "none", background: `linear-gradient(to right, ${COLORS.ACCENT_LIGHT}, ${COLORS.ACCENT})`, color: "#FFFFFF", fontSize: 16, fontWeight: 600, letterSpacing: "0.2px", cursor: "pointer", boxShadow: "0 4px 12px rgba(139,92,246,0.3)" }}>{t("common_ok")}</button>
             </motion.div>
           </div>,

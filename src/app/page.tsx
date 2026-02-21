@@ -931,9 +931,9 @@ function Home() {
               src="/icons/logo.nobg.png"
               alt="DailyQ"
               style={{
-                height: 42,
+                height: 48,
                 width: "auto",
-                maxWidth: 180,
+                maxWidth: 207,
                 objectFit: "contain",
                 display: "block",
               }}
@@ -1020,14 +1020,6 @@ function Home() {
           setAnswersMap={setCalendarAnswersMap}
           user={effectiveUser}
           profile={profile}
-          onStreakMilestone={(streak) => {
-            const m = streak === 100 ? 100 : streak === 30 ? 30 : streak === 7 ? 7 : null;
-            if (m !== null && !streakPopupShownForRef.current[m]) {
-              streakPopupShownForRef.current[m] = true;
-              setAchievedStreak(m);
-              setShowStreakPopup(true);
-            }
-          }}
           onProfileRefetch={async () => {
             if (!effectiveUser?.id || effectiveUser.id === "dev-user") return;
             const supabase = createSupabaseBrowserClient();
@@ -1077,8 +1069,8 @@ function Home() {
       </main>
       </div>
 
-      {/* Tab bar – iOS 26-style glass pill with sliding indicator */}
-      <div style={{ display: "flex", justifyContent: "center", padding: "0 16px 24px 0" }}>
+      {/* Tab bar – same width as main content card (margin 16px 16px 8px) */}
+      <div style={{ display: "flex", justifyContent: "stretch", padding: "0 16px 24px", boxSizing: "border-box" }}>
       <nav
         style={{
           display: "flex",
@@ -1086,8 +1078,9 @@ function Home() {
           alignItems: "center",
           gap: 3,
           position: "relative",
-          width: "fit-content",
+          width: "100%",
           margin: 0,
+          boxSizing: "border-box",
           padding: "7px 7px max(7px, env(safe-area-inset-bottom)) 7px",
           background: "rgba(255,255,255,0.5)",
           backdropFilter: "blur(100px)",
@@ -1100,8 +1093,8 @@ function Home() {
         <motion.div
           initial={false}
           animate={{
-            left: activeTab === "today" ? "7px" : activeTab === "calendar" ? "calc(33.33% + 1px)" : "calc(66.66% - 5px)",
-            width: "calc(33.33% - 3px)",
+            left: activeTab === "today" ? "12px" : activeTab === "calendar" ? "calc(33.33% + 6.5px)" : "calc(66.66% + 0.5px)",
+            width: "calc(33.33% - 14px)",
           }}
           transition={{ type: "spring", stiffness: 400, damping: 35 }}
           style={{
@@ -3150,7 +3143,6 @@ function CalendarView({
   profile,
   onProfileRefetch,
   onAnswerMissedDay,
-  onStreakMilestone,
   modalContainerRef,
 }: {
   answersMap: Map<string, { questionText: string; answerText: string }>;
@@ -3159,13 +3151,11 @@ function CalendarView({
   profile: { id: string; joker_balance: number; last_joker_grant_month: string | null } | null;
   onProfileRefetch: () => Promise<void>;
   onAnswerMissedDay?: (dayKey: string) => void;
-  onStreakMilestone?: (streak: number) => void;
   modalContainerRef?: React.RefObject<HTMLDivElement | null>;
 }) {
   const { t, lang } = useLanguage();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const lastReportedStreakRef = useRef(0);
   const [displayYear, setDisplayYear] = useState(() => getNow().getFullYear());
   const [displayMonth, setDisplayMonth] = useState(() => getNow().getMonth());
   const [selectedDay, setSelectedDay] = useState<{
@@ -3280,24 +3270,6 @@ function CalendarView({
 
     void fetchAnswers();
   }, [user, displayYear, displayMonth]);
-
-  useEffect(() => {
-    if (!user || !onStreakMilestone || answersMap.size === 0) return;
-    let streak = 0;
-    const today = getNow();
-    for (let offset = 0; offset < 365; offset++) {
-      const d = new Date(today);
-      d.setDate(d.getDate() - offset);
-      const key = getLocalDayKey(d);
-      if (isBeforeAccountStart(d, user)) break;
-      if (!answersMap.has(key)) break;
-      streak++;
-    }
-    if ((streak === 7 || streak === 30 || streak === 100) && lastReportedStreakRef.current !== streak) {
-      lastReportedStreakRef.current = streak;
-      onStreakMilestone(streak);
-    }
-  }, [user, answersMap, onStreakMilestone]);
 
   if (!user) {
     return (

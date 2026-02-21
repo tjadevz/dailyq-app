@@ -95,11 +95,11 @@ const JOKER = {
   SHADOW: "0 4px 12px rgba(245,158,11,0.2)",
 };
 
-/** Calendar day cell when filled with a joker (gold, matches joker color scheme) */
+/** Calendar day cell when filled with a joker (faded gold, like other past-answered days) */
 const CALENDAR_JOKER = {
-  BACKGROUND: "#FBBF24",
-  BORDER: "1px solid rgba(251,191,36,0.65)",
-  SHADOW: "0 2px 10px rgba(251,191,36,0.3)",
+  BACKGROUND: "rgba(251,191,36,0.55)",
+  BORDER: "1px solid rgba(251,191,36,0.45)",
+  SHADOW: "0 1px 4px rgba(251,191,36,0.2)",
 };
 
 const MODAL_CLOSE_MS = 200;
@@ -3627,7 +3627,7 @@ function CalendarView({
             </span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontSize: "1rem", fontWeight: 600, color: COLORS.ACCENT }}>{visualStreak}</span>
+            <span style={{ fontSize: "1rem", fontWeight: 600, color: COLORS.ACCENT }}>{realStreak}</span>
             <span style={{ fontSize: 13, color: COLORS.TEXT_SECONDARY }}>{lang === "nl" ? "dagen streak" : "day streak"}</span>
           </div>
         </div>

@@ -84,7 +84,7 @@ const CALENDAR = {
   BEFORE_START_BG: "rgba(255,255,255,0.22)",
   BEFORE_START_BORDER: "1px solid rgba(229,231,235,0.35)",
   BEFORE_START_COLOR: "rgba(156,163,175,0.78)",
-  BORDER_RADIUS: 8,
+  BORDER_RADIUS: "50%",
 };
 
 const JOKER = {
@@ -223,13 +223,11 @@ function getCalendarStyle({
   hasAnswer,
   isToday,
   isFuture,
-  isTooOld,
   isBeforeAccountStart,
 }: {
   hasAnswer: boolean;
   isToday: boolean;
   isFuture: boolean;
-  isTooOld: boolean;
   isBeforeAccountStart: boolean;
 }): React.CSSProperties {
   const style: React.CSSProperties = {
@@ -247,7 +245,8 @@ function getCalendarStyle({
     style.border = CALENDAR.FUTURE_BORDER;
     return style;
   }
-  if (isTooOld || isBeforeAccountStart) {
+  /* Only dim days before account existed; days >7 days ago use same look as recent days */
+  if (isBeforeAccountStart) {
     style.color = CALENDAR.BEFORE_START_COLOR;
     style.background = CALENDAR.BEFORE_START_BG;
     style.border = CALENDAR.BEFORE_START_BORDER;
@@ -3305,7 +3304,6 @@ function CalendarView({
             const hasAnswer = answersMap.has(dayKey);
             const isToday = dayKey === todayKey;
             const isFuture = dayKey > todayKey;
-            const isTooOld = !canAnswerDate(dayDate);
             const beforeStart = isBeforeAccountStart(dayDate, user);
             const isMissed = isMissedDay(dayDate, user, hasAnswer);
             const tappable = !beforeStart && (hasAnswer || isMissed);
@@ -3320,7 +3318,6 @@ function CalendarView({
                     hasAnswer,
                     isToday,
                     isFuture,
-                    isTooOld,
                     isBeforeAccountStart: beforeStart,
                   }),
                   cursor: tappable ? "pointer" : "default",

@@ -329,6 +329,25 @@ function Home() {
   const [achievedStreak, setAchievedStreak] = useState<7 | 30 | 100 | null>(null);
   const streakPopupShownForRef = useRef<{ 7: boolean; 30: boolean; 100: boolean }>({ 7: false, 30: false, 100: false });
 
+  // #region agent log
+  useEffect(() => {
+    if (!showStreakPopup && !(recapModal.open && recapModal.count !== null)) return;
+    const t = setTimeout(() => {
+      const portalTarget = modalContainerRef?.current ?? document.body;
+      const isBody = portalTarget === document.body;
+      const portalRect = portalTarget.getBoundingClientRect();
+      const portalStyle = portalTarget instanceof Element ? getComputedStyle(portalTarget) : null;
+      const streakCard = portalTarget.querySelector('[data-debug="streak-card"]');
+      const recapCard = portalTarget.querySelector('[data-debug="recap-card"]');
+      const cardEl = (showStreakPopup ? streakCard : recapCard) || streakCard || recapCard;
+      const cardRect = cardEl ? cardEl.getBoundingClientRect() : null;
+      const cardCS = cardEl ? getComputedStyle(cardEl) : null;
+      fetch('http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f03475'},body:JSON.stringify({sessionId:'f03475',location:'page.tsx:popup-position-debug',message:'Popup open position check',data:{which:showStreakPopup?'streak':'recap',portalIsBody:isBody,portalRect:{w:portalRect.width,h:portalRect.height,top:portalRect.top,left:portalRect.left},portalTransform:portalStyle?.transform||'N/A',cardRect:cardRect?{w:cardRect.width,h:cardRect.height,top:cardRect.top,left:cardRect.left}:null,cardPosition:cardCS?.position||'N/A',cardTransform:cardCS?.transform||'N/A',cardLeft:cardCS?.left||'N/A',viewportW:typeof window!=='undefined'?window.innerWidth:0,viewportH:typeof window!=='undefined'?window.innerHeight:0},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+    }, 100);
+    return () => clearTimeout(t);
+  }, [showStreakPopup, recapModal.open, recapModal.count]);
+  // #endregion
+
   const closeJokerModal = () => {
     if (jokerModalClosingRef.current) return;
     jokerModalClosingRef.current = true;
@@ -1191,38 +1210,28 @@ function Home() {
       </nav>
       </div>
 
-      {/* Streak achievement popup */}
+      {/* Streak achievement popup – same layout as calendar day modal (WRAPPER flex-centers card) */}
       {typeof document !== "undefined" &&
         createPortal(
           <AnimatePresence>
             {showStreakPopup && achievedStreak !== null && (
-              <>
+              <div role="dialog" aria-modal="true" style={{ ...MODAL.WRAPPER, pointerEvents: "auto" }} onClick={() => setShowStreakPopup(false)}>
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  style={{
-                    position: "fixed",
-                    inset: 0,
-                    background: "rgba(0,0,0,0.4)",
-                    backdropFilter: "blur(4px)",
-                    WebkitBackdropFilter: "blur(4px)",
-                    zIndex: 30,
-                    pointerEvents: "auto",
-                  }}
-                  onClick={() => setShowStreakPopup(false)}
+                  style={MODAL.BACKDROP}
                   aria-hidden
                 />
                 <motion.div
+                  data-debug="streak-card"
                   initial={{ opacity: 0, scale: 0.9, y: 20 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.9, y: 20 }}
                   transition={{ type: "spring", duration: 0.5, bounce: 0.3 }}
                   style={{
-                    position: "fixed",
-                    left: "50%",
-                    top: "50%",
-                    transform: "translate(-50%, -50%)",
+                    position: "relative",
+                    zIndex: 1,
                     width: "85%",
                     maxWidth: 360,
                     background: "rgba(255,254,249,0.75)",
@@ -1230,10 +1239,8 @@ function Home() {
                     WebkitBackdropFilter: "blur(40px)",
                     borderRadius: 32,
                     padding: 32,
-                    zIndex: 40,
                     border: "1px solid rgba(255,255,255,0.6)",
                     boxShadow: "0 8px 32px rgba(0,0,0,0.12), inset 0 1px 2px rgba(255,255,255,0.7)",
-                    pointerEvents: "auto",
                   }}
                   onClick={(e) => e.stopPropagation()}
                 >
@@ -1279,12 +1286,9 @@ function Home() {
                         <Sparkles size={40} strokeWidth={2} color="#F59E0B" fill="#FCD34D" />
                       </div>
                     </div>
-                    <h3 style={{ fontSize: "1.5rem", fontWeight: 600, color: "#1F2937", margin: "0 0 8px" }}>
+                    <h3 style={{ fontSize: "1.5rem", fontWeight: 600, color: "#1F2937", margin: 0 }}>
                       {achievedStreak === 7 ? t("streak_popup_title_7") : achievedStreak === 30 ? t("streak_popup_title_30") : t("streak_popup_title_100")}
                     </h3>
-                    <p style={{ fontSize: 14, color: COLORS.TEXT_SECONDARY, margin: "0 0 4px" }}>
-                      {achievedStreak === 7 ? t("streak_popup_subtitle_7") : achievedStreak === 30 ? t("streak_popup_subtitle_30") : t("streak_popup_subtitle_100")}
-                    </p>
                   </div>
                   <div
                     style={{
@@ -1342,7 +1346,7 @@ function Home() {
                     {t("streak_popup_cta")}
                   </button>
                 </motion.div>
-              </>
+              </div>
             )}
           </AnimatePresence>,
           modalContainerRef?.current ?? document.body
@@ -1357,15 +1361,7 @@ function Home() {
                 animate={{ opacity: recapClosing ? 0 : 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.2 }}
-                style={{
-                  position: "fixed",
-                  inset: 0,
-                  background: "rgba(0,0,0,0.4)",
-                  backdropFilter: "blur(4px)",
-                  WebkitBackdropFilter: "blur(4px)",
-                  zIndex: 30,
-                  borderRadius: 48,
-                }}
+                style={MODAL.BACKDROP}
                 onClick={() => handleRecapClose()}
                 aria-hidden
               />
@@ -1816,140 +1812,99 @@ function MondayRecapModal({
   const isPerfect = total > 0 && count === total;
   return (
     <motion.div
+      data-debug="recap-card"
       initial={{ opacity: 0, scale: 0.9, y: 20 }}
       animate={{ opacity: isClosing ? 0 : 1, scale: isClosing ? 0.9 : 1, y: isClosing ? 20 : 0 }}
       exit={{ opacity: 0, scale: 0.9, y: 20 }}
       transition={{ type: "spring", bounce: 0.3, duration: 0.5 }}
       style={{
-        position: "fixed",
-        left: "50%",
-        top: "50%",
-        transform: "translate(-50%, -50%)",
-        width: "85%",
-        maxWidth: 360,
-        background: "rgba(255,254,249,0.75)",
-        backdropFilter: "blur(40px)",
-        WebkitBackdropFilter: "blur(40px)",
-        borderRadius: 32,
-        padding: 32,
-        zIndex: 40,
-        border: "1px solid rgba(255,255,255,0.6)",
-        boxShadow: "0 8px 32px rgba(0,0,0,0.12), inset 0 1px 2px rgba(255,255,255,0.7)",
-        pointerEvents: "auto",
+        position: "relative",
+        zIndex: 1,
+        width: "90%",
+        maxWidth: "24rem",
+        padding: "2rem",
+        boxShadow: "0 8px 32px rgba(0, 0, 0, 0.12), inset 0 1px 2px rgba(255, 255, 255, 0.7)",
       }}
+      className="bg-[#FFFEF9]/75 backdrop-blur-xl rounded-[32px] border border-white/60"
       onClick={(e) => e.stopPropagation()}
     >
       <button
         type="button"
         aria-label={t("common_close")}
         onClick={onClose}
-        style={{
-          position: "absolute",
-          top: 16,
-          right: 16,
-          width: 32,
-          height: 32,
-          borderRadius: "50%",
-          background: "rgba(255,255,255,0.6)",
-          backdropFilter: "blur(40px)",
-          border: "1px solid rgba(255,255,255,0.5)",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          cursor: "pointer",
-        }}
+        style={MODAL.CLOSE_BUTTON}
+        className="rounded-full bg-white/60 backdrop-blur-xl hover:bg-white/80 border-white/50 z-10 flex items-center justify-center"
       >
         <X size={16} strokeWidth={2.5} color="#4B5563" />
       </button>
-      <div style={{ textAlign: "center", marginBottom: 28 }}>
+
+      <div>
+        {/* Header */}
+        <div className="text-center" style={{ marginBottom: "1.5rem" }}>
+          <div className="relative inline-block">
+            <div
+              className="w-20 h-20 rounded-full bg-gradient-to-br from-[#E0E7FF] via-[#C7D2FE] to-[#A5B4FC] mx-auto flex items-center justify-center border border-[#7C3AED]/30 shadow-lg shadow-purple-400/30"
+              style={{ animation: "pulse-soft 2s ease-in-out infinite", marginBottom: "1.25rem" }}
+            >
+              <CalendarIcon className="w-10 h-10 text-[#7C3AED]" strokeWidth={2.5} />
+            </div>
+            {isPerfect ? (
+              <>
+                <div className="absolute -top-2 -right-2 text-2xl animate-bounce" style={{ animationDelay: "0ms" }}>🎉</div>
+                <div className="absolute -top-3 -left-3 text-xl animate-bounce" style={{ animationDelay: "200ms" }}>⭐</div>
+                <div className="absolute -bottom-1 -right-1 text-lg animate-bounce" style={{ animationDelay: "400ms" }}>✨</div>
+              </>
+            ) : (
+              <>
+                <div className="absolute -top-2 -right-2 text-2xl animate-bounce" style={{ animationDelay: "0ms" }}>📅</div>
+                <div className="absolute -bottom-1 -left-1 text-lg animate-bounce" style={{ animationDelay: "200ms" }}>💪</div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Stats Card */}
         <div
+          className="bg-white/50 backdrop-blur-xl rounded-[24px] border border-white/60"
           style={{
-            width: 56,
-            height: 56,
-            borderRadius: "50%",
-            background: "rgba(255,255,255,0.6)",
-            backdropFilter: "blur(40px)",
-            margin: "0 auto 16px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            border: "1px solid rgba(255,255,255,0.5)",
-            boxShadow: "0 4px 16px rgba(139,92,246,0.12), inset 0 1px 2px rgba(255,255,255,0.6)",
+            padding: "1.5rem",
+            marginBottom: "1.5rem",
+            boxShadow: "0 4px 16px rgba(0, 0, 0, 0.06), inset 0 1px 2px rgba(255, 255, 255, 0.7)",
           }}
         >
-          <CalendarIcon size={28} strokeWidth={2} color={COLORS.ACCENT} />
-        </div>
-        <h3 style={{ fontSize: "1.5rem", fontWeight: 600, color: "#1F2937", margin: "0 0 6px" }}>
-          {t("recap_title")}
-        </h3>
-        <p style={{ fontSize: 14, color: COLORS.TEXT_SECONDARY }}>{t("recap_subtitle")}</p>
-      </div>
-      <div
-        style={{
-          background: "rgba(255,255,255,0.5)",
-          backdropFilter: "blur(40px)",
-          borderRadius: 24,
-          padding: 28,
-          marginBottom: 28,
-          border: "1px solid rgba(255,255,255,0.6)",
-          boxShadow: "0 4px 16px rgba(0,0,0,0.06), inset 0 1px 2px rgba(255,255,255,0.7)",
-        }}
-      >
-        <div style={{ textAlign: "center" }}>
-          <p style={{ fontSize: 14, color: COLORS.TEXT_SECONDARY, marginBottom: 16, fontWeight: 500 }}>
-            {t("recap_stats_intro")}
-          </p>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginBottom: 4, flexWrap: "wrap" }}>
-            <span style={{ fontSize: "3rem", fontWeight: 700, color: COLORS.ACCENT }}>{count}</span>
-            <span style={{ fontSize: "1.25rem", color: "#9CA3AF", fontWeight: 400 }}>{t("recap_out_of")}</span>
-            <span style={{ fontSize: "3rem", fontWeight: 700, color: "#9CA3AF" }}>{total}</span>
+          <div className="text-center">
+            <p className="text-sm text-gray-500 font-medium" style={{ marginBottom: "1rem" }}>{t("recap_stats_intro")}</p>
+            <div className="flex items-center justify-center gap-2.5" style={{ marginBottom: "0.25rem" }}>
+              <span className="text-5xl font-bold text-[#7C3AED]">{count}</span>
+              <span className="text-xl text-gray-400 font-normal">{t("recap_out_of")}</span>
+              <span className="text-5xl font-bold text-gray-400">{total}</span>
+            </div>
+            <p className="text-sm text-gray-500 font-medium">{t("recap_days")}</p>
           </div>
-          <p style={{ fontSize: 14, color: COLORS.TEXT_SECONDARY, fontWeight: 500 }}>{t("recap_days")}</p>
         </div>
-      </div>
-      <div>
-        {isPerfect ? (
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              width: "100%",
-              padding: "14px 32px",
-              background: "rgba(139,92,246,0.9)",
-              color: "#FFFFFF",
-              borderRadius: 9999,
-              border: "none",
-              fontWeight: 600,
-              fontSize: 14,
-              letterSpacing: "0.02em",
-              cursor: "pointer",
-              boxShadow: "0 6px 24px rgba(139,92,246,0.3)",
-            }}
-          >
-            🎉 {t("recap_perfect_cta")}
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={onAnswerMissedDay}
-            style={{
-              width: "100%",
-              padding: "14px 32px",
-              background: "rgba(139,92,246,0.9)",
-              color: "#FFFFFF",
-              borderRadius: 9999,
-              border: "none",
-              fontWeight: 600,
-              fontSize: 14,
-              letterSpacing: "0.02em",
-              cursor: "pointer",
-              boxShadow: "0 6px 24px rgba(139,92,246,0.3)",
-            }}
-          >
-            {t("recap_joker_cta")}
-          </button>
-        )}
+
+        {/* Action Button */}
+        <div>
+          {isPerfect ? (
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-full bg-[#7C3AED]/90 backdrop-blur-xl text-white rounded-full hover:bg-[#7C3AED] transition-all font-semibold text-sm tracking-wide"
+              style={{ padding: "14px 32px", boxShadow: "0 6px 24px rgba(124, 58, 237, 0.3)" }}
+            >
+              {t("recap_perfect_cta")}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={onAnswerMissedDay}
+              className="w-full bg-[#7C3AED]/90 backdrop-blur-xl text-white rounded-full hover:bg-[#7C3AED] transition-all font-semibold text-sm tracking-wide"
+              style={{ padding: "14px 32px", boxShadow: "0 6px 24px rgba(124, 58, 237, 0.3)" }}
+            >
+              {t("recap_joker_cta")}
+            </button>
+          )}
+        </div>
       </div>
     </motion.div>
   );

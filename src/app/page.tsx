@@ -89,7 +89,7 @@ const CALENDAR = {
 };
 
 const JOKER = {
-  GRADIENT: "linear-gradient(to bottom right, #FDE68A, #FCD34D, #FBBF24)",
+  GRADIENT: "linear-gradient(to bottom right, #FDE68A, #FCD34D, #F59E0B)",
   BORDER: "1px solid rgba(245,158,11,0.3)",
   TEXT: "#92400E",
   SHADOW: "0 4px 12px rgba(245,158,11,0.2)",
@@ -849,7 +849,7 @@ function Home() {
                 alignItems: "center",
                 gap: 6,
                 padding: "6px 12px",
-                background: "linear-gradient(to bottom right, #FEF3C7, #FDE68A, #FCD34D)",
+                background: "linear-gradient(to bottom right, #FDE68A, #FCD34D, #FBBF24)",
                 border: JOKER.BORDER,
                 borderRadius: 9999,
                 boxShadow: JOKER.SHADOW,
@@ -872,7 +872,7 @@ function Home() {
               <span style={{ width: 16, height: 16, borderRadius: "50%", background: "rgba(255,255,255,0.9)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 1px 2px rgba(0,0,0,0.1)" }}>
                 <Crown size={10} color="#FBBF24" strokeWidth={2.5} fill="#FDE68A" />
               </span>
-              <span style={{ fontSize: 14, fontWeight: 700, color: JOKER.TEXT }}>{profile?.joker_balance ?? 0}</span>
+              <span style={{ fontSize: 14, fontWeight: 700, color: "#FFFFFF" }}>{profile?.joker_balance ?? 0}</span>
             </button>
           </div>
         )}
@@ -1385,7 +1385,7 @@ function Home() {
                 <X size={16} strokeWidth={2.5} />
               </button>
               <div style={{ width: 64, height: 64, borderRadius: "50%", background: JOKER.GRADIENT, margin: "0 auto 1.25rem", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 8px 24px rgba(245,158,11,0.3)" }}>
-                <Crown size={32} color={COLORS.HEADER_Q} strokeWidth={2.5} fill="#FCD34D" />
+                <Crown size={32} color="#FFFFFF" strokeWidth={2.5} fill="#FFFFFF" />
               </div>
               <p
                 style={{
@@ -3289,6 +3289,11 @@ function CalendarView({
     streakCount++;
   }
 
+  const STREAK_MILESTONES = [7, 14, 30, 60, 100, 180, 365];
+  const nextMilestone = STREAK_MILESTONES.find((m) => m > streakCount) ?? null;
+  const daysLeft = nextMilestone != null ? nextMilestone - streakCount : 0;
+  const progressPercent = nextMilestone != null ? (streakCount / nextMilestone) * 100 : 0;
+
   const dowLabels = lang === "nl" ? ["ma", "di", "wo", "do", "vr", "za", "zo"] : ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
   const handleDayTap = (day: number) => {
@@ -3384,14 +3389,14 @@ function CalendarView({
   const isViewingCurrentMonth = displayYear === now.getFullYear() && displayMonth === now.getMonth();
 
   const yearButtonStyle = {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
+    width: 32,
+    height: 32,
+    borderRadius: 10,
     border: "none",
     background: "#FFFFFF",
     boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
     cursor: "pointer" as const,
-    fontSize: "1.125rem",
+    fontSize: "1rem",
     color: "#3F3F46",
     display: "flex" as const,
     alignItems: "center" as const,
@@ -3403,16 +3408,16 @@ function CalendarView({
       style={{ 
         height: "100%",
         width: "100%",
-        padding: "0.5rem 24px 1.5rem",
+        padding: "0 24px 24px",
         position: "relative",
-        overflowY: "auto",
+        overflowY: "hidden",
         overflowX: "hidden",
         boxSizing: "border-box",
         background: "transparent",
       }}
     >
       {/* Year above month: tap to open year picker */}
-      <div style={{ display: "flex", justifyContent: "center", marginBottom: "0.5rem" }}>
+      <div style={{ display: "flex", justifyContent: "center", marginBottom: 4 }}>
         <button
           type="button"
           onClick={() => setShowYearPicker(true)}
@@ -3432,12 +3437,12 @@ function CalendarView({
       </div>
 
       {/* Month nav: month on top, Today underneath */}
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, marginBottom: "1.5rem" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 24 }}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, marginBottom: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 20 }}>
           <button type="button" onClick={prevMonth} style={yearButtonStyle} aria-label={t("calendar_prev")}>
             ‹
           </button>
-          <h2 style={{ fontSize: "1.5rem", fontWeight: 700, color: "#18181B", margin: 0 }}>
+          <h2 style={{ fontSize: "1.25rem", fontWeight: 700, color: "#18181B", margin: 0 }}>
             {monthNames[displayMonth]}
           </h2>
           <button type="button" onClick={nextMonth} style={yearButtonStyle} aria-label={t("calendar_next")}>
@@ -3469,7 +3474,7 @@ function CalendarView({
           WebkitBackdropFilter: GLASS.BLUR,
           border: "1px solid rgba(255,255,255,0.5)",
           boxShadow: "0 4px 16px rgba(0,0,0,0.08), inset 0 1px 1px rgba(255,255,255,0.6)",
-          padding: 24,
+          padding: 16,
           boxSizing: "border-box",
         }}
       >
@@ -3477,10 +3482,11 @@ function CalendarView({
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(7, 1fr)",
-            gap: 8,
+            gridTemplateRows: "auto repeat(6, 30px)",
+            gap: 4,
             minWidth: 0,
             boxSizing: "border-box",
-            marginBottom: 16,
+            marginBottom: 12,
           }}
         >
           {dowLabels.map((dow) => (
@@ -3488,7 +3494,7 @@ function CalendarView({
               key={dow}
               style={{
                 textAlign: "center",
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: 600,
                 color: COLORS.TEXT_SECONDARY,
                 textTransform: "uppercase",
@@ -3512,53 +3518,97 @@ function CalendarView({
             const tappable = !beforeStart && (hasAnswer || isMissed);
 
             return (
-              <button
+              <div
                 key={day}
-                type="button"
-                onClick={() => tappable && handleDayTap(day)}
                 style={{
-                  ...getCalendarStyle({
-                    hasAnswer,
-                    isToday,
-                    isFuture,
-                    isBeforeAccountStart: beforeStart,
-                  }),
-                  cursor: tappable ? "pointer" : "default",
-                  padding: 0,
-                  minWidth: 0,
-                  border: "none",
-                  fontFamily: "inherit",
-                  fontSize: "0.9375rem",
-                  fontWeight: 500,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  minHeight: 0,
                 }}
               >
-                {day}
-              </button>
+                <button
+                  type="button"
+                  onClick={() => tappable && handleDayTap(day)}
+                  style={{
+                    ...getCalendarStyle({
+                      hasAnswer,
+                      isToday,
+                      isFuture,
+                      isBeforeAccountStart: beforeStart,
+                    }),
+                    width: 30,
+                    height: 30,
+                    flexShrink: 0,
+                    cursor: tappable ? "pointer" : "default",
+                    padding: 0,
+                    border: "none",
+                    fontFamily: "inherit",
+                    fontSize: "0.8125rem",
+                    fontWeight: 500,
+                  }}
+                >
+                  {day}
+                </button>
+              </div>
             );
           })}
         </div>
 
         <div
           style={{
-            marginTop: 32,
-            paddingTop: 24,
+            marginTop: 12,
+            paddingTop: 12,
             borderTop: "1px solid rgba(229,231,235,0.4)",
             display: "flex",
             flexDirection: "column",
-            gap: 10,
+            gap: 6,
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: "1.125rem", fontWeight: 600, color: COLORS.HEADER_Q }}>{capturedThisMonth}</span>
-            <span style={{ fontSize: 14, color: COLORS.TEXT_SECONDARY }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontSize: "1rem", fontWeight: 600, color: COLORS.HEADER_Q }}>{capturedThisMonth}</span>
+            <span style={{ fontSize: 13, color: COLORS.TEXT_SECONDARY }}>
               {lang === "nl" ? "van de" : "out of"} {answerableDaysThisMonth} {lang === "nl" ? "dagen beantwoord" : "days answered"}
             </span>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: "1.125rem", fontWeight: 600, color: COLORS.ACCENT }}>{streakCount}</span>
-            <span style={{ fontSize: 14, color: COLORS.TEXT_SECONDARY }}>{lang === "nl" ? "dagen streak" : "day streak"}</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontSize: "1rem", fontWeight: 600, color: COLORS.ACCENT }}>{streakCount}</span>
+            <span style={{ fontSize: 13, color: COLORS.TEXT_SECONDARY }}>{lang === "nl" ? "dagen streak" : "day streak"}</span>
           </div>
         </div>
+
+        {nextMilestone != null && (
+          <div style={{ marginTop: 16, marginBottom: 4 }}>
+            <div
+              className="bg-gradient-to-br from-[#FEF3C7]/40 via-[#FDE68A]/30 to-[#FCD34D]/20 rounded-[20px] border border-[#F59E0B]/20"
+              style={{ padding: 14, boxShadow: "0 4px 16px rgba(245, 158, 11, 0.1)" }}
+            >
+              <div className="flex items-center gap-2.5" style={{ marginBottom: 10 }}>
+                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#FEF3C7] via-[#FDE68A] to-[#FCD34D] flex items-center justify-center border border-[#F59E0B]/30 shadow-md shadow-amber-400/20">
+                  <Crown className="w-4 h-4 text-[#F59E0B]" strokeWidth={2.5} fill="#FCD34D" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[11px] text-gray-600 font-medium mb-0.5">{t("calendar_next_reward")}</div>
+                  <div className="text-sm font-bold text-gray-800">{t("calendar_next_reward_milestone", { count: nextMilestone })}</div>
+                </div>
+              </div>
+              <div style={{ marginTop: 2 }}>
+                <div className="flex items-center justify-between text-[11px]" style={{ marginBottom: 6 }}>
+                  <span className="text-gray-600 font-medium">
+                    {daysLeft === 1 ? t("calendar_next_reward_days_left_one") : t("calendar_next_reward_days_left_other", { count: daysLeft })}
+                  </span>
+                  <span className="text-[#F59E0B] font-bold">{streakCount}/{nextMilestone}</span>
+                </div>
+                <div className="w-full h-2 bg-white/60 rounded-full overflow-hidden backdrop-blur-sm border border-white/40">
+                  <div
+                    className="h-full bg-gradient-to-r from-[#FDE68A] to-[#F59E0B] rounded-full transition-all duration-500"
+                    style={{ width: `${progressPercent}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {showYearPicker &&

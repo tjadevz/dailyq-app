@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable no-console */
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "motion/react";
@@ -93,6 +93,13 @@ const JOKER = {
   BORDER: "1px solid rgba(245,158,11,0.3)",
   TEXT: "#92400E",
   SHADOW: "0 4px 12px rgba(245,158,11,0.2)",
+};
+
+/** Calendar day cell when filled with a joker (gold style) */
+const CALENDAR_JOKER = {
+  BACKGROUND: "linear-gradient(135deg, #FDE68A 0%, #F59E0B 100%)",
+  BORDER: "1px solid rgba(245,158,11,0.4)",
+  SHADOW: "0 2px 8px rgba(245,158,11,0.25)",
 };
 
 const MODAL_CLOSE_MS = 200;
@@ -222,11 +229,13 @@ function formatHeaderDate(date: Date, lang: "en" | "nl"): string {
 
 function getCalendarStyle({
   hasAnswer,
+  isJoker,
   isToday,
   isFuture,
   isBeforeAccountStart,
 }: {
   hasAnswer: boolean;
+  isJoker?: boolean;
   isToday: boolean;
   isFuture: boolean;
   isBeforeAccountStart: boolean;
@@ -251,6 +260,15 @@ function getCalendarStyle({
     style.color = CALENDAR.BEFORE_START_COLOR;
     style.background = CALENDAR.BEFORE_START_BG;
     style.border = CALENDAR.BEFORE_START_BORDER;
+    return style;
+  }
+
+  /* Joker-filled day: gold gradient, soft shadow */
+  if (hasAnswer && isJoker) {
+    style.color = "#FFFFFF";
+    style.background = CALENDAR_JOKER.BACKGROUND;
+    style.border = CALENDAR_JOKER.BORDER;
+    style.boxShadow = CALENDAR_JOKER.SHADOW;
     return style;
   }
 
@@ -302,7 +320,7 @@ function Home() {
   const [user, setUser] = useState<any>(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [calendarAnswersMap, setCalendarAnswersMap] = useState<
-    Map<string, { questionText: string; answerText: string }>
+    Map<string, { questionText: string; answerText: string; isJoker?: boolean }>
   >(new Map());
   const [recapModal, setRecapModal] = useState<{ open: boolean; count: number | null; total: number | null }>({
     open: false,
@@ -328,6 +346,8 @@ function Home() {
   const [showStreakPopup, setShowStreakPopup] = useState(false);
   const [achievedStreak, setAchievedStreak] = useState<7 | 30 | 100 | null>(null);
   const streakPopupShownForRef = useRef<{ 7: boolean; 30: boolean; 100: boolean }>({ 7: false, 30: false, 100: false });
+  const [visualStreak, setVisualStreak] = useState(0);
+  const [realStreak, setRealStreak] = useState(0);
 
   const closeJokerModal = () => {
     if (jokerModalClosingRef.current) return;
@@ -342,12 +362,29 @@ function Home() {
   const grantCheckedRef = useRef(false);
   const lastGrantUserIdRef = useRef<string | null>(null);
 
+  const fetchStreaks = useCallback(async (userId: string) => {
+    const supabase = createSupabaseBrowserClient();
+    const { data } = await supabase.rpc("get_user_streaks", { p_user_id: userId });
+    if (data && typeof data === "object" && "visual_streak" in data && "real_streak" in data) {
+      setVisualStreak(Number((data as { visual_streak: number; real_streak: number }).visual_streak) || 0);
+      setRealStreak(Number((data as { visual_streak: number; real_streak: number }).real_streak) || 0);
+    }
+  }, []);
+
+  useEffect(() => {
+    const uid = getCurrentUser(user)?.id;
+    if (!uid || uid === "dev-user") return;
+    fetchStreaks(uid);
+  }, [user, fetchStreaks]);
+
   const onCalendarUpdate = (dayKey: string, questionText: string, answerText: string) => {
     setCalendarAnswersMap((prev) => {
       const next = new Map(prev);
       next.set(dayKey, { questionText, answerText });
       return next;
     });
+    const uid = getCurrentUser(user)?.id;
+    if (uid && uid !== "dev-user") fetchStreaks(uid);
   };
 
   const onAfterAnswerSaved = async (dayKey: string) => {
@@ -935,19 +972,7 @@ function Home() {
               : undefined
           }
           modalContainerRef={modalContainerRef}
-          currentStreak={(() => {
-            let s = 1;
-            const today = getNow();
-            for (let offset = 1; offset < 365; offset++) {
-              const d = new Date(today);
-              d.setDate(d.getDate() - offset);
-              const key = getLocalDayKey(d);
-              if (effectiveUser && isBeforeAccountStart(d, effectiveUser)) break;
-              if (!calendarAnswersMap.has(key)) break;
-              s++;
-            }
-            return s;
-          })()}
+          currentStreak={realStreak}
           onJokerEarned={(milestone) => {
             if (!streakPopupShownForRef.current[milestone]) {
               streakPopupShownForRef.current[milestone] = true;
@@ -997,6 +1022,9 @@ function Home() {
             setInitialQuestionDayKey(dayKey);
             setActiveTab("today");
           }}
+          visualStreak={visualStreak}
+          realStreak={realStreak}
+          onStreaksRefetch={effectiveUser?.id && effectiveUser.id !== "dev-user" ? () => fetchStreaks(effectiveUser.id) : undefined}
           modalContainerRef={modalContainerRef}
         />
         </div>
@@ -2772,13 +2800,15 @@ function TodayView({
 function MissedDayAnswerModal({
   dayKey,
   user,
+  isJoker,
   onClose,
   onSuccess,
 }: {
   dayKey: string;
   user: any;
+  isJoker?: boolean;
   onClose: () => void;
-  onSuccess: (dayKey: string, questionText: string, answerText: string) => void;
+  onSuccess: (dayKey: string, questionText: string, answerText: string, isJoker?: boolean) => void;
 }) {
   const { t, lang } = useLanguage();
   const [question, setQuestion] = useState<Question | null>(null);
@@ -2892,7 +2922,7 @@ function MissedDayAnswerModal({
         } catch (_) {}
         setIsClosing(true);
         setTimeout(() => {
-          onSuccess(dayKey, question.text, draft);
+          onSuccess(dayKey, question.text, draft, isJoker);
           onClose();
         }, MODAL_CLOSE_MS);
         setSubmitting(false);
@@ -2907,11 +2937,12 @@ function MissedDayAnswerModal({
         questionText: question.text,
         setAnswer: () => {},
         onCalendarUpdate: null,
+        isJoker: isJoker ?? false,
         userCreatedAt: user.created_at,
       });
       setIsClosing(true);
       setTimeout(() => {
-        onSuccess(dayKey, question.text, draft);
+        onSuccess(dayKey, question.text, draft, isJoker);
         onClose();
       }, MODAL_CLOSE_MS);
     } catch (e: any) {
@@ -3042,14 +3073,20 @@ function CalendarView({
   profile,
   onProfileRefetch,
   onAnswerMissedDay,
+  visualStreak,
+  realStreak,
+  onStreaksRefetch,
   modalContainerRef,
 }: {
-  answersMap: Map<string, { questionText: string; answerText: string }>;
-  setAnswersMap: React.Dispatch<React.SetStateAction<Map<string, { questionText: string; answerText: string }>>>;
+  answersMap: Map<string, { questionText: string; answerText: string; isJoker?: boolean }>;
+  setAnswersMap: React.Dispatch<React.SetStateAction<Map<string, { questionText: string; answerText: string; isJoker?: boolean }>>>;
   user: any;
   profile: { id: string; joker_balance: number; last_joker_grant_month: string | null } | null;
   onProfileRefetch: () => Promise<void>;
   onAnswerMissedDay?: (dayKey: string) => void;
+  visualStreak: number;
+  realStreak: number;
+  onStreaksRefetch?: () => void;
   modalContainerRef?: React.RefObject<HTMLDivElement | null>;
 }) {
   const { t, lang } = useLanguage();
@@ -3066,6 +3103,7 @@ function CalendarView({
   const [missedDayModal, setMissedDayModal] = useState<"missed_has_joker" | "missed_no_joker" | "closed" | null>(null);
   const [missedDayKey, setMissedDayKey] = useState<string | null>(null);
   const [selectedDateForAnswer, setSelectedDateForAnswer] = useState<string | null>(null);
+  const [selectedDateIsJoker, setSelectedDateIsJoker] = useState(false);
   const [closingMissedModal, setClosingMissedModal] = useState(false);
   const [useJokerLoading, setUseJokerLoading] = useState(false);
   const [useJokerError, setUseJokerError] = useState<string | null>(null);
@@ -3114,7 +3152,7 @@ function CalendarView({
 
         const { data: answersData, error: answersError } = await supabase
           .from("answers")
-          .select("answer_text, question_date")
+          .select("answer_text, question_date, is_joker")
           .eq("user_id", user.id)
           .gte("question_date", startStr)
           .lte("question_date", endStr);
@@ -3141,14 +3179,15 @@ function CalendarView({
 
         const map = new Map<
           string,
-          { questionText: string; answerText: string }
+          { questionText: string; answerText: string; isJoker?: boolean }
         >();
         if (answersData) {
-          for (const row of answersData) {
+          for (const row of answersData as { question_date: string; answer_text: string | null; is_joker?: boolean }[]) {
             if (row.question_date) {
               map.set(row.question_date, {
                 questionText: dayToText.get(row.question_date) ?? "",
                 answerText: row.answer_text ?? "",
+                isJoker: row.is_joker === true,
               });
             }
           }
@@ -3277,22 +3316,10 @@ function CalendarView({
     days.push(d);
   }
 
-  // Streak: consecutive days with answers ending at today
-  let streakCount = 0;
-  const today = getNow();
-  for (let offset = 0; offset < 365; offset++) {
-    const d = new Date(today);
-    d.setDate(d.getDate() - offset);
-    const key = getLocalDayKey(d);
-    if (isBeforeAccountStart(d, user)) break;
-    if (!answersMap.has(key)) break;
-    streakCount++;
-  }
-
   const STREAK_MILESTONES = [7, 14, 30, 60, 100, 180, 365];
-  const nextMilestone = STREAK_MILESTONES.find((m) => m > streakCount) ?? null;
-  const daysLeft = nextMilestone != null ? nextMilestone - streakCount : 0;
-  const progressPercent = nextMilestone != null ? (streakCount / nextMilestone) * 100 : 0;
+  const nextMilestone = STREAK_MILESTONES.find((m) => m > realStreak) ?? null;
+  const daysLeft = nextMilestone != null ? nextMilestone - realStreak : 0;
+  const progressPercent = nextMilestone != null ? (realStreak / nextMilestone) * 100 : 0;
 
   const dowLabels = lang === "nl" ? ["ma", "di", "wo", "do", "vr", "za", "zo"] : ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -3346,6 +3373,7 @@ function CalendarView({
         await onProfileRefetch();
         const keyToOpen = missedDayKey;
         setClosingMissedModal(true);
+        setSelectedDateIsJoker(true);
         setTimeout(() => {
           setMissedDayModal(null);
           setMissedDayKey(null);
@@ -3511,6 +3539,7 @@ function CalendarView({
             }
             const dayDate = new Date(displayYear, displayMonth, day);
             const dayKey = getLocalDayKey(dayDate);
+            const entry = answersMap.get(dayKey);
             const hasAnswer = answersMap.has(dayKey);
             const isToday = dayKey === todayKey;
             const isFuture = dayKey > todayKey;
@@ -3534,6 +3563,7 @@ function CalendarView({
                   style={{
                     ...getCalendarStyle({
                       hasAnswer,
+                      isJoker: entry?.isJoker,
                       isToday,
                       isFuture,
                       isBeforeAccountStart: beforeStart,
@@ -3573,7 +3603,7 @@ function CalendarView({
             </span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontSize: "1rem", fontWeight: 600, color: COLORS.ACCENT }}>{streakCount}</span>
+            <span style={{ fontSize: "1rem", fontWeight: 600, color: COLORS.ACCENT }}>{visualStreak}</span>
             <span style={{ fontSize: 13, color: COLORS.TEXT_SECONDARY }}>{lang === "nl" ? "dagen streak" : "day streak"}</span>
           </div>
         </div>
@@ -3598,7 +3628,7 @@ function CalendarView({
                   <span className="text-gray-600 font-medium">
                     {daysLeft === 1 ? t("calendar_next_reward_days_left_one") : t("calendar_next_reward_days_left_other", { count: daysLeft })}
                   </span>
-                  <span className="text-[#F59E0B] font-bold">{streakCount}/{nextMilestone}</span>
+                  <span className="text-[#F59E0B] font-bold">{realStreak}/{nextMilestone}</span>
                 </div>
                 <div className="w-full h-2 bg-white/60 rounded-full overflow-hidden backdrop-blur-sm border border-white/40">
                   <div
@@ -3857,14 +3887,20 @@ function CalendarView({
           <MissedDayAnswerModal
             dayKey={selectedDateForAnswer}
             user={user}
-            onClose={() => setSelectedDateForAnswer(null)}
-            onSuccess={(dayKey, questionText, answerText) => {
+            isJoker={selectedDateIsJoker}
+            onClose={() => {
+              setSelectedDateForAnswer(null);
+              setSelectedDateIsJoker(false);
+            }}
+            onSuccess={(dayKey, questionText, answerText, isJoker) => {
               setAnswersMap((prev) => {
                 const next = new Map(prev);
-                next.set(dayKey, { questionText, answerText });
+                next.set(dayKey, { questionText, answerText, isJoker });
                 return next;
               });
+              onStreaksRefetch?.();
               setSelectedDateForAnswer(null);
+              setSelectedDateIsJoker(false);
             }}
           />,
           modalContainerRef?.current ?? document.body
@@ -4219,9 +4255,10 @@ async function saveAnswer(params: {
   setAnswer: (a: Answer) => void;
   onCalendarUpdate: ((dayKey: string, questionText: string, answerText: string) => void) | null;
   isEdit?: boolean;
+  isJoker?: boolean;
   userCreatedAt?: string;
 }) {
-  const { supabase, userId, draft, dayKey, questionText, setAnswer, onCalendarUpdate, isEdit, userCreatedAt } =
+  const { supabase, userId, draft, dayKey, questionText, setAnswer, onCalendarUpdate, isEdit, isJoker, userCreatedAt } =
     params;
 
   const dayKeyAsDate = new Date(dayKey + "T12:00:00");
@@ -4239,6 +4276,7 @@ async function saveAnswer(params: {
     user_id: userId,
     question_date: dayKey,
     answer_text: draft,
+    is_joker: isJoker ?? false,
   }));
 
   const { data: upserted, error: upsertError } = await supabase
@@ -4248,6 +4286,7 @@ async function saveAnswer(params: {
         user_id: userId,
         question_date: dayKey,
         answer_text: draft,
+        ...(isJoker ? { is_joker: true } : {}),
       },
       {
         onConflict: "user_id,question_date",

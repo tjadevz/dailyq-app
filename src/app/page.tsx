@@ -3408,6 +3408,7 @@ function CalendarView({
       style={{ 
         height: "100%",
         width: "100%",
+        marginTop: -4,
         padding: "0 24px 24px",
         position: "relative",
         overflowY: "hidden",

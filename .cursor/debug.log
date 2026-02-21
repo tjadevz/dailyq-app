@@ -1115,3 +1115,5 @@
 {"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771672996719,"hypothesisId":"H2"}
 {"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771672996739,"hypothesisId":"H2"}
 {"location":"page.tsx:Home-render-app","message":"Rendering main app with user","data":{"initialTodayQuestionDefined":true,"userId":"dev-user"},"timestamp":1771672996743,"hypothesisId":"H2"}
+{"location":"page.tsx:scroll-after-raf","message":"Scroll state one frame after reset","data":{"scrollY":0,"bodyScrollHeight":835,"docClientHeight":835},"timestamp":1771673078454,"hypothesisId":"H6"}
+{"location":"page.tsx:scroll-after-raf","message":"Scroll state one frame after reset","data":{"scrollY":0,"bodyScrollHeight":835,"docClientHeight":835},"timestamp":1771673078456,"hypothesisId":"H6"}

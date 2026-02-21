@@ -75,8 +75,8 @@ const CALENDAR = {
   TODAY_EDGE_INSET: "inset 0 0 0 3px rgba(139,92,246,0.9), inset 0 0 0 1px rgba(255,255,255,0.9)",
   /** Subtle shadow for current day cell */
   CELL_SHADOW: "0 2px 6px rgba(139,92,246,0.25)",
-  /** Missed days: edge only, no fill (reference image) */
-  MISSED_EDGE: "0 0 0 2px rgba(156,163,175,0.45)",
+  /** Missed days: edge only, no fill; inset so cell size matches answered days */
+  MISSED_EDGE: "inset 0 0 0 2px rgba(156,163,175,0.45)",
   MISSED_COLOR: "rgba(156,163,175,1)",
   FUTURE_BG: "rgba(255,255,255,0.15)",
   FUTURE_BORDER: "1px solid rgba(229,231,235,0.25)",

@@ -915,16 +915,17 @@ function Home() {
           </div>
         )}
 
-        {/* Header: logo top left, date center (hidden on calendar tab) */}
+        {/* Header: logo top left, ~30% larger (45px), vertical center aligned with joker button */}
         <header
           style={{
-            padding: "12px 24px",
+            padding: "19px 24px",
             background: "transparent",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
             position: "relative",
             flexShrink: 0,
+            minHeight: 45,
           }}
         >
           <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center" }}>
@@ -932,7 +933,7 @@ function Home() {
               src="/icons/logo.nobg.png"
               alt="DailyQ"
               style={{
-                height: 48,
+                height: 45,
                 width: "auto",
                 maxWidth: 207,
                 objectFit: "contain",
@@ -940,7 +941,7 @@ function Home() {
               }}
             />
           </div>
-          <div style={{ flex: 1, minWidth: 0, minHeight: 30 }} />
+          <div style={{ flex: 1, minWidth: 0, minHeight: 45 }} />
         </header>
 
         {/* Main content */}
@@ -1656,9 +1657,15 @@ function OnboardingScreen({ onClose }: { onClose?: () => void }) {
                 transition={{ duration: 0.6, ease: "easeOut" }}
                 className="text-center w-full max-w-[420px]"
               >
-                <h2 className="text-[32px] leading-tight font-bold text-gray-800" style={{ marginBottom: 64 }}>
-                  {isLoginMode ? "DailyQ" : "Create account"}
-                </h2>
+                {isLoginMode ? (
+                  <div className="flex justify-center" style={{ marginBottom: 64 }}>
+                    <img src="/icons/logo.nobg.png" alt="DailyQ" className="h-24 w-auto max-w-[280px] object-contain" />
+                  </div>
+                ) : (
+                  <h2 className="text-[32px] leading-tight font-bold text-gray-800" style={{ marginBottom: 64 }}>
+                    Create account
+                  </h2>
+                )}
 
                 <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 20, marginBottom: 20 }}>
                   {!isLoginMode && (

@@ -343,6 +343,7 @@ function Home() {
   const LOADING_SCREEN_MIN_MS = 2200;
   const [showLoadingScreen, setShowLoadingScreen] = useState(false);
   const [showOnboardingOverlay, setShowOnboardingOverlay] = useState(false);
+  const [showOnboardingFlowOverlay, setShowOnboardingFlowOverlay] = useState(false);
   const [showStreakPopup, setShowStreakPopup] = useState(false);
   const [achievedStreak, setAchievedStreak] = useState<7 | 30 | 100 | null>(null);
   const streakPopupShownForRef = useRef<{ 7: boolean; 30: boolean; 100: boolean }>({ 7: false, 30: false, 100: false });
@@ -1044,8 +1045,11 @@ function Home() {
                   }
                 : undefined
             }
-            onShowOnboardingScreen={
+            onShowLoginScreen={
               process.env.NODE_ENV === "development" ? () => setShowOnboardingOverlay(true) : undefined
+            }
+            onShowOnboardingFlow={
+              process.env.NODE_ENV === "development" ? () => setShowOnboardingFlowOverlay(true) : undefined
             }
             onPreviewStreakPopup={
               process.env.NODE_ENV === "development"
@@ -1463,6 +1467,12 @@ function Home() {
         </div>,
         document.body
       )}
+      {showOnboardingFlowOverlay && typeof document !== "undefined" && createPortal(
+        <div style={{ position: "fixed", inset: 0, zIndex: 10000, background: COLORS.BACKGROUND_GRADIENT }}>
+          <OnboardingFlowScreen onClose={() => setShowOnboardingFlowOverlay(false)} />
+        </div>,
+        document.body
+      )}
     </div>
   );
 }
@@ -1717,6 +1727,298 @@ style={{ marginTop: 0 }}
                 )}
               </motion.div>
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============ ONBOARDING FLOW (4 steps, dev preview) ============
+type OnboardingStepType = "intro" | "jokers" | "notifications" | "auth";
+type NotificationTimeType = "morning" | "afternoon" | "evening" | null;
+
+function OnboardingFlowScreen({ onClose }: { onClose?: () => void }) {
+  const [onboardingStep, setOnboardingStep] = useState<OnboardingStepType>("intro");
+  const [notificationTime, setNotificationTime] = useState<NotificationTimeType>(null);
+  const [isLoginMode, setIsLoginMode] = useState(true);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  // #region agent log
+  useEffect(() => {
+    if (onboardingStep !== "auth") return;
+    const t = setTimeout(() => {
+      const emailEl = document.querySelector<HTMLInputElement>('input[data-debug-auth="email"]');
+      const passwordEl = document.querySelector<HTMLInputElement>('input[data-debug-auth="password"]');
+      const style = (el: HTMLInputElement | null) => el ? getComputedStyle(el) : null;
+      const s1 = style(emailEl);
+      const s2 = style(passwordEl);
+      const data = {
+        emailPaddingLeft: s1?.paddingLeft ?? "N/A",
+        emailPaddingRight: s1?.paddingRight ?? "N/A",
+        passwordPaddingLeft: s2?.paddingLeft ?? "N/A",
+        passwordPaddingRight: s2?.paddingRight ?? "N/A",
+        emailBoxSizing: s1?.boxSizing ?? "N/A",
+      };
+      fetch("http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "142715" }, body: JSON.stringify({ sessionId: "142715", location: "page.tsx:OnboardingFlowScreen", message: "Auth inputs computed padding", data, timestamp: Date.now(), hypothesisId: "H1" }) }).catch(() => {});
+    }, 150);
+    return () => clearTimeout(t);
+  }, [onboardingStep]);
+  // #endregion
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        height: "100%",
+        minHeight: "100%",
+        paddingTop: "env(safe-area-inset-top)",
+        boxSizing: "border-box",
+        background: COLORS.BACKGROUND,
+      }}
+    >
+      <div
+        style={{
+          flex: 1,
+          margin: "16px 16px 8px",
+          borderRadius: 32,
+          overflow: "hidden",
+          position: "relative",
+          background: GLASS.CARD_BG,
+          backdropFilter: GLASS.BLUR,
+          WebkitBackdropFilter: GLASS.BLUR,
+          border: GLASS.BORDER,
+          boxShadow: GLASS.SHADOW,
+          display: "flex",
+          flexDirection: "column",
+          minHeight: 0,
+        }}
+      >
+        {onClose && (
+          <div style={{ position: "absolute", top: 24, right: 24, zIndex: 20 }}>
+            <button type="button" aria-label="Close" onClick={onClose} style={{ width: 36, height: 36, borderRadius: "50%", border: "none", background: "rgba(243,244,246,0.9)", color: COLORS.TEXT_SECONDARY, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <X size={18} strokeWidth={2.5} />
+            </button>
+          </div>
+        )}
+        <div className="absolute top-16 -right-24 w-80 h-[500px] rounded-[50px] transform rotate-[15deg]" style={{ background: "linear-gradient(135deg, rgba(243, 232, 255, 0.4) 0%, rgba(221, 214, 254, 0.34) 50%, rgba(196, 181, 253, 0.28) 100%)", backdropFilter: "blur(40px)", boxShadow: "0 4px 20px rgba(139, 92, 246, 0.08), inset 0 1px 2px rgba(255, 255, 255, 0.3)", pointerEvents: "none" }} />
+        <div className="absolute -bottom-32 -left-20 w-96 h-96 rounded-[50px] transform -rotate-[20deg]" style={{ background: "linear-gradient(135deg, rgba(224, 231, 255, 0.4) 0%, rgba(221, 214, 254, 0.34) 50%, rgba(233, 213, 255, 0.28) 100%)", backdropFilter: "blur(40px)", boxShadow: "0 4px 20px rgba(139, 92, 246, 0.08), inset 0 1px 2px rgba(255, 255, 255, 0.3)", pointerEvents: "none" }} />
+        <div className="absolute top-1/3 left-1/4 w-72 h-80 rounded-[45px] transform rotate-[35deg]" style={{ background: "linear-gradient(135deg, rgba(240, 253, 250, 0.34) 0%, rgba(224, 231, 255, 0.3) 50%, rgba(243, 232, 255, 0.26) 100%)", backdropFilter: "blur(35px)", boxShadow: "0 4px 20px rgba(139, 92, 246, 0.06), inset 0 1px 2px rgba(255, 255, 255, 0.3)", pointerEvents: "none" }} />
+        <div className="absolute top-24 -left-16 w-56 h-72 rounded-[40px] transform -rotate-[25deg]" style={{ background: "linear-gradient(135deg, rgba(254, 243, 199, 0.3) 0%, rgba(253, 230, 138, 0.26) 50%, rgba(252, 211, 77, 0.22) 100%)", backdropFilter: "blur(30px)", boxShadow: "0 4px 20px rgba(245, 158, 11, 0.05), inset 0 1px 2px rgba(255, 255, 255, 0.3)", pointerEvents: "none" }} />
+        <div className="absolute top-20 right-12 w-40 h-40 bg-gradient-to-br from-[#E0E7FF]/32 to-[#DDD6FE]/26 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-32 left-8 w-48 h-48 bg-gradient-to-tr from-[#F3E8FF]/30 to-[#E0E7FF]/24 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-1/2 right-1/4 w-64 h-64 bg-gradient-to-br from-[#FAE8FF]/26 to-[#DBEAFE]/22 rounded-full blur-3xl pointer-events-none" />
+
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", padding: 24, position: "relative", zIndex: 1 }}>
+          <div className="relative z-10 flex flex-col w-full max-w-[380px] mx-auto" style={{ paddingLeft: 24, paddingRight: 24 }}>
+            <AnimatePresence mode="wait">
+              {onboardingStep === "intro" && (
+                <motion.div
+                  key="intro"
+                  initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                  animate={{ scale: 1, opacity: 1, y: 0 }}
+                  exit={{ scale: 0.9, opacity: 0, y: -20 }}
+                  transition={{ duration: 0.6, ease: "easeOut" }}
+                  className="w-full"
+                  style={{ boxSizing: "border-box" }}
+                >
+                  <div
+                    className="w-full"
+                    style={{
+                      paddingTop: "1.5rem",
+                      paddingBottom: "2rem",
+                      paddingLeft: 0,
+                      paddingRight: 0,
+                      boxSizing: "border-box",
+                    }}
+                  >
+                    <section style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                      <img src="/icons/logo.nobg.png" alt="DailyQ" className="w-24 h-24" />
+                      <h1 className="text-4xl font-semibold text-gray-800 tracking-tight w-full text-center" style={{ marginTop: "1.5rem", marginBottom: "0.5rem" }}>Welcome to DailyQ</h1>
+                      <p className="text-base text-gray-500 leading-relaxed w-full text-center">The easiest way to watch yourself change</p>
+                    </section>
+                    <section style={{ display: "flex", flexDirection: "column", marginTop: "2rem" }}>
+                      <div className="bg-white/50 backdrop-blur-xl rounded-[24px] border border-white/60 w-full" style={{ boxShadow: "0 4px 16px rgba(0, 0, 0, 0.06), inset 0 1px 2px rgba(255, 255, 255, 0.7)", paddingTop: 20, paddingBottom: 16, paddingLeft: 0, paddingRight: 0, boxSizing: "border-box" }}>
+                        <div className="text-center" style={{ paddingLeft: 24, paddingRight: 24, boxSizing: "border-box" }}>
+                          <div className="flex items-center justify-center gap-2" style={{ marginBottom: 12 }}>
+                            <Sparkles className="w-4 h-4 text-[#8B5CF6]" strokeWidth={2} />
+                            <span className="text-xs font-semibold text-[#8B5CF6]">Your Past Answers</span>
+                          </div>
+                          <p className="text-xs text-gray-600 leading-relaxed text-center" style={{ marginBottom: 16 }}>"Who would you have dinner with if you could choose anyone?"</p>
+                          <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                            <div className="bg-gradient-to-br from-[#F3E8FF]/40 via-[#E0E7FF]/35 to-[#DBEAFE]/30 rounded-xl border border-[#8B5CF6]/10 text-left" style={{ paddingTop: 10, paddingBottom: 10, paddingLeft: 0, paddingRight: 0, boxSizing: "border-box" }}>
+                              <div style={{ paddingLeft: 24, paddingRight: 24, boxSizing: "border-box" }}>
+                                <div className="text-xs font-bold text-[#8B5CF6]" style={{ marginBottom: 4 }}>February 2026</div>
+                                <p className="text-xs text-gray-600 leading-relaxed">My grandmother</p>
+                              </div>
+                            </div>
+                            <div className="bg-gradient-to-br from-[#F3E8FF]/40 via-[#E0E7FF]/35 to-[#DBEAFE]/30 rounded-xl border border-[#8B5CF6]/10 text-left" style={{ paddingTop: 10, paddingBottom: 10, paddingLeft: 0, paddingRight: 0, boxSizing: "border-box" }}>
+                              <div style={{ paddingLeft: 24, paddingRight: 24, boxSizing: "border-box" }}>
+                                <div className="text-xs font-bold text-[#8B5CF6]" style={{ marginBottom: 4 }}>February 2025</div>
+                                <p className="text-xs text-gray-600 leading-relaxed">My grandfather</p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </section>
+                    <section style={{ marginTop: "2rem", width: "100%" }}>
+                      <button onClick={() => setOnboardingStep("jokers")} className="w-full py-5 bg-[#8B5CF6] text-white rounded-full hover:bg-[#7C3AED] transition-all text-base font-semibold tracking-wide shadow-lg min-h-[56px]" style={{ boxShadow: "0 8px 30px rgba(139, 92, 246, 0.35)", boxSizing: "border-box" }}>Continue</button>
+                    </section>
+                  </div>
+                </motion.div>
+              )}
+              {onboardingStep === "jokers" && (
+                <motion.div key="jokers" initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: -20 }} transition={{ duration: 0.6, ease: "easeOut" }} className="w-full">
+                  <div className="flex flex-col items-center text-center" style={{ marginBottom: 32 }}>
+                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#FEF3C7] via-[#FDE68A] to-[#FCD34D] flex items-center justify-center border border-[#F59E0B]/30 shadow-lg shadow-amber-400/20" style={{ marginBottom: 24 }}>
+                      <Crown className="w-10 h-10 text-[#F59E0B]" strokeWidth={2.5} fill="#FCD34D" />
+                    </div>
+                    <h1 className="text-4xl font-semibold text-gray-800 tracking-tight" style={{ marginBottom: 12 }}>Meet Jokers</h1>
+                    <p className="text-base text-gray-500 leading-relaxed">Your flexibility tool</p>
+                  </div>
+                  <div className="w-full" style={{ marginBottom: 32 }}>
+                    <div className="text-left" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                      <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 rounded-full bg-[#FEF3C7]/70 flex items-center justify-center flex-shrink-0 mt-0.5"><CalendarIcon className="w-4 h-4 text-[#F59E0B]" strokeWidth={2} /></div>
+                        <div>
+                          <div className="text-sm font-semibold text-gray-800" style={{ marginBottom: 4 }}>Answer missed days</div>
+                          <div className="text-xs text-gray-500 leading-relaxed">Use jokers to catch up and maintain your streak</div>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 rounded-full bg-[#DBEAFE]/70 flex items-center justify-center flex-shrink-0 mt-0.5"><Sparkles className="w-4 h-4 text-[#3B82F6]" strokeWidth={2} /></div>
+                        <div>
+                          <div className="text-sm font-semibold text-gray-800" style={{ marginBottom: 4 }}>Earn by completing streaks</div>
+                          <div className="text-xs text-gray-500 leading-relaxed">Get jokers at 7 and 30 day milestones</div>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 rounded-full bg-[#EDE9FE]/70 flex items-center justify-center flex-shrink-0 mt-0.5"><Bell className="w-4 h-4 text-[#8B5CF6]" strokeWidth={2} /></div>
+                        <div>
+                          <div className="text-sm font-semibold text-gray-800" style={{ marginBottom: 4 }}>Refer a friend</div>
+                          <div className="text-xs text-gray-500 leading-relaxed">Each friend who joins earns you a joker</div>
+                        </div>
+                      </div>
+                    </div>
+                    <button onClick={() => setOnboardingStep("notifications")} className="w-full py-5 bg-[#8B5CF6] text-white rounded-full hover:bg-[#7C3AED] transition-all text-base font-semibold tracking-wide shadow-lg min-h-[56px]" style={{ boxShadow: "0 8px 30px rgba(139, 92, 246, 0.35)", marginTop: 32 }}>Continue</button>
+                  </div>
+                </motion.div>
+              )}
+              {onboardingStep === "notifications" && (
+                <motion.div
+                  key="notifications"
+                  initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                  animate={{ scale: 1, opacity: 1, y: 0 }}
+                  exit={{ scale: 0.9, opacity: 0, y: -20 }}
+                  transition={{ duration: 0.6, ease: "easeOut" }}
+                  className="w-full"
+                  style={{ boxSizing: "border-box" }}
+                >
+                  <div
+                    className="w-full"
+                    style={{
+                      paddingTop: "1.5rem",
+                      paddingBottom: "2rem",
+                      paddingLeft: 0,
+                      paddingRight: 0,
+                      boxSizing: "border-box",
+                    }}
+                  >
+                    <section style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                      <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#E0E7FF]/80 via-[#DDD6FE]/70 to-[#EDE9FE]/80 flex items-center justify-center border border-[#8B5CF6]/20 shadow-lg shadow-purple-400/10">
+                        <Bell className="w-10 h-10 text-[#8B5CF6]" strokeWidth={2} />
+                      </div>
+                      <h1 className="text-3xl font-semibold text-gray-800 tracking-tight w-full text-center" style={{ marginTop: "1.5rem", marginBottom: "0.5rem" }}>DailyQ works best if it becomes a habit</h1>
+                      <p className="text-base text-gray-500 leading-relaxed w-full text-center">When would you like your daily reminder?</p>
+                    </section>
+                    <section style={{ display: "flex", flexDirection: "column", marginTop: "2rem" }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", width: "100%" }}>
+                        {(["morning", "afternoon", "evening"] as const).map((opt) => (
+                          <button
+                            key={opt}
+                            onClick={() => setNotificationTime(opt)}
+                            className={`w-full rounded-2xl border transition-all text-left ${notificationTime === opt ? "bg-[#8B5CF6]/10 border-[#8B5CF6] shadow-md shadow-purple-400/20" : "bg-white/60 backdrop-blur-xl border-white/80 hover:border-[#8B5CF6]/50"}`}
+                            style={{
+                              boxShadow: notificationTime === opt ? "0 4px 16px rgba(139, 92, 246, 0.15)" : "0 2px 8px rgba(0, 0, 0, 0.04)",
+                              paddingTop: 16,
+                              paddingBottom: 16,
+                              paddingLeft: 0,
+                              paddingRight: 0,
+                              boxSizing: "border-box",
+                            }}
+                          >
+                            <div className="flex items-center justify-between gap-4" style={{ paddingLeft: 24, paddingRight: 24, boxSizing: "border-box" }}>
+                              <div>
+                                <div className="text-sm font-semibold text-gray-800" style={{ marginBottom: 4 }}>{opt.charAt(0).toUpperCase() + opt.slice(1)}</div>
+                                <div className="text-xs text-gray-500">{opt === "morning" ? "Start your day (9:00 AM)" : opt === "afternoon" ? "Midday pause (2:00 PM)" : "Wind down (7:00 PM)"}</div>
+                              </div>
+                              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${notificationTime === opt ? "border-[#8B5CF6]" : "border-gray-300"}`}>
+                                {notificationTime === opt && <div className="w-3 h-3 rounded-full bg-[#8B5CF6]" />}
+                              </div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </section>
+                    <section style={{ marginTop: "2rem", width: "100%" }}>
+                      <button
+                        onClick={() => setOnboardingStep("auth")}
+                        disabled={!notificationTime}
+                        className={`w-full py-5 rounded-full transition-all text-base font-semibold tracking-wide shadow-lg min-h-[56px] ${notificationTime ? "bg-[#8B5CF6] text-white hover:bg-[#7C3AED]" : "bg-gray-300 text-gray-500 cursor-not-allowed"}`}
+                        style={{ boxShadow: notificationTime ? "0 8px 30px rgba(139, 92, 246, 0.35)" : "none", boxSizing: "border-box" }}
+                      >
+                        Continue
+                      </button>
+                    </section>
+                  </div>
+                </motion.div>
+              )}
+              {onboardingStep === "auth" && (
+                <motion.div
+                  key="auth"
+                  initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                  animate={{ scale: 1, opacity: 1, y: 0 }}
+                  exit={{ scale: 0.9, opacity: 0, y: -20 }}
+                  transition={{ duration: 0.6, ease: "easeOut" }}
+                  className="w-full"
+                  style={{ boxSizing: "border-box" }}
+                >
+                  <div
+                    className="w-full"
+                    style={{
+                      paddingTop: "1.5rem",
+                      paddingBottom: "2rem",
+                      paddingLeft: 0,
+                      paddingRight: 0,
+                      boxSizing: "border-box",
+                    }}
+                  >
+                    <section style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                      <img src="/icons/logo.nobg.png" alt="DailyQ" className="w-24 h-24" />
+                      <h2 className="text-3xl font-semibold text-gray-800 tracking-tight w-full text-center" style={{ marginTop: "1.5rem", marginBottom: "0.5rem" }}>{isLoginMode ? "Welcome back" : "Create account"}</h2>
+                    </section>
+                    <section style={{ display: "flex", flexDirection: "column", marginTop: "2rem" }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem", width: "100%" }}>
+                        <input data-debug-auth="email" type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full min-h-[52px] py-4 bg-white rounded-2xl border border-gray-200/70 focus:outline-none focus:ring-2 focus:ring-[#8B5CF6]/30 focus:border-transparent text-gray-800 placeholder:text-gray-400 text-sm" style={{ boxSizing: "border-box", paddingLeft: 40, paddingRight: 40 }} />
+                        <input data-debug-auth="password" type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full min-h-[52px] py-4 bg-white rounded-2xl border border-gray-200/70 focus:outline-none focus:ring-2 focus:ring-[#8B5CF6]/30 focus:border-transparent text-gray-800 placeholder:text-gray-400 text-sm" style={{ boxSizing: "border-box", paddingLeft: 40, paddingRight: 40 }} />
+                      </div>
+                    </section>
+                    <section style={{ marginTop: "2rem", width: "100%" }}>
+                      <button onClick={() => onClose?.()} className="w-full py-5 bg-[#8B5CF6] text-white rounded-full hover:bg-[#7C3AED] transition-all text-base font-semibold tracking-wide shadow-lg min-h-[56px]" style={{ boxShadow: "0 8px 30px rgba(139, 92, 246, 0.35)", boxSizing: "border-box" }}>{isLoginMode ? "Sign In" : "Create Account"}</button>
+                    </section>
+                    <div style={{ marginTop: "1rem", width: "100%", textAlign: "center" }}>
+                      <button type="button" onClick={() => setIsLoginMode(!isLoginMode)} className="text-sm text-gray-500 hover:text-gray-700 transition-colors">
+                        {isLoginMode ? "Don't have an account? " : "Already have an account? "}
+                        <span className="text-[#8B5CF6] font-medium">{isLoginMode ? "Sign up" : "Sign in"}</span>
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
       </div>
@@ -3656,7 +3958,7 @@ function CalendarView({
                 </div>
                 <div className="w-full h-2 bg-white/60 rounded-full overflow-hidden backdrop-blur-sm border border-white/40">
                   <div
-                    className="h-full bg-gradient-to-r from-[#FDE68A] to-[#F59E0B] rounded-full transition-all duration-500"
+                    className="h-full bg-gradient-to-r from-[#FDE68A] to-[#FBBF24] rounded-full transition-all duration-500"
                     style={{ width: `${progressPercent}%` }}
                   />
                 </div>
@@ -3934,7 +4236,7 @@ function CalendarView({
 }
 
 // ============ SETTINGS VIEW ============
-function SettingsView({ user, onShowLoadingScreen, onShowOnboardingScreen, onPreviewStreakPopup }: { user: any; onShowLoadingScreen?: () => void; onShowOnboardingScreen?: () => void; onPreviewStreakPopup?: () => void }) {
+function SettingsView({ user, onShowLoadingScreen, onShowLoginScreen, onShowOnboardingFlow, onPreviewStreakPopup }: { user: any; onShowLoadingScreen?: () => void; onShowLoginScreen?: () => void; onShowOnboardingFlow?: () => void; onPreviewStreakPopup?: () => void }) {
   const { t, lang, setLang } = useLanguage();
   const [signingOut, setSigningOut] = useState(false);
   const [showLanguageModal, setShowLanguageModal] = useState(false);
@@ -4125,10 +4427,10 @@ function SettingsView({ user, onShowLoadingScreen, onShowOnboardingScreen, onPre
           Show loading screen
         </button>
       )}
-      {onShowOnboardingScreen && (
+      {onShowLoginScreen && (
         <button
           type="button"
-          onClick={onShowOnboardingScreen}
+          onClick={onShowLoginScreen}
           style={{
             marginTop: "0.5rem",
             padding: "0.5rem 1rem",
@@ -4140,7 +4442,25 @@ function SettingsView({ user, onShowLoadingScreen, onShowOnboardingScreen, onPre
             cursor: "pointer",
           }}
         >
-          Show onboarding screen
+          Show login screen
+        </button>
+      )}
+      {onShowOnboardingFlow && (
+        <button
+          type="button"
+          onClick={onShowOnboardingFlow}
+          style={{
+            marginTop: "0.5rem",
+            padding: "0.5rem 1rem",
+            fontSize: "0.8rem",
+            color: COLORS.TEXT_SECONDARY,
+            background: "transparent",
+            border: "1px dashed rgba(156,163,175,0.5)",
+            borderRadius: 999,
+            cursor: "pointer",
+          }}
+        >
+          Show onboarding flow
         </button>
       )}
       {onPreviewStreakPopup && (

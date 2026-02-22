@@ -454,3 +454,104 @@ Any future feature must be evaluated against a single criterion:
 **UI – Joker / missed day**
 
 - **"Joker inzetten" button:** Label set to **white** (like other primary buttons); added `textShadow` for readability on the golden gradient.
+
+---
+
+## Layout & Spacing Contract – Onboarding (Auto-generated)
+
+This section documents the **current implementation** of onboarding layout and spacing in code. Future changes to onboarding UI must preserve this structure or explicitly update this contract.
+
+### 1. Onboarding content wrapper (shared by all steps)
+
+**Outer container (modal content area)**
+
+- Parent of all onboarding steps: `style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", padding: 24, position: "relative", zIndex: 1 }}`
+- **Horizontal padding:** `24` (all sides).
+
+**Inner column (width and alignment)**
+
+- Single wrapper for all steps: `className="relative z-10 flex flex-col w-full max-w-[380px] mx-auto"` with `style={{ paddingLeft: 24, paddingRight: 24 }}`.
+- **Width logic:** `max-w-[380px]`, `w-full`, `mx-auto` (column is centered and capped at 380px).
+- **Horizontal padding:** `paddingLeft: 24`, `paddingRight: 24` (adds 24px inset on left and right inside the column).
+- **Effective content width:** The area in which step content (title, cards, button) lives is therefore `min(100% - 48px, 380px - 48px)` = column width minus 48px horizontal padding. All step content that should align shares this same content band.
+
+**Alignment responsibility:** The inner column is the **single source** of horizontal alignment for onboarding. Its `paddingLeft` and `paddingRight` define the left and right edges of the content band. Step content must not add its own horizontal padding at the step root if it is to align with other steps; the notifications step uses `paddingLeft: 0`, `paddingRight: 0` on its content wrapper for this reason.
+
+### 2. Step root structure (per step)
+
+- Each step is a `motion.div` with `className="w-full"` (and optionally `style={{ boxSizing: "border-box" }}` where used).
+- Steps do **not** set a max-width; they inherit the width of the inner column above.
+- **Intro and jokers:** Content is laid out in divs with `className="w-full"` and inline margins (e.g. `marginBottom: 32`, `marginTop: 32`).
+- **Notifications:** Uses an extra inner content wrapper (see below).
+- **Auth:** Uses `className="w-full"` with inner divs and inline margins (e.g. `marginBottom: 24`, `marginBottom: 16`, `mt-6`).
+
+### 3. Notifications step – layout and spacing
+
+**Step root**
+
+- `motion.div` with `className="w-full"` and `style={{ boxSizing: "border-box" }}`.
+
+**Content wrapper (notifications only)**
+
+- Single inner div: `className="w-full"` and `style={{ paddingTop: "1.5rem", paddingBottom: "2rem", paddingLeft: 0, paddingRight: 0, boxSizing: "border-box" }}`.
+- **Horizontal padding:** Explicitly `0`. Horizontal alignment is **entirely** from the parent column’s `paddingLeft: 24`, `paddingRight: 24`. Title, subtitle, option cards, and Continue button all sit in this wrapper and share the same left/right edges.
+- **Vertical padding:** `paddingTop: "1.5rem"`, `paddingBottom: "2rem"`.
+
+**Sections (notifications)**
+
+- **Section 1 (header):** `section` with `style={{ display: "flex", flexDirection: "column", alignItems: "center" }}`. Contains: icon (Bell in circle), `h1` with `className="... w-full text-center"`, `style={{ marginTop: "1.5rem", marginBottom: "0.5rem" }}`, and `p` with `className="... w-full text-center"`.
+- **Section 2 (option list):** `section` with `style={{ display: "flex", flexDirection: "column", marginTop: "2rem" }}`. Inner div: `style={{ display: "flex", flexDirection: "column", gap: "0.75rem", width: "100%" }}`.
+- **Section 3 (Continue):** `section` with `style={{ marginTop: "2rem", width: "100%" }}`.
+
+**Vertical spacing (notifications)**
+
+- Between header and option list: `marginTop: "2rem"` on section 2.
+- Between option list and Continue: `marginTop: "2rem"` on section 3.
+- No other vertical spacing classes or styles between these sections; spacing is section-based.
+
+### 4. Notification option cards – structure and padding
+
+**Card element (button)**
+
+- `className` includes `w-full rounded-2xl border transition-all text-left` plus state-dependent classes (e.g. `bg-[#8B5CF6]/10 border-[#8B5CF6]` when selected).
+- **Inline style:** `paddingTop: 16`, `paddingBottom: 16`, `paddingLeft: 0`, `paddingRight: 0`, `boxSizing: "border-box"`.
+- **Card horizontal padding:** `0`. The card’s **outer** left and right edges therefore align with the content band defined by the column (title, subtitle, Continue button). Card width is the same as the content band.
+
+**Inner content div (inside the card)**
+
+- Single child of the button: `className="flex items-center justify-between gap-4"` and `style={{ paddingLeft: 24, paddingRight: 24, boxSizing: "border-box" }}`.
+- **Internal horizontal padding:** `24` left and right. This creates the inset for the label text and the radio icon; left and right padding are equal (symmetrical).
+- **Alignment:** The card’s **outer** edges align with the wrapper; the **content** (text + radio) is inset by 24px on both sides. No margin on the card or on the text; only this inner padding affects horizontal position of content.
+
+### 5. Continue button width logic (all steps)
+
+- **Intro:** Button is **not** full width of the content band. Wrapper: `className="flex justify-center"` with `style={{ marginTop: 32 }}`. Button: `className="w-fit min-w-[160px] px-10 py-5 ... min-h-[56px]"`. Button is centered and sized to content (min 160px).
+- **Jokers:** Button: `className="w-full py-5 ... min-h-[56px]"`, `style={{ ... marginTop: 32 }}`. Full width of the same content wrapper as the bullet list above it; left/right edges match the content band.
+- **Notifications:** Button: `className="w-full py-5 ... min-h-[56px]"`, `style={{ ... boxSizing: "border-box" }}`. Lives in a `section` with `width: "100%"`. Full width of the notifications content wrapper; left/right edges match the option cards and the content band.
+- **Auth:** Primary button: `className="w-full mt-6 py-5 ... min-h-[56px]"`. Full width of its wrapper; same content band as the form inputs.
+
+**Rule:** For steps that use full-width primary buttons (jokers, notifications, auth), the button has `w-full` and is a direct child of a full-width container (or a section with `width: "100%"`). No extra horizontal margin or padding on the button; width is determined by the same wrapper that contains the cards or form. The intro step is the only exception (centered, width-by-content).
+
+### 6. Horizontal padding system – summary
+
+| Layer | Responsibility | Current value |
+|-------|----------------|----------------|
+| Modal content area | Outer inset around entire onboarding | `padding: 24` |
+| Inner column | Content band width + horizontal alignment for all steps | `max-w-[380px] mx-auto`, `paddingLeft: 24`, `paddingRight: 24` |
+| Notifications content wrapper | Vertical padding only; no horizontal | `paddingLeft: 0`, `paddingRight: 0` |
+| Notification card (button) | Outer card edges aligned to content band | `paddingLeft: 0`, `paddingRight: 0` |
+| Notification card inner div | Internal breathing room for text and radio | `paddingLeft: 24`, `paddingRight: 24` |
+
+### 7. Vertical spacing pattern – summary
+
+- **Intro:** Header block `marginBottom: 32`; card wrapper `marginBottom: 32`; button wrapper `marginTop: 32`. Card internal: `padding: 24`; gap between answer chips `10`; button `py-5`, `min-h-[56px]`.
+- **Jokers:** Header block `marginBottom: 32`; content wrapper `marginBottom: 32`; list `gap: 20`; button `marginTop: 32`, `py-5`, `min-h-[56px]`.
+- **Notifications:** Content wrapper `paddingTop: "1.5rem"`, `paddingBottom: "2rem"`; section 2 `marginTop: "2rem"`; section 3 `marginTop: "2rem"`; option list `gap: "0.75rem"`; card vertical padding `16` top/bottom; button `py-5`, `min-h-[56px]`.
+- **Auth:** Header `marginBottom: 24`; form wrapper `marginBottom: 16`; form `gap: 12`; button `mt-6`, `py-5`, `min-h-[56px]`.
+
+### 8. Constraints for future changes
+
+- Do **not** add horizontal padding or margin to the notifications step’s content wrapper if alignment with the column content band must be preserved.
+- Do **not** add horizontal padding to the notification **card** (button) element; use only the **inner** div’s `paddingLeft`/`paddingRight` for internal spacing.
+- Do **not** change the inner column’s `max-w-[380px]` or `paddingLeft`/`paddingRight` without updating all steps that rely on it for alignment.
+- Full-width primary buttons (jokers, notifications, auth) must remain `w-full` inside a full-width container with no extra horizontal inset; the intro step’s centered, width-by-content button is the only exception.

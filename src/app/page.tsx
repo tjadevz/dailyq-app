@@ -1236,7 +1236,7 @@ function Home() {
                     zIndex: 1,
                     width: "85%",
                     maxWidth: 360,
-                    background: "rgba(255,254,249,0.75)",
+                    background: "rgba(255,255,255,0.92)",
                     backdropFilter: "blur(40px)",
                     WebkitBackdropFilter: "blur(40px)",
                     borderRadius: 32,

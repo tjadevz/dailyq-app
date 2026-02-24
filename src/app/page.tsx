@@ -363,13 +363,14 @@ function Home() {
   const grantCheckedRef = useRef(false);
   const lastGrantUserIdRef = useRef<string | null>(null);
 
-  const fetchStreaks = useCallback(async (userId: string) => {
+  const fetchStreaks = useCallback(async (userId: string): Promise<{ visual: number; real: number }> => {
     const supabase = createSupabaseBrowserClient();
     const { data } = await supabase.rpc("get_user_streaks", { p_user_id: userId });
-    if (data && Array.isArray(data) && data.length > 0) {
-      setVisualStreak(Number(data[0].visual_streak) || 0);
-      setRealStreak(Number(data[0].real_streak) || 0);
-    }
+    const visual = data && Array.isArray(data) && data.length > 0 ? Number(data[0].visual_streak) || 0 : 0;
+    const real = data && Array.isArray(data) && data.length > 0 ? Number(data[0].real_streak) || 0 : 0;
+    setVisualStreak(visual);
+    setRealStreak(real);
+    return { visual, real };
   }, []);
 
   useEffect(() => {
@@ -993,6 +994,14 @@ function Home() {
                     .single();
                   if (data) setProfile(data);
                   return Number(data?.joker_balance) ?? 0;
+                }
+              : undefined
+          }
+          onRefetchStreaks={
+            effectiveUser?.id && effectiveUser.id !== "dev-user"
+              ? async () => {
+                  const { real } = await fetchStreaks(effectiveUser.id);
+                  return real;
                 }
               : undefined
           }
@@ -2177,6 +2186,7 @@ function TodayView({
   currentStreak,
   onJokerEarned,
   onRefetchProfile,
+  onRefetchStreaks,
 }: {
   user: any;
   onCalendarUpdate: ((dayKey: string, questionText: string, answerText: string) => void) | null;
@@ -2190,6 +2200,7 @@ function TodayView({
   currentStreak?: number;
   onJokerEarned?: (milestone: 7 | 30 | 100) => void;
   onRefetchProfile?: () => Promise<number>;
+  onRefetchStreaks?: () => Promise<number>;
 }) {
   const { t, lang } = useLanguage();
   const [loading, setLoading] = useState(initialQuestion === undefined);
@@ -2544,11 +2555,17 @@ function TodayView({
         const balanceAfter = onRefetchProfile
           ? await onRefetchProfile()
           : await getJokerBalance(supabase, effectiveUser.id);
-        // 5. Only show popup if new joker_balance > old joker_balance (6. ensures popup is not triggered again on app reload)
-        if (balanceAfter > balanceBefore && typeof currentStreak === "number" && currentStreak >= 7 && onJokerEarned) {
-          const milestone: 7 | 30 | 100 =
-            currentStreak >= 100 ? 100 : currentStreak >= 30 ? 30 : 7;
+        // 5. Refetch streaks so we have the NEW streak (e.g. 7) — at submit time currentStreak is still the old value (6)
+        const newStreak = onRefetchStreaks ? await onRefetchStreaks() : currentStreak ?? 0;
+        const milestone: 7 | 30 | 100 | null =
+          newStreak >= 100 ? 100 : newStreak >= 30 ? 30 : newStreak >= 7 ? 7 : null;
+        if (milestone !== null && onJokerEarned) {
           onJokerEarned(milestone);
+        }
+        // Legacy path: if backend already increased balance and we didn't refetch streaks, still show popup
+        if (milestone === null && balanceAfter > balanceBefore && typeof currentStreak === "number" && currentStreak >= 7 && onJokerEarned) {
+          const fallbackMilestone: 7 | 30 | 100 = currentStreak >= 100 ? 100 : currentStreak >= 30 ? 30 : 7;
+          onJokerEarned(fallbackMilestone);
         }
         if (editingExisting) {
           setShowEditConfirmation(true);

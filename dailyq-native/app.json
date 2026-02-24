@@ -1,0 +1,37 @@
+{
+  "expo": {
+    "name": "DailyQ",
+    "slug": "dailyq",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "dailyq",
+    "icon": "./assets/images/icon.png",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "bundleIdentifier": "com.dailyq.app",
+      "supportsTablet": false,
+      "associatedDomains": [],
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      }
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "9418d4f1-3d4b-4492-b37d-6a31b50ed5da"
+      }
+    }
+  }
+}

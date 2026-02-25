@@ -19,24 +19,30 @@ export async function upsertPushSubscription(
   if (userId === "dev-user") return { error: null };
 
   try {
-    const payload: {
-      user_id: string;
-      expo_push_token: string | null;
-      reminder_time: string | null;
-    } = {
+    const payload = {
       user_id: userId,
+      subscription: {},
       expo_push_token: expoPushToken,
       reminder_time: reminderTime,
     };
 
-    const { error } = await supabase.from("push_subscriptions").upsert(payload, {
+    console.log("push_subscriptions upsert call", {
+      payload,
       onConflict: "user_id",
     });
+    const { error } = await supabase
+      .from("push_subscriptions")
+      .upsert(payload, { onConflict: "user_id" });
 
-    if (error) return { error };
+    if (error) {
+      console.warn("push_subscriptions upsert error", error.message, error.details, error.code);
+      return { error };
+    }
     return { error: null };
   } catch (e) {
-    return { error: e instanceof Error ? e : new Error(String(e)) };
+    const err = e instanceof Error ? e : new Error(String(e));
+    console.warn("push_subscriptions upsert exception", err);
+    return { error: err };
   }
 }
 

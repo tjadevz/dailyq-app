@@ -125,8 +125,13 @@ export default function OnboardingScreen() {
           ((await AsyncStorage.getItem(REMINDER_TIME_KEY)) as "morning" | "afternoon" | "evening" | null);
         const reminderTime =
           stored === "morning" || stored === "afternoon" || stored === "evening" ? stored : null;
+        console.log("Upserting push subscription", {
+          userId: user.id,
+          token,
+          reminderTime,
+        });
         const { error: upsertErr } = await upsertPushSubscription(user.id, token, reminderTime);
-        if (upsertErr && __DEV__) console.warn("Push subscription upsert failed:", upsertErr);
+        if (upsertErr) console.warn("Push subscription upsert failed:", upsertErr);
       }
       router.replace("/(tabs)/today");
     } finally {

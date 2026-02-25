@@ -12,11 +12,15 @@ import {
 import { useRouter } from "expo-router";
 import Constants from "expo-constants";
 import Feather from "@expo/vector-icons/Feather";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { COLORS, MODAL, MODAL_CLOSE_MS } from "@/src/config/constants";
 import { useLanguage } from "@/src/context/LanguageContext";
 import { useAuth } from "@/src/context/AuthContext";
 import type { Lang } from "@/src/i18n/translations";
+
+const REMINDER_TIME_KEY = "dailyq-reminder-time";
+type ReminderTime = "morning" | "afternoon" | "evening";
 
 // ----- LanguageModal -----
 function LanguageModal({
@@ -147,6 +151,16 @@ function DeleteAccountModal({
   );
 }
 
+function getReminderSubtitle(
+  t: (key: string) => string,
+  slot: ReminderTime | null
+): string {
+  if (!slot) return t("settings_reminder_time");
+  if (slot === "morning") return t("onboarding_notif_morning_time");
+  if (slot === "afternoon") return t("onboarding_notif_afternoon_time");
+  return t("onboarding_notif_evening_time");
+}
+
 export default function SettingsScreen() {
   const { t, lang, setLang } = useLanguage();
   const { effectiveUser, signOut, deleteUser } = useAuth();
@@ -154,6 +168,17 @@ export default function SettingsScreen() {
 
   const [languageModalVisible, setLanguageModalVisible] = useState(false);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [reminderTime, setReminderTime] = useState<ReminderTime | null>(null);
+
+  useEffect(() => {
+    AsyncStorage.getItem(REMINDER_TIME_KEY).then((value) => {
+      if (value === "morning" || value === "afternoon" || value === "evening") {
+        setReminderTime(value);
+      } else {
+        setReminderTime(null);
+      }
+    });
+  }, []);
 
   const email = effectiveUser?.email ?? "";
 
@@ -183,41 +208,87 @@ export default function SettingsScreen() {
         <Text style={styles.title}>{t("settings_title")}</Text>
         <Text style={styles.subtitle}>{t("settings_subtitle")}</Text>
 
+        {/* Reminder (read-only) */}
+        <View style={[styles.card, styles.cardDisabled]}>
+          <View style={styles.cardIconWrap}>
+            <View style={[styles.cardIcon, styles.cardIconPurple]}>
+              <Feather name="bell" size={16} strokeWidth={2} color={COLORS.ACCENT} />
+            </View>
+            <View style={styles.cardTextWrap}>
+              <Text style={styles.cardTitle}>{t("settings_reminder")}</Text>
+              <Text style={styles.cardSubtitle}>
+                {getReminderSubtitle(t, reminderTime)}
+              </Text>
+            </View>
+          </View>
+        </View>
+
         {/* Language */}
-        <Pressable
-          style={styles.row}
-          onPress={() => setLanguageModalVisible(true)}
-        >
-          <Text style={styles.rowLabel}>{t("settings_language")}</Text>
-          <View style={styles.rowValue}>
-            <Text style={styles.rowValueText}>{currentLangLabel}</Text>
+        <Pressable style={styles.card} onPress={() => setLanguageModalVisible(true)}>
+          <View style={styles.cardIconWrap}>
+            <View style={[styles.cardIcon, styles.cardIconBlue]}>
+              <Feather name="globe" size={16} strokeWidth={2} color="#3B82F6" />
+            </View>
+            <View style={styles.cardTextWrap}>
+              <Text style={styles.cardTitle}>{t("settings_language")}</Text>
+              <Text style={styles.cardSubtitle}>{currentLangLabel}</Text>
+            </View>
             <Feather name="chevron-right" size={20} color={COLORS.TEXT_MUTED} />
           </View>
         </Pressable>
 
         {/* Signed in as */}
-        <View style={styles.row}>
-          <Text style={styles.rowLabel}>{t("settings_signed_in_as")}</Text>
-          <Text style={styles.rowValueText} numberOfLines={1}>
-            {email}
-          </Text>
+        <View style={styles.card}>
+          <View style={styles.cardIconWrap}>
+            <View style={[styles.cardIcon, styles.cardIconIndigo]}>
+              <Feather name="mail" size={16} strokeWidth={2} color="#6366F1" />
+            </View>
+            <View style={[styles.cardTextWrap, styles.cardTextWrapFlex]}>
+              <Text style={styles.cardTitle}>{t("settings_signed_in_as")}</Text>
+              <Text style={styles.cardSubtitle} numberOfLines={1}>
+                {email}
+              </Text>
+            </View>
+          </View>
         </View>
 
         {/* Sign out */}
-        <Pressable style={[styles.row, styles.rowButton]} onPress={handleSignOut}>
-          <Text style={styles.rowButtonText}>{t("settings_sign_out")}</Text>
+        <Pressable style={[styles.card, styles.cardButton]} onPress={handleSignOut}>
+          <View style={styles.cardIconWrap}>
+            <View style={[styles.cardIcon, styles.cardIconRed]}>
+              <Feather name="log-out" size={16} strokeWidth={2} color="#DC2626" />
+            </View>
+            <Text style={styles.cardButtonText}>{t("settings_sign_out")}</Text>
+          </View>
         </Pressable>
 
         {/* Delete account */}
         <Pressable
-          style={[styles.row, styles.rowButton, styles.rowButtonDanger]}
+          style={[styles.card, styles.cardButtonDanger]}
           onPress={() => setDeleteModalVisible(true)}
         >
-          <Text style={styles.rowButtonDangerText}>{t("settings_delete_account")}</Text>
+          <View style={styles.cardIconWrap}>
+            <View style={[styles.cardIcon, styles.cardIconRedDark]}>
+              <Feather name="trash-2" size={16} strokeWidth={2} color="#B91C1C" />
+            </View>
+            <Text style={styles.cardButtonDangerText}>{t("settings_delete_account")}</Text>
+          </View>
         </Pressable>
 
-        {/* Version */}
-        <Text style={styles.version}>{t("settings_version")} {appVersion}</Text>
+        {/* About / Version */}
+        <View style={styles.card}>
+          <View style={styles.cardIconWrap}>
+            <View style={[styles.cardIcon, styles.cardIconIndigo]}>
+              <Feather name="info" size={16} strokeWidth={2} color="#6366F1" />
+            </View>
+            <View style={styles.cardTextWrap}>
+              <Text style={styles.cardTitle}>{t("settings_about")}</Text>
+              <Text style={styles.cardSubtitle}>
+                {t("settings_version")} {appVersion}
+              </Text>
+            </View>
+          </View>
+        </View>
 
         {/* Tagline */}
         <Text style={styles.tagline}>{t("settings_tagline")}</Text>
@@ -261,66 +332,81 @@ const styles = StyleSheet.create({
     color: COLORS.TEXT_SECONDARY,
     marginBottom: 24,
   },
-  row: {
+  card: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: 14,
+    paddingVertical: 12,
     paddingHorizontal: 16,
-    backgroundColor: "rgba(255,255,255,0.8)",
-    borderRadius: 12,
+    backgroundColor: "rgba(255,254,249,0.65)",
+    borderRadius: 20,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: "rgba(229,231,235,0.6)",
+    borderColor: "rgba(255,255,255,0.5)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 2,
   },
-  rowLabel: {
-    fontSize: 15,
-    color: COLORS.TEXT_PRIMARY,
-    fontWeight: "500",
+  cardDisabled: {
+    opacity: 0.85,
   },
-  rowValue: {
+  cardIconWrap: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 10,
     flex: 1,
-    justifyContent: "flex-end",
   },
-  rowValueText: {
-    fontSize: 15,
+  cardIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cardIconPurple: { backgroundColor: "rgba(237,233,254,0.7)" },
+  cardIconBlue: { backgroundColor: "rgba(219,234,254,0.7)" },
+  cardIconIndigo: { backgroundColor: "rgba(224,231,255,0.7)" },
+  cardIconRed: { backgroundColor: "rgba(254,226,226,0.7)" },
+  cardIconRedDark: { backgroundColor: "rgba(254,202,202,0.7)" },
+  cardTextWrap: { flex: 1, minWidth: 0 },
+  cardTextWrapFlex: { flex: 1 },
+  cardTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: COLORS.TEXT_PRIMARY,
+    marginBottom: 1,
+  },
+  cardSubtitle: {
+    fontSize: 13,
     color: COLORS.TEXT_SECONDARY,
-    maxWidth: "70%",
   },
-  rowButton: {
+  cardButton: {
     justifyContent: "center",
     backgroundColor: COLORS.ACCENT,
     borderColor: "transparent",
   },
-  rowButtonText: {
-    fontSize: 16,
+  cardButtonText: {
+    fontSize: 14,
     fontWeight: "600",
     color: "#fff",
   },
-  rowButtonDanger: {
+  cardButtonDanger: {
     backgroundColor: "transparent",
     borderColor: "#DC2626",
   },
-  rowButtonDangerText: {
-    fontSize: 16,
+  cardButtonDangerText: {
+    fontSize: 14,
     fontWeight: "600",
-    color: "#DC2626",
-  },
-  version: {
-    fontSize: 13,
-    color: COLORS.TEXT_MUTED,
-    marginTop: 24,
-    marginBottom: 8,
-    textAlign: "center",
+    color: "#B91C1C",
   },
   tagline: {
     fontSize: 14,
     color: COLORS.TEXT_MUTED,
     textAlign: "center",
     fontStyle: "italic",
+    marginTop: 24,
   },
   modalBackdrop: {
     ...MODAL.WRAPPER,

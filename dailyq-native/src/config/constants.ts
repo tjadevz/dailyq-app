@@ -66,7 +66,9 @@ export const CALENDAR_JOKER = {
   SHADOW: "0 1px 4px rgba(251,191,36,0.2)",
 } as const;
 
-/** Modal close animation duration (ms) */
+/** Modal enter animation duration (ms) */
+export const MODAL_ENTER_MS = 200;
+/** Modal exit animation duration (ms) */
 export const MODAL_CLOSE_MS = 200;
 
 /** Shared modal styles for overlays (React Native ViewStyle) */

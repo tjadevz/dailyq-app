@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -18,8 +18,11 @@ import {
   CALENDAR_JOKER,
   JOKER,
   MODAL,
+  MODAL_ENTER_MS,
   MODAL_CLOSE_MS,
 } from "@/src/config/constants";
+
+const STREAK_MILESTONES = [7, 30, 100];
 import { useLanguage } from "@/src/context/LanguageContext";
 import { useAuth } from "@/src/context/AuthContext";
 import { useProfile } from "@/src/hooks/useProfile";
@@ -300,6 +303,83 @@ function MissedDayAnswerModal({
   );
 }
 
+function YearPickerModal({
+  visible,
+  onClose,
+  yearOptions,
+  selectedYear,
+  month,
+  setYearMonth,
+  t,
+  styles: modalStyles,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  yearOptions: number[];
+  selectedYear: number;
+  month: number;
+  setYearMonth: (ym: string) => void;
+  t: (key: string) => string;
+  styles: Record<string, object>;
+}) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  const handleClose = useCallback(() => {
+    Animated.timing(opacity, {
+      toValue: 0,
+      duration: MODAL_CLOSE_MS,
+      useNativeDriver: true,
+    }).start(() => onClose());
+  }, [opacity, onClose]);
+  useEffect(() => {
+    if (visible) {
+      opacity.setValue(0);
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: MODAL_ENTER_MS,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [visible, opacity]);
+  if (!visible) return null;
+  return (
+    <Modal transparent visible={true} animationType="none" onRequestClose={handleClose}>
+      <Animated.View style={[modalStyles.yearPickerBackdrop, { opacity }]}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
+        <Pressable style={modalStyles.yearPickerCard} onPress={(e) => e.stopPropagation()}>
+          <Pressable style={MODAL.CLOSE_BUTTON} onPress={handleClose}>
+            <Feather name="x" size={18} color={COLORS.TEXT_SECONDARY} strokeWidth={2.5} />
+          </Pressable>
+          <Text style={modalStyles.yearPickerTitle}>{t("calendar_select_year_title")}</Text>
+          <ScrollView style={modalStyles.yearPickerList} keyboardShouldPersistTaps="handled">
+            {yearOptions.map((year) => (
+              <Pressable
+                key={year}
+                style={[
+                  modalStyles.yearPickerOption,
+                  selectedYear === year && modalStyles.yearPickerOptionSelected,
+                ]}
+                onPress={() => {
+                  setYearMonth(`${year}-${String(month).padStart(2, "0")}`);
+                  handleClose();
+                }}
+              >
+                <Text
+                  style={[
+                    modalStyles.yearPickerOptionText,
+                    selectedYear === year && modalStyles.yearPickerOptionTextSelected,
+                  ]}
+                >
+                  {year}
+                </Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        </Pressable>
+      </Animated.View>
+    </Modal>
+  );
+}
+
 export default function CalendarScreen() {
   const { lang, t } = useLanguage();
   const { effectiveUser } = useAuth();
@@ -320,6 +400,26 @@ export default function CalendarScreen() {
   const [missedDay, setMissedDay] = useState<string | null>(null);
   const [missedAnswerDay, setMissedAnswerDay] = useState<string | null>(null);
   const [jokerModalVisible, setJokerModalVisible] = useState(false);
+  const [realStreak, setRealStreak] = useState(0);
+  const [showYearPicker, setShowYearPicker] = useState(false);
+
+  useEffect(() => {
+    if (!userId || userId === "dev-user") {
+      setRealStreak(0);
+      return;
+    }
+    let cancelled = false;
+    supabase.rpc("get_user_streaks", { p_user_id: userId }).then(({ data }) => {
+      if (cancelled) return;
+      const row = Array.isArray(data) && data.length > 0 ? data[0] : null;
+      const r = row?.real_streak ?? 0;
+      const v = row?.visual_streak ?? 0;
+      setRealStreak(Math.max(Number(r), Number(v)));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
 
   const goPrev = useCallback(() => {
     const [y, m] = yearMonth.split("-").map(Number);
@@ -336,7 +436,28 @@ export default function CalendarScreen() {
   const grid = getDaysInMonthGrid(yearMonth);
   const [y, m] = yearMonth.split("-").map(Number);
   const totalDaysInMonth = new Date(y, m, 0).getDate();
-  const captured = answersMap.size;
+  let answerableDaysThisMonth = 0;
+  let capturedThisMonth = 0;
+  for (let d = 1; d <= totalDaysInMonth; d++) {
+    const dayKey = `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    if (dayKey <= todayKey) {
+      answerableDaysThisMonth++;
+      if (answersMap.has(dayKey)) capturedThisMonth++;
+    }
+  }
+  const nextMilestone = STREAK_MILESTONES.find((mil) => mil > realStreak) ?? null;
+  const daysLeft = nextMilestone != null ? nextMilestone - realStreak : 0;
+  const progressPercent = nextMilestone != null ? (realStreak / nextMilestone) * 100 : 0;
+  const isViewingCurrentMonth =
+    y === getNow().getFullYear() && m === getNow().getMonth() + 1;
+  const now = getNow();
+  const yearOptions = Array.from(
+    { length: now.getFullYear() + 2 - 2020 },
+    (_, i) => 2020 + i
+  );
+  const goToToday = useCallback(() => {
+    setYearMonth(todayKey.slice(0, 7));
+  }, [todayKey]);
 
   const handleCellPress = useCallback(
     (dayKey: string | null, state: CellState) => {
@@ -394,14 +515,31 @@ export default function CalendarScreen() {
           </Pressable>
         </View>
 
-        {/* Month nav */}
-        <View style={styles.nav}>
-          <Pressable style={styles.navBtn} onPress={goPrev}>
-            <Feather name="chevron-left" size={24} color={COLORS.TEXT_PRIMARY} />
-          </Pressable>
-          <Text style={styles.monthLabel}>{getMonthLabel(yearMonth, lang)}</Text>
-          <Pressable style={styles.navBtn} onPress={goNext}>
-            <Feather name="chevron-right" size={24} color={COLORS.TEXT_PRIMARY} />
+        {/* Month nav + Today */}
+        <View style={styles.navColumn}>
+          <View style={styles.nav}>
+            <Pressable style={styles.navBtn} onPress={goPrev}>
+              <Feather name="chevron-left" size={24} color={COLORS.TEXT_PRIMARY} />
+            </Pressable>
+            <Pressable onPress={() => setShowYearPicker(true)} style={styles.monthLabelWrap}>
+              <Text style={styles.monthLabel}>{getMonthLabel(yearMonth, lang)}</Text>
+            </Pressable>
+            <Pressable style={styles.navBtn} onPress={goNext}>
+              <Feather name="chevron-right" size={24} color={COLORS.TEXT_PRIMARY} />
+            </Pressable>
+          </View>
+          <Pressable
+            style={[styles.todayButton, isViewingCurrentMonth && styles.todayButtonActive]}
+            onPress={goToToday}
+          >
+            <Text
+              style={[
+                styles.todayButtonText,
+                isViewingCurrentMonth && styles.todayButtonTextActive,
+              ]}
+            >
+              {t("calendar_today")}
+            </Text>
           </Pressable>
         </View>
 
@@ -446,14 +584,65 @@ export default function CalendarScreen() {
           ))}
         </View>
 
-        {/* Stats */}
-        <Text style={styles.stats}>
-          {t("calendar_answered_this_month", {
-            captured: String(captured),
-            total: String(totalDaysInMonth),
-          })}
-        </Text>
+        {/* Stats: X van Y dagen + streak */}
+        <View style={styles.statsBlock}>
+          <View style={styles.statsRow}>
+            <Text style={styles.statsValueCaptured}>{capturedThisMonth}</Text>
+            <Text style={styles.statsLabel}>
+              {lang === "nl" ? "van de" : "out of"} {answerableDaysThisMonth}{" "}
+              {lang === "nl" ? "dagen beantwoord" : "days answered"}
+            </Text>
+          </View>
+          <View style={styles.statsRow}>
+            <Text style={styles.statsValueStreak}>{realStreak}</Text>
+            <Text style={styles.statsLabel}>
+              {lang === "nl" ? "dagen streak" : "day streak"}
+            </Text>
+          </View>
+        </View>
+
+        {/* Next Reward */}
+        {nextMilestone != null && (
+          <View style={styles.nextRewardBlock}>
+            <View style={styles.nextRewardHeader}>
+              <View style={styles.nextRewardIconWrap}>
+                <Feather name="award" size={18} color="#F59E0B" strokeWidth={2.5} />
+              </View>
+              <View style={styles.nextRewardTextWrap}>
+                <Text style={styles.nextRewardTitle}>{t("calendar_next_reward")}</Text>
+                <Text style={styles.nextRewardMilestone}>
+                  {t("calendar_next_reward_milestone", { count: nextMilestone })}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.nextRewardProgressWrap}>
+              <Text style={styles.nextRewardDaysLeft}>
+                {daysLeft === 1
+                  ? t("calendar_next_reward_days_left_one")
+                  : t("calendar_next_reward_days_left_other", { count: daysLeft })}
+              </Text>
+              <Text style={styles.nextRewardFraction}>
+                {realStreak}/{nextMilestone}
+              </Text>
+            </View>
+            <View style={styles.nextRewardBarBg}>
+              <View style={[styles.nextRewardBarFill, { width: `${progressPercent}%` }]} />
+            </View>
+          </View>
+        )}
       </ScrollView>
+
+      {/* Year picker modal */}
+      <YearPickerModal
+        visible={showYearPicker}
+        onClose={() => setShowYearPicker(false)}
+        yearOptions={yearOptions}
+        selectedYear={y}
+        month={m}
+        setYearMonth={setYearMonth}
+        t={t}
+        styles={styles}
+      />
 
       <ViewAnswerModal
         visible={!!viewAnswerDay}
@@ -534,14 +723,126 @@ const styles = StyleSheet.create({
     borderColor: "rgba(251,191,36,0.4)",
   },
   jokerCount: { fontSize: 15, fontWeight: "700", color: JOKER.TEXT },
+  navColumn: {
+    alignItems: "center",
+    marginBottom: 16,
+  },
   nav: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 16,
+    width: "100%",
   },
   navBtn: { padding: 8 },
+  monthLabelWrap: { paddingVertical: 4, paddingHorizontal: 8 },
   monthLabel: { fontSize: 18, fontWeight: "600", color: COLORS.TEXT_PRIMARY },
+  todayButton: {
+    marginTop: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  todayButtonActive: {},
+  todayButtonText: { fontSize: 13, fontWeight: "500", color: COLORS.TEXT_SECONDARY },
+  todayButtonTextActive: { color: COLORS.ACCENT },
+  statsBlock: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(229,231,235,0.4)",
+    gap: 6,
+  },
+  statsRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  statsValueCaptured: { fontSize: 16, fontWeight: "600", color: COLORS.HEADER_Q },
+  statsValueStreak: { fontSize: 16, fontWeight: "600", color: COLORS.ACCENT },
+  statsLabel: { fontSize: 13, color: COLORS.TEXT_SECONDARY },
+  nextRewardBlock: {
+    marginTop: 16,
+    padding: 14,
+    borderRadius: 20,
+    backgroundColor: "rgba(254,243,199,0.4)",
+    borderWidth: 1,
+    borderColor: "rgba(245,158,11,0.2)",
+    shadowColor: "#F59E0B",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    elevation: 2,
+  },
+  nextRewardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 10,
+  },
+  nextRewardIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(254,243,199,0.9)",
+    borderWidth: 1,
+    borderColor: "rgba(245,158,11,0.3)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  nextRewardTextWrap: { flex: 1 },
+  nextRewardTitle: { fontSize: 11, fontWeight: "500", color: COLORS.TEXT_SECONDARY, marginBottom: 2 },
+  nextRewardMilestone: { fontSize: 14, fontWeight: "700", color: COLORS.TEXT_PRIMARY },
+  nextRewardProgressWrap: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  nextRewardDaysLeft: { fontSize: 11, fontWeight: "500", color: COLORS.TEXT_SECONDARY },
+  nextRewardFraction: { fontSize: 11, fontWeight: "700", color: "#F59E0B" },
+  nextRewardBarBg: {
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "rgba(255,255,255,0.6)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.4)",
+    overflow: "hidden",
+  },
+  nextRewardBarFill: {
+    height: "100%",
+    borderRadius: 3,
+    backgroundColor: "#FBBF24",
+  },
+  yearPickerBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  yearPickerCard: {
+    ...MODAL.CARD,
+    maxHeight: "70%",
+    width: "100%",
+    maxWidth: 320,
+  },
+  yearPickerTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: COLORS.TEXT_PRIMARY,
+    marginBottom: 16,
+    textAlign: "center",
+  },
+  yearPickerList: { maxHeight: 300 },
+  yearPickerOption: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    marginBottom: 4,
+  },
+  yearPickerOptionSelected: {
+    backgroundColor: "rgba(139,92,246,0.1)",
+    borderWidth: 2,
+    borderColor: COLORS.ACCENT,
+  },
+  yearPickerOptionText: { fontSize: 16, fontWeight: "500", color: COLORS.TEXT_PRIMARY },
+  yearPickerOptionTextSelected: { fontWeight: "600", color: COLORS.ACCENT },
   weekdayRow: {
     flexDirection: "row",
     marginBottom: 8,
@@ -601,11 +902,6 @@ const styles = StyleSheet.create({
     borderColor: "rgba(229,231,235,0.25)",
   },
   cellNum: { fontSize: 14, fontWeight: "600", color: COLORS.TEXT_PRIMARY },
-  stats: {
-    fontSize: 14,
-    color: COLORS.TEXT_SECONDARY,
-    textAlign: "center",
-  },
   modalBackdrop: {
     ...MODAL.WRAPPER,
     backgroundColor: "rgba(0,0,0,0.4)",

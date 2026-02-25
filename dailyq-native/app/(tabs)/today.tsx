@@ -15,7 +15,7 @@ import {
 import Feather from "@expo/vector-icons/Feather";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import { COLORS, JOKER, MODAL, MODAL_CLOSE_MS } from "@/src/config/constants";
+import { COLORS, JOKER, MODAL, MODAL_ENTER_MS, MODAL_CLOSE_MS } from "@/src/config/constants";
 import { useLanguage } from "@/src/context/LanguageContext";
 import { useAuth } from "@/src/context/AuthContext";
 import { useTodayQuestion } from "@/src/hooks/useTodayQuestion";
@@ -40,6 +40,9 @@ export default function TodayScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [showAnswerInput, setShowAnswerInput] = useState(false);
+  const [showSubmitSuccess, setShowSubmitSuccess] = useState(false);
   const [jokerModalVisible, setJokerModalVisible] = useState(false);
   const [editConfirmVisible, setEditConfirmVisible] = useState(false);
   const [recapModal, setRecapModal] = useState<{ open: boolean; count: number; total: number }>({ open: false, count: 0, total: 0 });
@@ -116,6 +119,12 @@ export default function TodayScreen() {
 
       const wasUpdate = existingAnswer != null && existingAnswer.length > 0;
       setExistingAnswer(text);
+      setIsEditMode(false);
+      setShowAnswerInput(false);
+
+      // Submit-success overlay (short visual feedback)
+      setShowSubmitSuccess(true);
+      setTimeout(() => setShowSubmitSuccess(false), 1200);
 
       // Edit confirm: show after changing an existing answer
       if (wasUpdate) {
@@ -215,71 +224,113 @@ export default function TodayScreen() {
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          hasAnswer && !isEditMode && styles.scrollContentCentered,
+        ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Question card */}
-        <View style={styles.card}>
-          <Text style={styles.dayLabel}>{dayLabel}</Text>
-          <Text style={styles.questionText}>{question.text}</Text>
-        </View>
-
-        {/* Answer input */}
-        <TextInput
-          style={styles.input}
-          placeholder={t("today_placeholder")}
-          placeholderTextColor={COLORS.TEXT_MUTED}
-          value={answerText}
-          onChangeText={(text) => {
-            if (text.length <= MAX_ANSWER_LENGTH) setAnswerText(text);
-          }}
-          maxLength={MAX_ANSWER_LENGTH}
-          multiline
-          numberOfLines={3}
-          editable={!submitting}
-          textAlignVertical="top"
-        />
-        <Text style={styles.charCount}>
-          {answerText.length}/{MAX_ANSWER_LENGTH}
-        </Text>
-
-        {/* Submit / Update button */}
-        <Pressable
-          style={({ pressed }) => [
-            styles.submitButton,
-            !canSubmit && styles.submitButtonDisabled,
-            pressed && canSubmit && styles.submitButtonPressed,
-          ]}
-          onPress={handleSubmit}
-          disabled={!canSubmit || submitting}
-        >
-          {submitting ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : (
-            <Text style={styles.submitButtonText}>
-              {hasAnswer ? t("today_update") : t("today_submit")}
-            </Text>
-          )}
-        </Pressable>
-
-        {submitError && (
-          <Text style={styles.submitError}>{submitError}</Text>
+        {/* Submit-success overlay */}
+        {showSubmitSuccess && (
+          <SubmitSuccessOverlay />
         )}
 
-        {/* Beantwoord-state: gouden vinkje + "Ready for today" */}
-        {hasAnswer && isUnchanged && (
-          <View style={styles.readyRow}>
-            <View style={styles.checkCircle}>
-              <Feather
-                name="check"
-                size={24}
-                color="#fff"
-                strokeWidth={3}
-              />
+        {hasAnswer && !isEditMode ? (
+          /* Answered layout: centered card with question + gold check + Edit answer */
+          <View style={styles.answeredWrap}>
+            <View style={styles.answeredCard}>
+              <Text style={styles.answeredDayLabel}>{dayLabel}</Text>
+              <View style={styles.answeredCheckCircle}>
+                <Feather name="check" size={24} color="#fff" strokeWidth={2.5} />
+              </View>
+              <Text style={styles.answeredQuestionText}>{question.text}</Text>
             </View>
-            <Text style={styles.readyText}>{t("today_ready")}</Text>
+            <Pressable
+              style={({ pressed }) => [
+                styles.editAnswerButton,
+                pressed && styles.editAnswerButtonPressed,
+              ]}
+              onPress={() => {
+                setIsEditMode(true);
+                setAnswerText(existingAnswer ?? "");
+              }}
+            >
+              <Text style={styles.editAnswerButtonText}>{t("today_edit_answer")}</Text>
+            </Pressable>
           </View>
+        ) : (
+          <>
+            {/* Question card (when no answer or editing) */}
+            <View style={styles.card}>
+              <Text style={styles.dayLabel}>{dayLabel}</Text>
+              <Text style={styles.questionText}>{question.text}</Text>
+            </View>
+
+            {!showAnswerInput && !hasAnswer ? (
+              <Pressable
+                style={({ pressed }) => [
+                  styles.primaryButton,
+                  pressed && styles.primaryButtonPressed,
+                ]}
+                onPress={() => setShowAnswerInput(true)}
+              >
+                <Text style={styles.primaryButtonText}>{t("today_answer_question")}</Text>
+              </Pressable>
+            ) : (
+              <>
+                <TextInput
+                  style={styles.input}
+                  placeholder={t("today_placeholder")}
+                  placeholderTextColor={COLORS.TEXT_MUTED}
+                  value={answerText}
+                  onChangeText={(text) => {
+                    if (text.length <= MAX_ANSWER_LENGTH) setAnswerText(text);
+                  }}
+                  maxLength={MAX_ANSWER_LENGTH}
+                  multiline
+                  numberOfLines={3}
+                  editable={!submitting}
+                  textAlignVertical="top"
+                />
+                <Text style={styles.charCount}>
+                  {answerText.length}/{MAX_ANSWER_LENGTH}
+                </Text>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.submitButton,
+                    !canSubmit && styles.submitButtonDisabled,
+                    pressed && canSubmit && styles.submitButtonPressed,
+                  ]}
+                  onPress={handleSubmit}
+                  disabled={!canSubmit || submitting}
+                >
+                  {submitting ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={styles.submitButtonText}>
+                      {hasAnswer ? t("today_update") : t("today_submit")}
+                    </Text>
+                  )}
+                </Pressable>
+                {hasAnswer && (
+                  <Pressable
+                    style={({ pressed }) => [styles.cancelEditButton, pressed && { opacity: 0.8 }]}
+                    onPress={() => {
+                      setIsEditMode(false);
+                      setAnswerText(existingAnswer ?? "");
+                    }}
+                  >
+                    <Text style={styles.cancelEditButtonText}>{t("common_cancel")}</Text>
+                  </Pressable>
+                )}
+              </>
+            )}
+
+            {submitError && (
+              <Text style={styles.submitError}>{submitError}</Text>
+            )}
+          </>
         )}
       </ScrollView>
 
@@ -310,15 +361,51 @@ export default function TodayScreen() {
   );
 }
 
+function SubmitSuccessOverlay() {
+  const scale = React.useRef(new Animated.Value(0.5)).current;
+  const opacity = React.useRef(new Animated.Value(0)).current;
+
+  React.useEffect(() => {
+    Animated.parallel([
+      Animated.timing(opacity, { toValue: 1, duration: 150, useNativeDriver: true }),
+      Animated.spring(scale, {
+        toValue: 1,
+        useNativeDriver: true,
+        friction: 8,
+        tension: 80,
+      }),
+    ]).start();
+  }, [opacity, scale]);
+
+  return (
+    <Animated.View style={[styles.submitSuccessOverlay, { opacity }]} pointerEvents="none">
+      <Animated.View style={[styles.submitSuccessCircle, { transform: [{ scale }] }]}>
+        <Feather name="check" size={36} color="#fff" strokeWidth={2.5} />
+      </Animated.View>
+    </Animated.View>
+  );
+}
+
 function EditConfirmModal({ visible, message }: { visible: boolean; message: string }) {
+  const opacity = React.useRef(new Animated.Value(0)).current;
+  React.useEffect(() => {
+    if (visible) {
+      opacity.setValue(0);
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: MODAL_ENTER_MS,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [visible, opacity]);
   if (!visible) return null;
   return (
-    <Modal transparent visible animationType="fade">
-      <View style={editConfirmStyles.backdrop}>
+    <Modal transparent visible animationType="none">
+      <Animated.View style={[editConfirmStyles.backdrop, { opacity }]}>
         <View style={editConfirmStyles.card}>
           <Text style={editConfirmStyles.text}>{message}</Text>
         </View>
-      </View>
+      </Animated.View>
     </Modal>
   );
 }
@@ -358,12 +445,31 @@ function MondayRecapModal({
   onClose: () => void;
   t: (key: string, params?: Record<string, string | number>) => string;
 }) {
+  const opacity = React.useRef(new Animated.Value(0)).current;
+  const handleClose = React.useCallback(() => {
+    Animated.timing(opacity, {
+      toValue: 0,
+      duration: MODAL_CLOSE_MS,
+      useNativeDriver: true,
+    }).start(() => onClose());
+  }, [opacity, onClose]);
+  React.useEffect(() => {
+    if (visible) {
+      opacity.setValue(0);
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: MODAL_ENTER_MS,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [visible, opacity]);
   if (!visible) return null;
   return (
-    <Modal transparent visible animationType="fade">
-      <Pressable style={recapModalStyles.backdrop} onPress={onClose}>
+    <Modal transparent visible animationType="none">
+      <Animated.View style={[recapModalStyles.backdrop, { opacity }]}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
         <Pressable style={recapModalStyles.card} onPress={(e) => e.stopPropagation()}>
-          <Pressable style={MODAL.CLOSE_BUTTON} onPress={onClose}>
+          <Pressable style={MODAL.CLOSE_BUTTON} onPress={handleClose}>
             <Feather name="x" size={18} color={COLORS.TEXT_SECONDARY} strokeWidth={2.5} />
           </Pressable>
           <Text style={recapModalStyles.title}>{t("recap_title")}</Text>
@@ -371,11 +477,11 @@ function MondayRecapModal({
           <Text style={recapModalStyles.body}>
             {t("recap_body", { count: String(count), total: String(total) })}
           </Text>
-          <Pressable style={recapModalStyles.cta} onPress={onClose}>
+          <Pressable style={recapModalStyles.cta} onPress={handleClose}>
             <Text style={recapModalStyles.ctaText}>{t("streak_popup_cta")}</Text>
           </Pressable>
         </Pressable>
-      </Pressable>
+      </Animated.View>
     </Modal>
   );
 }
@@ -434,18 +540,33 @@ function StreakModal({
   onClose: () => void;
   t: (key: string, params?: Record<string, string | number>) => string;
 }) {
+  const opacity = React.useRef(new Animated.Value(0)).current;
   const confettiAnims = useRef<Animated.Value[]>([]).current;
   if (confettiAnims.length === 0) {
     for (let i = 0; i < 12; i++) confettiAnims.push(new Animated.Value(0));
   }
-
+  const handleClose = useCallback(() => {
+    Animated.timing(opacity, {
+      toValue: 0,
+      duration: MODAL_CLOSE_MS,
+      useNativeDriver: true,
+    }).start(() => onClose());
+  }, [opacity, onClose]);
+  useEffect(() => {
+    if (visible && milestone) {
+      opacity.setValue(0);
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: MODAL_ENTER_MS,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [visible, milestone, opacity]);
   useEffect(() => {
     if (!visible || !milestone) return;
     confettiAnims.forEach((v) => v.setValue(0));
     const duration = 1200;
-    confettiAnims.forEach((anim, i) => {
-      const angle = (i / 12) * 2 * Math.PI + Math.random() * 0.5;
-      const dist = 80 + Math.random() * 60;
+    confettiAnims.forEach((anim) => {
       Animated.timing(anim, {
         toValue: 1,
         duration: duration + Math.random() * 300,
@@ -466,8 +587,9 @@ function StreakModal({
   const cta = t("streak_popup_cta");
 
   return (
-    <Modal transparent visible animationType="fade">
-      <Pressable style={streakModalStyles.backdrop} onPress={onClose}>
+    <Modal transparent visible animationType="none">
+      <Animated.View style={[streakModalStyles.backdrop, { opacity }]}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
         <Pressable style={streakModalStyles.card} onPress={(e) => e.stopPropagation()}>
           {/* Confetti-like: small circles that move out and fade */}
           <View style={streakModalStyles.confettiWrap} pointerEvents="none">
@@ -504,7 +626,7 @@ function StreakModal({
               );
             })}
           </View>
-          <Pressable style={MODAL.CLOSE_BUTTON} onPress={onClose}>
+          <Pressable style={MODAL.CLOSE_BUTTON} onPress={handleClose}>
             <Feather name="x" size={18} color={COLORS.TEXT_SECONDARY} strokeWidth={2.5} />
           </Pressable>
           <Text style={streakModalStyles.title}>{title}</Text>
@@ -513,11 +635,11 @@ function StreakModal({
             {earned} {jokerCount}
           </Text>
           <Text style={streakModalStyles.hint}>{hint}</Text>
-          <Pressable style={streakModalStyles.cta} onPress={onClose}>
+          <Pressable style={streakModalStyles.cta} onPress={handleClose}>
             <Text style={streakModalStyles.ctaText}>{cta}</Text>
           </Pressable>
         </Pressable>
-      </Pressable>
+      </Animated.View>
     </Modal>
   );
 }
@@ -595,6 +717,141 @@ const styles = StyleSheet.create({
     maxWidth: 480,
     width: "100%",
     alignSelf: "center",
+    flexGrow: 1,
+  },
+  scrollContentCentered: {
+    justifyContent: "center",
+  },
+  submitSuccessOverlay: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    backgroundColor: "rgba(244,246,249,0.9)",
+    borderRadius: 24,
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 10,
+  },
+  submitSuccessCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: "#FBBF24",
+    borderWidth: 1,
+    borderColor: "rgba(251,191,36,0.4)",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#B45309",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  answeredWrap: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 24,
+  },
+  answeredCard: {
+    width: "100%",
+    marginBottom: 32,
+    backgroundColor: "rgba(255,255,255,0.95)",
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: "rgba(139,92,246,0.15)",
+    padding: 28,
+    paddingTop: 48,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.08,
+    shadowRadius: 40,
+    elevation: 4,
+  },
+  answeredDayLabel: {
+    position: "absolute",
+    top: 16,
+    right: 20,
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 0.8,
+    color: "rgba(139,92,246,0.35)",
+  },
+  answeredCheckCircle: {
+    width: 51,
+    height: 51,
+    borderRadius: 25.5,
+    backgroundColor: "#FBBF24",
+    borderWidth: 1,
+    borderColor: "rgba(251,191,36,0.4)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 14,
+    shadowColor: "#B45309",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  answeredQuestionText: {
+    fontSize: 20,
+    fontWeight: "500",
+    color: "#374151",
+    textAlign: "center",
+    lineHeight: 28,
+  },
+  editAnswerButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 22,
+    borderRadius: 9999,
+    backgroundColor: COLORS.ACCENT,
+    shadowColor: COLORS.ACCENT,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  editAnswerButtonPressed: {
+    opacity: 0.9,
+  },
+  editAnswerButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#fff",
+  },
+  primaryButton: {
+    width: "100%",
+    paddingVertical: 16,
+    borderRadius: 9999,
+    backgroundColor: COLORS.ACCENT,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 52,
+    shadowColor: COLORS.ACCENT,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  primaryButtonPressed: {
+    opacity: 0.9,
+  },
+  primaryButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#fff",
+  },
+  cancelEditButton: {
+    marginTop: 12,
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+  cancelEditButtonText: {
+    fontSize: 15,
+    color: COLORS.TEXT_SECONDARY,
   },
   centered: {
     flex: 1,

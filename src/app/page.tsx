@@ -18,6 +18,7 @@ import {
   LogOut,
   Instagram,
   Sparkles,
+  Trash2,
 } from "lucide-react";
 import { createSupabaseBrowserClient } from "@/lib/supabaseClient";
 import { getNow } from "@/utils/dateProvider";
@@ -574,6 +575,23 @@ function Home() {
     };
     run();
   }, [effectiveUser?.id]);
+
+  // Native app: receive Expo push token from WebView bridge and store in Supabase
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handler = async (e: Event) => {
+      const { type, payload } = (e as CustomEvent<{ type: string; payload?: { token?: string } }>).detail ?? {};
+      if (type !== "PUSH_TOKEN" || !payload?.token) return;
+      const supabase = createSupabaseBrowserClient();
+      const { data: { user: u } } = await supabase.auth.getUser();
+      if (!u?.id) return;
+      await supabase
+        .from("push_subscriptions")
+        .upsert({ user_id: u.id, expo_push_token: payload.token }, { onConflict: "user_id" });
+    };
+    window.addEventListener("nativeMessage", handler);
+    return () => window.removeEventListener("nativeMessage", handler);
+  }, []);
 
   useEffect(() => {
     if (!showJokerModal) return;
@@ -4264,6 +4282,8 @@ function SettingsView({ user, onShowLoadingScreen, onShowLoginScreen, onShowOnbo
   const { t, lang, setLang } = useLanguage();
   const [signingOut, setSigningOut] = useState(false);
   const [showLanguageModal, setShowLanguageModal] = useState(false);
+  const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   const handleSignOut = async () => {
     setSigningOut(true);
@@ -4275,6 +4295,27 @@ function SettingsView({ user, onShowLoadingScreen, onShowLoginScreen, onShowOnbo
       console.error("Sign out error:", e);
     } finally {
       setSigningOut(false);
+    }
+  };
+
+  const handleDeleteAccountConfirm = async () => {
+    setDeletingAccount(true);
+    try {
+      const supabase = createSupabaseBrowserClient();
+      const { error } = await supabase.rpc("delete_user");
+      if (error) {
+        console.error("Delete account error:", error);
+        setDeletingAccount(false);
+        setShowDeleteAccountModal(false);
+        return;
+      }
+      await supabase.auth.signOut();
+      onShowLoginScreen?.();
+    } catch (e) {
+      console.error("Delete account error:", e);
+    } finally {
+      setDeletingAccount(false);
+      setShowDeleteAccountModal(false);
     }
   };
 
@@ -4426,6 +4467,75 @@ function SettingsView({ user, onShowLoadingScreen, onShowLoginScreen, onShowOnbo
           </div>
         </div>
       </button>
+
+      <button
+        type="button"
+        onClick={() => setShowDeleteAccountModal(true)}
+        disabled={deletingAccount}
+        style={{ ...settingsCardStyle, width: "100%", textAlign: "left", cursor: deletingAccount ? "wait" : "pointer", border: "none", fontFamily: "inherit", marginTop: 10 }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ width: 32, height: 32, borderRadius: 10, background: "rgba(254,202,202,0.7)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Trash2 size={16} strokeWidth={2} color="#B91C1C" />
+          </div>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: "#B91C1C", marginBottom: 1 }}>
+              Delete Account
+            </div>
+          </div>
+        </div>
+      </button>
+
+      {showDeleteAccountModal && typeof document !== "undefined" && createPortal(
+        <div style={{ ...MODAL.WRAPPER, pointerEvents: "auto" }} onClick={() => !deletingAccount && setShowDeleteAccountModal(false)}>
+          <div style={MODAL.BACKDROP} aria-hidden />
+          <div style={{ ...MODAL.CARD, textAlign: "center" }} onClick={(e) => e.stopPropagation()}>
+            <button type="button" aria-label={t("common_close")} onClick={() => !deletingAccount && setShowDeleteAccountModal(false)} style={MODAL.CLOSE_BUTTON} disabled={deletingAccount}>
+              <X size={16} strokeWidth={2.5} />
+            </button>
+            <p style={{ fontSize: 16, color: COLORS.TEXT_PRIMARY, margin: "0 0 1.5rem" }}>
+              Weet je het zeker? Al je data wordt verwijderd.
+            </p>
+            <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+              <button
+                type="button"
+                onClick={() => setShowDeleteAccountModal(false)}
+                disabled={deletingAccount}
+                style={{
+                  padding: "10px 20px",
+                  borderRadius: 12,
+                  border: GLASS.BORDER,
+                  background: GLASS.BG,
+                  color: COLORS.TEXT_PRIMARY,
+                  fontSize: 15,
+                  fontWeight: 500,
+                  cursor: deletingAccount ? "wait" : "pointer",
+                }}
+              >
+                Annuleren
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteAccountConfirm}
+                disabled={deletingAccount}
+                style={{
+                  padding: "10px 20px",
+                  borderRadius: 12,
+                  border: "none",
+                  background: "#B91C1C",
+                  color: "#fff",
+                  fontSize: 15,
+                  fontWeight: 600,
+                  cursor: deletingAccount ? "wait" : "pointer",
+                }}
+              >
+                {deletingAccount ? "Bezig…" : "Bevestigen"}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
 
       {user && user.email && (
         <p style={{ fontSize: 14, color: COLORS.TEXT_SECONDARY, marginTop: 16, marginBottom: 8 }}>

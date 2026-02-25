@@ -9,7 +9,7 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "bundleIdentifier": "com.dailyq.app",
+      "bundleIdentifier": "com.tjade.dailyq",
       "supportsTablet": false,
       "associatedDomains": [],
       "infoPlist": {

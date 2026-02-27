@@ -26,6 +26,7 @@ export const translations: Record<
     joker_modal_title_many: "Jokers",
     joker_modal_body: "You have {joker_balance} jokers.\n\nUse a joker to still answer a missed day.",
     joker_modal_body_singular: "You have 1 joker.\n\nUse a joker to still answer a missed day.",
+    joker_modal_badge_label: "Jokers",
     // Onboarding
     onboarding_email: "Email",
     onboarding_password: "Password",
@@ -144,6 +145,7 @@ export const translations: Record<
     joker_modal_title_many: "Jokers",
     joker_modal_body: "Je hebt {joker_balance} jokers.\n\nGebruik een joker om een gemiste dag alsnog te beantwoorden.",
     joker_modal_body_singular: "Je hebt 1 joker.\n\nGebruik een joker om een gemiste dag alsnog te beantwoorden.",
+    joker_modal_badge_label: "Jokers",
     onboarding_email: "Email",
     onboarding_password: "Wachtwoord",
     onboarding_sign_up: "Registreren",

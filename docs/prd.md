@@ -457,6 +457,56 @@ Any future feature must be evaluated against a single criterion:
 
 ---
 
+## Native app (dailyq-native) – implementation status
+
+The **Expo / React Native** client (`dailyq-native`) mirrors the PWA flow and shares Supabase backend, constants, and i18n where applicable.
+
+**Platform & stack**
+
+- **Expo** (React Native), standard **Animated** API (no Reanimated).
+- **Tabs:** Today, Calendar, Settings (same as PWA).
+- **Auth:** Onboarding (email + password, Supabase); session restored on load. Post-login loading screen while `useAuth().loading`.
+
+**Completed – Today tab**
+
+- **Answered layout:** When the user has already submitted, a centered card shows the question, a **gold check** (JOKER-style circle + Check icon), and an **"Edit answer"** button. The answer input is hidden until they tap **"Edit answer"** or (when no answer yet) **"Answer"**. State: `isEditMode`, `showAnswerInput`.
+- **Submit-success:** After submit, a **SubmitSuccessOverlay** shows an animated gold circle + check (scale/opacity), then hides after ~1.2s. Edit state is reset after submit.
+- **Cancel in edit mode:** Button to leave edit mode and restore the existing answer without saving.
+- **Modals:** EditConfirmModal (enter only, 200 ms); MondayRecapModal and StreakModal with full enter/exit (200 ms).
+
+**Completed – Calendar tab**
+
+- **Streak in stats:** `get_user_streaks` RPC; **real streak** shown as “X dagen streak” under the grid.
+- **“X van Y dagen beantwoord”:** Stats use `capturedThisMonth` and `answerableDaysThisMonth` (only days in the shown month with `dayKey <= todayKey`).
+- **Next Reward block:** Award icon, next milestone (7 / 30 / 100), progress bar `realStreak / nextMilestone`, “X more days to go”. `STREAK_MILESTONES = [7, 30, 100]`.
+- **Today button:** Under month nav; jumps to current month; accent when already on current month.
+- **Year picker:** Tapping the month label opens a modal with a scrollable list of years (2020 → current+1); choosing a year updates the view and closes the modal. Uses same enter/exit animation pattern as other modals.
+
+**Completed – Settings tab**
+
+- **Reminder card (read-only):** First card shows “Daily Reminder” and the stored time slot (morning / afternoon / evening) from AsyncStorage key `dailyq-reminder-time`; subtitle uses `onboarding_notif_*_time` or `settings_reminder_time` fallback.
+- **Icons per row:** Each row is a card with a 32×32 colored icon block (Bell, Globe, Mail, Log-out, Trash-2, Info) and PWA-like card styling.
+- Language and Delete Account modals use the same animation pattern as below.
+
+**Completed – Post-login loading (app entry)**
+
+- Shown while `useAuth().loading` is true. Content: sun icon + “DailyQ” title, tagline `t("loading_screen_tagline")`, three animated dots (scale/opacity pulse, staggered) with standard Animated API. Card layout and safe area; logo/tagline use a short enter animation (opacity + scale).
+
+**Modal enter/exit animations (native)**
+
+- **Constants:** `MODAL_ENTER_MS = 200`, `MODAL_CLOSE_MS = 200` in `src/config/constants.ts`.
+- **Pattern:** All overlay modals use **`animationType="none"`** and an **Animated.View** backdrop: **enter** opacity 0→1 in 200 ms; **exit** opacity 1→0 in 200 ms, then `onClose()` so the exit animation runs before unmount.
+- **Applied to:** JokerModal, Settings (LanguageModal, DeleteAccountModal), Calendar (ViewAnswerModal, MissedDayModal, MissedDayAnswerModal), Today (EditConfirmModal enter only; MondayRecapModal, StreakModal full enter/exit), Calendar YearPickerModal.
+- EditConfirmModal auto-dismisses after 2.5 s; it uses the same enter animation for consistency and does not require a custom exit.
+
+**Reference**
+
+- **PWA:** `src/app/page.tsx` and tab content as design reference.
+- **Native screens:** `dailyq-native/app/(tabs)/today.tsx`, `calendar.tsx`, `settings.tsx`; `dailyq-native/app/index.tsx`; `dailyq-native/app/(auth)/onboarding.tsx`.
+- **Shared:** `dailyq-native/src/config/constants.ts` (COLORS, MODAL, MODAL_ENTER_MS, MODAL_CLOSE_MS, JOKER); `dailyq-native/src/components/JokerModal.tsx`; `dailyq-native/src/i18n/translations.ts`.
+
+---
+
 ## Layout & Spacing Contract – Onboarding (Auto-generated)
 
 This section documents the **current implementation** of onboarding layout and spacing in code. Future changes to onboarding UI must preserve this structure or explicitly update this contract.

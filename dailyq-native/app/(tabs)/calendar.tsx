@@ -4,13 +4,16 @@ import {
   Text,
   StyleSheet,
   Pressable,
-  ScrollView,
   ActivityIndicator,
   TextInput,
   Animated,
   Modal,
+  ScrollView,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Feather from "@expo/vector-icons/Feather";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
+import { LinearGradient } from "expo-linear-gradient";
 
 import {
   COLORS,
@@ -31,6 +34,7 @@ import type { CalendarAnswerEntry } from "@/src/context/CalendarAnswersContext";
 import { getNow, getLocalDayKey } from "@/src/lib/date";
 import { supabase } from "@/src/config/supabase";
 import { JokerModal } from "@/src/components/JokerModal";
+import { JokerBadge } from "@/src/components/JokerBadge";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const GRID_ROWS = 6;
@@ -45,6 +49,18 @@ function getMonthLabel(yearMonth: string, lang: string): string {
     month: "long",
     year: "numeric",
   });
+}
+
+function getMonthNameOnly(yearMonth: string, lang: string): string {
+  const [y, m] = yearMonth.split("-").map(Number);
+  const d = new Date(y, m - 1, 1);
+  return d.toLocaleDateString(lang === "nl" ? "nl-NL" : "en-US", { month: "long" });
+}
+
+function isBeforeAccountStart(dayKey: string, accountCreatedAt: string | undefined): boolean {
+  if (!accountCreatedAt) return false;
+  const createdDate = accountCreatedAt.slice(0, 10);
+  return dayKey < createdDate;
 }
 
 function getDaysInMonthGrid(yearMonth: string): { dayKey: string | null; dayNum: number }[] {
@@ -74,11 +90,13 @@ function getDaysInMonthGrid(yearMonth: string): { dayKey: string | null; dayNum:
 function getCellState(
   dayKey: string,
   todayKey: string,
-  entry: CalendarAnswerEntry | undefined
+  entry: CalendarAnswerEntry | undefined,
+  accountCreatedAt?: string
 ): CellState {
-  if (dayKey === todayKey) return "today";
-  if (entry) return entry.isJoker ? "joker" : "answered";
   if (dayKey > todayKey) return "future";
+  if (entry) return entry.isJoker ? "joker" : "answered";
+  if (dayKey === todayKey) return "today";
+  if (accountCreatedAt && isBeforeAccountStart(dayKey, accountCreatedAt)) return "before";
   return "missed";
 }
 
@@ -183,8 +201,15 @@ function MissedDayModal({
           ) : (
             <>
               <Text style={styles.modalBody}>{t("missed_use_joker_message")}</Text>
-              <Pressable style={styles.primaryBtn} onPress={onUseJoker}>
-                <Text style={styles.primaryBtnText}>{t("missed_use_joker_btn")}</Text>
+              <Pressable onPress={onUseJoker} style={styles.primaryBtnWrap}>
+                <LinearGradient
+                  colors={["#A78BFA", "#8B5CF6"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.primaryBtn}
+                >
+                  <Text style={styles.primaryBtnText}>{t("missed_use_joker_btn")}</Text>
+                </LinearGradient>
               </Pressable>
             </>
           )}
@@ -287,15 +312,22 @@ function MissedDayAnswerModal({
           />
           {error && <Text style={styles.modalError}>{error}</Text>}
           <Pressable
-            style={[styles.primaryBtn, submitting && styles.primaryBtnDisabled]}
+            style={[styles.primaryBtnWrap, submitting && styles.primaryBtnDisabled]}
             onPress={handleSubmit}
             disabled={submitting || !answerText.trim()}
           >
-            {submitting ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Text style={styles.primaryBtnText}>{t("missed_answer_now")}</Text>
-            )}
+            <LinearGradient
+              colors={["#A78BFA", "#8B5CF6"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.primaryBtn}
+            >
+              {submitting ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.primaryBtnText}>{t("missed_answer_now")}</Text>
+              )}
+            </LinearGradient>
           </Pressable>
         </View>
       </Animated.View>
@@ -464,7 +496,7 @@ export default function CalendarScreen() {
       if (!dayKey) return;
       if (state === "answered" || state === "joker") {
         setViewAnswerDay(dayKey);
-      } else if (state === "missed") {
+      } else if (state === "missed" || state === "before") {
         setMissedDay(dayKey);
       }
     },
@@ -483,12 +515,17 @@ export default function CalendarScreen() {
   }, [missedAnswerDay, refetch]);
 
   const viewEntry = viewAnswerDay ? answersMap.get(viewAnswerDay) ?? null : null;
-  const missedWithinWindow = missedDay ? isWithin7Days(missedDay, todayKey) : false;
+  const missedWithinWindow = !!(
+    missedDay &&
+    isWithin7Days(missedDay, todayKey) &&
+    !isBeforeAccountStart(missedDay, effectiveUser?.created_at)
+  );
   const jokerCount = profile?.joker_balance ?? 0;
+  const insets = useSafeAreaInsets();
 
   if (loading) {
     return (
-      <View style={styles.centered}>
+      <View style={[styles.centered, { paddingTop: insets.top }]}>
         <ActivityIndicator size="large" color={COLORS.ACCENT} />
         <Text style={styles.loadingText}>{t("loading_calendar")}</Text>
       </View>
@@ -497,53 +534,45 @@ export default function CalendarScreen() {
 
   if (error) {
     return (
-      <View style={styles.centered}>
+      <View style={[styles.centered, { paddingTop: insets.top }]}>
         <Text style={styles.errorText}>{t("calendar_error_load")}</Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Header: tap joker badge → Joker modal */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>DailyQ</Text>
-          <Pressable style={styles.jokerBadge} onPress={() => setJokerModalVisible(true)}>
-            <Feather name="award" size={16} color={JOKER.TEXT} strokeWidth={2} />
-            <Text style={styles.jokerCount}>{jokerCount}</Text>
-          </Pressable>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      {/* Year centred (aligned with month); joker badge right */}
+      <View style={styles.yearRow}>
+        <View style={styles.yearRowSpacer} />
+        <Pressable style={styles.yearPressable} onPress={() => setShowYearPicker(true)}>
+          <Text style={styles.yearText}>{y}</Text>
+        </Pressable>
+        <View style={styles.yearRowRight}>
+          <JokerBadge count={jokerCount} onPress={() => setJokerModalVisible(true)} />
         </View>
+      </View>
 
-        {/* Month nav + Today */}
-        <View style={styles.navColumn}>
-          <View style={styles.nav}>
-            <Pressable style={styles.navBtn} onPress={goPrev}>
-              <Feather name="chevron-left" size={24} color={COLORS.TEXT_PRIMARY} />
-            </Pressable>
-            <Pressable onPress={() => setShowYearPicker(true)} style={styles.monthLabelWrap}>
-              <Text style={styles.monthLabel}>{getMonthLabel(yearMonth, lang)}</Text>
-            </Pressable>
-            <Pressable style={styles.navBtn} onPress={goNext}>
-              <Feather name="chevron-right" size={24} color={COLORS.TEXT_PRIMARY} />
-            </Pressable>
-          </View>
-          <Pressable
-            style={[styles.todayButton, isViewingCurrentMonth && styles.todayButtonActive]}
-            onPress={goToToday}
-          >
-            <Text
-              style={[
-                styles.todayButtonText,
-                isViewingCurrentMonth && styles.todayButtonTextActive,
-              ]}
-            >
-              {t("calendar_today")}
-            </Text>
-          </Pressable>
-        </View>
+      {/* Month nav: ‹ › 36x36 round buttons */}
+      <View style={styles.monthNav}>
+        <Pressable style={styles.navBtn} onPress={goPrev}>
+          <Text style={styles.navBtnText}>‹</Text>
+        </Pressable>
+        <Pressable onPress={() => setShowYearPicker(true)} style={styles.monthLabelWrap}>
+          <Text style={styles.monthLabel}>{getMonthNameOnly(yearMonth, lang)}</Text>
+        </Pressable>
+        <Pressable style={styles.navBtn} onPress={goNext}>
+          <Text style={styles.navBtnText}>›</Text>
+        </Pressable>
+      </View>
 
-        {/* Weekday headers */}
+      {/* Vandaag: 28px */}
+      <Pressable style={styles.todayWrap} onPress={goToToday}>
+        <Text style={styles.todayText}>{t("calendar_today")}</Text>
+      </Pressable>
+
+      {/* Card: weekdays + grid + divider + stats + Next Reward */}
+      <View style={styles.card}>
         <View style={styles.weekdayRow}>
           {WEEKDAYS.map((wd) => (
             <View key={wd} style={styles.weekdayCell}>
@@ -551,62 +580,71 @@ export default function CalendarScreen() {
             </View>
           ))}
         </View>
-
-        {/* Grid: 7 columns per row */}
-        <View style={styles.grid}>
-          {Array.from({ length: GRID_ROWS }, (_, row) => (
-            <View key={row} style={styles.gridRow}>
-              {grid.slice(row * GRID_COLS, (row + 1) * GRID_COLS).map((cell, col) => {
-                const i = row * GRID_COLS + col;
-                const state = cell.dayKey
-                  ? getCellState(cell.dayKey, todayKey, answersMap.get(cell.dayKey))
-                  : "future";
-                const isPlaceholder = !cell.dayKey;
-                return (
-                  <Pressable
-                    key={i}
-                    style={[
-                      styles.cell,
-                      isPlaceholder && styles.cellEmpty,
-                      !isPlaceholder && state === "today" && styles.cellToday,
-                      !isPlaceholder && state === "answered" && styles.cellAnswered,
-                      !isPlaceholder && state === "joker" && styles.cellJoker,
-                      !isPlaceholder && state === "missed" && styles.cellMissed,
-                      !isPlaceholder && state === "future" && styles.cellFuture,
-                    ]}
-                    onPress={() => handleCellPress(cell.dayKey, state)}
-                  >
-                    {cell.dayNum > 0 && <Text style={styles.cellNum}>{cell.dayNum}</Text>}
-                  </Pressable>
-                );
-              })}
-            </View>
-          ))}
-        </View>
-
-        {/* Stats: X van Y dagen + streak */}
-        <View style={styles.statsBlock}>
-          <View style={styles.statsRow}>
-            <Text style={styles.statsValueCaptured}>{capturedThisMonth}</Text>
+        {Array.from({ length: GRID_ROWS }, (_, row) => (
+          <View key={row} style={styles.gridRow}>
+            {grid.slice(row * GRID_COLS, (row + 1) * GRID_COLS).map((cell, i) => {
+              const entry = cell.dayKey ? answersMap.get(cell.dayKey) : undefined;
+              const state = cell.dayKey
+                ? getCellState(cell.dayKey, todayKey, entry, effectiveUser?.created_at)
+                : "future";
+              const isPlaceholder = !cell.dayKey;
+              const isTodayNoAnswer = !isPlaceholder && state === "today" && !entry;
+              const isFilled = !isPlaceholder && (state === "today" && entry || state === "answered" || state === "joker");
+              return (
+                <Pressable
+                  key={i}
+                  style={[
+                    styles.cell,
+                    isPlaceholder && styles.cellEmpty,
+                    !isPlaceholder && isTodayNoAnswer && styles.cellTodayNoAnswer,
+                    !isPlaceholder && state === "today" && entry && styles.cellTodayAnswered,
+                    !isPlaceholder && state === "answered" && styles.cellAnswered,
+                    !isPlaceholder && state === "joker" && styles.cellJoker,
+                    !isPlaceholder && state === "missed" && styles.cellMissed,
+                    !isPlaceholder && state === "future" && styles.cellFuture,
+                    !isPlaceholder && state === "before" && styles.cellBefore,
+                  ]}
+                  onPress={() => handleCellPress(cell.dayKey, state)}
+                >
+                  {cell.dayNum > 0 && (
+                    <Text
+                      style={[
+                        styles.cellNum,
+                        isFilled && styles.cellNumFilled,
+                        !isFilled && !isTodayNoAnswer && styles.cellNumEmpty,
+                        state === "future" && styles.cellNumFuture,
+                        state === "before" && styles.cellNumBefore,
+                      ]}
+                    >
+                      {cell.dayNum}
+                    </Text>
+                  )}
+                </Pressable>
+              );
+            })}
+          </View>
+        ))}
+        <View style={styles.cardDivider} />
+        <View style={styles.statsWrap}>
+          <View style={styles.statsRow1}>
+            <Text style={styles.statsNumCaptured}>{capturedThisMonth}</Text>
             <Text style={styles.statsLabel}>
               {lang === "nl" ? "van de" : "out of"} {answerableDaysThisMonth}{" "}
               {lang === "nl" ? "dagen beantwoord" : "days answered"}
             </Text>
           </View>
-          <View style={styles.statsRow}>
-            <Text style={styles.statsValueStreak}>{realStreak}</Text>
+          <View style={styles.statsRow2}>
+            <Text style={styles.statsNumStreak}>{realStreak}</Text>
             <Text style={styles.statsLabel}>
               {lang === "nl" ? "dagen streak" : "day streak"}
             </Text>
           </View>
         </View>
-
-        {/* Next Reward */}
         {nextMilestone != null && (
           <View style={styles.nextRewardBlock}>
             <View style={styles.nextRewardHeader}>
-              <View style={styles.nextRewardIconWrap}>
-                <Feather name="award" size={18} color="#F59E0B" strokeWidth={2.5} />
+              <View style={styles.nextRewardCrownCircle}>
+                <MaterialCommunityIcons name="crown" size={20} color="#F59E0B" />
               </View>
               <View style={styles.nextRewardTextWrap}>
                 <Text style={styles.nextRewardTitle}>{t("calendar_next_reward")}</Text>
@@ -615,7 +653,7 @@ export default function CalendarScreen() {
                 </Text>
               </View>
             </View>
-            <View style={styles.nextRewardProgressWrap}>
+            <View style={styles.nextRewardProgressRow}>
               <Text style={styles.nextRewardDaysLeft}>
                 {daysLeft === 1
                   ? t("calendar_next_reward_days_left_one")
@@ -626,11 +664,18 @@ export default function CalendarScreen() {
               </Text>
             </View>
             <View style={styles.nextRewardBarBg}>
-              <View style={[styles.nextRewardBarFill, { width: `${progressPercent}%` }]} />
+              <View style={[styles.nextRewardBarFillWrap, { width: `${progressPercent}%` }]}>
+                <LinearGradient
+                  colors={["#FDE68A", "#FBBF24"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.nextRewardBarFill}
+                />
+              </View>
             </View>
           </View>
         )}
-      </ScrollView>
+      </View>
 
       {/* Year picker modal */}
       <YearPickerModal
@@ -679,95 +724,202 @@ export default function CalendarScreen() {
   );
 }
 
+const CELL_SIZE = 36;
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.BACKGROUND,
-  },
-  scrollContent: {
-    padding: 20,
-    paddingBottom: 40,
-    maxWidth: 480,
-    width: "100%",
-    alignSelf: "center",
+    backgroundColor: "transparent",
+    paddingBottom: 92,
   },
   centered: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: COLORS.BACKGROUND,
+    backgroundColor: "transparent",
     padding: 24,
   },
   loadingText: { fontSize: 14, color: COLORS.TEXT_SECONDARY, marginTop: 12 },
   errorText: { fontSize: 16, color: COLORS.TEXT_PRIMARY, textAlign: "center" },
-  header: {
+  yearRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 20,
+    paddingHorizontal: 16,
+    marginTop: 4,
+    minHeight: 32,
   },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: COLORS.TEXT_PRIMARY,
+  yearRowSpacer: {
+    flex: 1,
   },
-  jokerBadge: {
+  yearRowRight: {
+    flex: 1,
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    alignItems: "center",
+  },
+  yearPressable: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  yearText: {
+    fontSize: 14,
+    color: "#71717A",
+  },
+  monthNav: {
+    height: 48,
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    backgroundColor: "rgba(254,243,199,0.9)",
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 9999,
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    marginTop: 4,
+  },
+  navBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: "rgba(251,191,36,0.4)",
-  },
-  jokerCount: { fontSize: 15, fontWeight: "700", color: JOKER.TEXT },
-  navColumn: {
+    borderColor: "rgba(0,0,0,0.1)",
     alignItems: "center",
-    marginBottom: 16,
+    justifyContent: "center",
   },
-  nav: {
+  navBtnText: { fontSize: 22, fontWeight: "700", color: COLORS.TEXT_PRIMARY },
+  monthLabelWrap: { paddingVertical: 4, paddingHorizontal: 8 },
+  monthLabel: { fontSize: 22, fontWeight: "700", color: COLORS.TEXT_PRIMARY },
+  todayWrap: {
+    height: 28,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 6,
+  },
+  todayText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: COLORS.ACCENT,
+  },
+  card: {
+    marginTop: 14,
+    marginBottom: 0,
+    backgroundColor: "rgba(255,254,249,0.65)",
+    borderRadius: 24,
+    padding: 24,
+    marginHorizontal: 16,
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
+  },
+  cardDivider: {
+    marginTop: 0,
+    height: 1,
+    backgroundColor: "rgba(229,231,235,0.4)",
+  },
+  weekdayRow: {
+    flexDirection: "row",
+    height: 28,
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  weekdayCell: {
+    flex: 1,
+    alignItems: "center",
+  },
+  weekdayText: {
+    fontSize: 11,
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 1,
+    color: "#9CA3AF",
+  },
+  gridRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    height: 44,
+  },
+  cell: {
+    width: CELL_SIZE,
+    height: CELL_SIZE,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cellEmpty: { backgroundColor: "transparent" },
+  cellTodayNoAnswer: {
+    backgroundColor: "#FFFFFF",
+    borderWidth: 2,
+    borderColor: "#8B5CF6",
+  },
+  cellTodayAnswered: {
+    backgroundColor: "#8B5CF6",
+    shadowColor: "#8B5CF6",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  cellAnswered: {
+    backgroundColor: "rgba(139,92,246,0.5)",
+  },
+  cellJoker: {
+    backgroundColor: "#FBBF24",
+    borderWidth: 1,
+    borderColor: "rgba(245,158,11,0.3)",
+  },
+  cellMissed: {
+    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: "rgba(156,163,175,0.3)",
+  },
+  cellFuture: {
+    backgroundColor: "rgba(243,244,246,0.5)",
+  },
+  cellBefore: {
+    backgroundColor: "rgba(243,244,246,0.3)",
+  },
+  cellNum: {
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  cellNumFilled: { color: "#FFFFFF" },
+  cellNumEmpty: { color: "#6B7280" },
+  cellNumFuture: { color: "#D1D5DB" },
+  cellNumBefore: { color: "#E5E7EB" },
+  statsWrap: { marginTop: 10 },
+  statsRow1: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    width: "100%",
+    gap: 8,
   },
-  navBtn: { padding: 8 },
-  monthLabelWrap: { paddingVertical: 4, paddingHorizontal: 8 },
-  monthLabel: { fontSize: 18, fontWeight: "600", color: COLORS.TEXT_PRIMARY },
-  todayButton: {
-    marginTop: 6,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 8,
+  statsRow2: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 8,
   },
-  todayButtonActive: {},
-  todayButtonText: { fontSize: 13, fontWeight: "500", color: COLORS.TEXT_SECONDARY },
-  todayButtonTextActive: { color: COLORS.ACCENT },
-  statsBlock: {
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(229,231,235,0.4)",
-    gap: 6,
+  statsNumCaptured: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#F59E0B",
   },
-  statsRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  statsValueCaptured: { fontSize: 16, fontWeight: "600", color: COLORS.HEADER_Q },
-  statsValueStreak: { fontSize: 16, fontWeight: "600", color: COLORS.ACCENT },
-  statsLabel: { fontSize: 13, color: COLORS.TEXT_SECONDARY },
+  statsNumStreak: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#7C3AED",
+  },
+  statsLabel: {
+    fontSize: 14,
+    color: "#6B7280",
+  },
   nextRewardBlock: {
     marginTop: 16,
-    padding: 14,
-    borderRadius: 20,
+    paddingBottom: 14,
     backgroundColor: "rgba(254,243,199,0.4)",
     borderWidth: 1,
     borderColor: "rgba(245,158,11,0.2)",
-    shadowColor: "#F59E0B",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 16,
-    elevation: 2,
+    borderRadius: 20,
+    padding: 16,
   },
   nextRewardHeader: {
     flexDirection: "row",
@@ -775,39 +927,40 @@ const styles = StyleSheet.create({
     gap: 10,
     marginBottom: 10,
   },
-  nextRewardIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  nextRewardCrownCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: "rgba(254,243,199,0.9)",
-    borderWidth: 1,
-    borderColor: "rgba(245,158,11,0.3)",
     alignItems: "center",
     justifyContent: "center",
   },
   nextRewardTextWrap: { flex: 1 },
-  nextRewardTitle: { fontSize: 11, fontWeight: "500", color: COLORS.TEXT_SECONDARY, marginBottom: 2 },
-  nextRewardMilestone: { fontSize: 14, fontWeight: "700", color: COLORS.TEXT_PRIMARY },
-  nextRewardProgressWrap: {
+  nextRewardTitle: { fontSize: 12, color: "#92400E", marginBottom: 2 },
+  nextRewardMilestone: { fontSize: 16, fontWeight: "700", color: "#78350F" },
+  nextRewardProgressRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 6,
   },
-  nextRewardDaysLeft: { fontSize: 11, fontWeight: "500", color: COLORS.TEXT_SECONDARY },
-  nextRewardFraction: { fontSize: 11, fontWeight: "700", color: "#F59E0B" },
+  nextRewardDaysLeft: { fontSize: 13, color: "#92400E" },
+  nextRewardFraction: { fontSize: 13, fontWeight: "700", color: "#F59E0B" },
   nextRewardBarBg: {
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "rgba(255,255,255,0.6)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.4)",
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "rgba(255,255,255,0.7)",
+    overflow: "hidden",
+  },
+  nextRewardBarFillWrap: {
+    height: "100%",
+    borderRadius: 3,
     overflow: "hidden",
   },
   nextRewardBarFill: {
     height: "100%",
     borderRadius: 3,
-    backgroundColor: "#FBBF24",
+    minWidth: 0,
   },
   yearPickerBackdrop: {
     flex: 1,
@@ -843,65 +996,6 @@ const styles = StyleSheet.create({
   },
   yearPickerOptionText: { fontSize: 16, fontWeight: "500", color: COLORS.TEXT_PRIMARY },
   yearPickerOptionTextSelected: { fontWeight: "600", color: COLORS.ACCENT },
-  weekdayRow: {
-    flexDirection: "row",
-    marginBottom: 8,
-  },
-  weekdayCell: {
-    flex: 1,
-    alignItems: "center",
-  },
-  weekdayText: { fontSize: 12, fontWeight: "600", color: COLORS.TEXT_SECONDARY },
-  grid: {
-    marginBottom: 20,
-  },
-  gridRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 6,
-  },
-  cell: {
-    flex: 1,
-    aspectRatio: 1,
-    maxHeight: 44,
-    alignItems: "center",
-    justifyContent: "center",
-    marginHorizontal: 2,
-    borderRadius: 22,
-  },
-  cellEmpty: { backgroundColor: "transparent" },
-  cellToday: {
-    backgroundColor: CALENDAR.TODAY_AND_ANSWERED_BG,
-    shadowColor: "#8B5CF6",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  cellAnswered: {
-    backgroundColor: CALENDAR.ANSWERED_FADED_BG,
-    shadowColor: "#8B5CF6",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  cellJoker: {
-    backgroundColor: CALENDAR_JOKER.BACKGROUND,
-    borderWidth: 1,
-    borderColor: CALENDAR_JOKER.BORDER,
-  },
-  cellMissed: {
-    backgroundColor: "transparent",
-    borderWidth: 2,
-    borderColor: CALENDAR.MISSED_COLOR,
-  },
-  cellFuture: {
-    backgroundColor: CALENDAR.FUTURE_BG,
-    borderWidth: 1,
-    borderColor: "rgba(229,231,235,0.25)",
-  },
-  cellNum: { fontSize: 14, fontWeight: "600", color: COLORS.TEXT_PRIMARY },
   modalBackdrop: {
     ...MODAL.WRAPPER,
     backgroundColor: "rgba(0,0,0,0.4)",
@@ -933,13 +1027,17 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   modalError: { fontSize: 14, color: "#DC2626", marginBottom: 12 },
+  primaryBtnWrap: { alignSelf: "stretch" },
   primaryBtn: {
-    alignSelf: "stretch",
     paddingVertical: 14,
     borderRadius: 9999,
-    backgroundColor: COLORS.ACCENT,
     alignItems: "center",
     justifyContent: "center",
+    shadowColor: "rgba(139,92,246,0.3)",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 1,
+    shadowRadius: 24,
+    elevation: 4,
   },
   primaryBtnDisabled: { opacity: 0.6 },
   primaryBtnText: { fontSize: 16, fontWeight: "600", color: "#fff" },

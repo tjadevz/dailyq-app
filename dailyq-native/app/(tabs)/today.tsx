@@ -13,6 +13,7 @@ import {
   Animated,
 } from "react-native";
 import Feather from "@expo/vector-icons/Feather";
+import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { COLORS, JOKER, MODAL, MODAL_ENTER_MS, MODAL_CLOSE_MS } from "@/src/config/constants";
@@ -23,6 +24,8 @@ import { useProfile } from "@/src/hooks/useProfile";
 import { getDayOfYear, getNow, getLocalDayKey, isMonday, getPreviousWeekRange, getAnswerableDaysInRange } from "@/src/lib/date";
 import { supabase } from "@/src/config/supabase";
 import { JokerModal } from "@/src/components/JokerModal";
+import { JokerBadge } from "@/src/components/JokerBadge";
+import { PrimaryButton } from "@/src/components/PrimaryButton";
 
 const MAX_ANSWER_LENGTH = 280;
 const RECAP_STORAGE_PREFIX = "dailyq_recap_";
@@ -147,7 +150,7 @@ export default function TodayScreen() {
             .gte("question_date", start)
             .lte("question_date", end);
           const count = answers?.length ?? 0;
-          const total = getAnswerableDaysInRange(start, end, profile?.created_at ?? undefined);
+          const total = getAnswerableDaysInRange(start, end, effectiveUser?.created_at ?? undefined);
           setRecapModal({ open: true, count, total });
           await AsyncStorage.setItem(recapKey, "1");
         }
@@ -174,7 +177,7 @@ export default function TodayScreen() {
     } finally {
       setSubmitting(false);
     }
-  }, [userId, question, answerText, existingAnswer, profile?.created_at, t]);
+  }, [userId, question, answerText, existingAnswer, effectiveUser?.created_at, t]);
 
   const dayLabel = question ? `#${String(getDayOfYear(question.day)).padStart(3, "0")}` : "";
   const hasAnswer = existingAnswer != null && existingAnswer.length > 0;
@@ -207,20 +210,13 @@ export default function TodayScreen() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
     >
-      {/* Header outside ScrollView so joker badge tap is always received */}
+      {/* Joker badge top-right (no DailyQ title) */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>DailyQ</Text>
-        <Pressable onPress={() => setJokerModalVisible(true)} style={styles.jokerBadge}>
-          <Feather
-            name="award"
-            size={16}
-            color={JOKER.TEXT}
-            strokeWidth={2}
-          />
-          <Text style={styles.jokerCount}>
-            {profile?.joker_balance ?? 0}
-          </Text>
-        </Pressable>
+        <View style={styles.headerSpacer} />
+        <JokerBadge
+          count={profile?.joker_balance ?? 0}
+          onPress={() => setJokerModalVisible(true)}
+        />
       </View>
 
       <ScrollView
@@ -239,44 +235,88 @@ export default function TodayScreen() {
         {hasAnswer && !isEditMode ? (
           /* Answered layout: centered card with question + gold check + Edit answer */
           <View style={styles.answeredWrap}>
-            <View style={styles.answeredCard}>
-              <Text style={styles.answeredDayLabel}>{dayLabel}</Text>
-              <View style={styles.answeredCheckCircle}>
-                <Feather name="check" size={24} color="#fff" strokeWidth={2.5} />
+            <View style={styles.answeredCardOuter}>
+              <View style={styles.answeredCardInnerWrap}>
+                <LinearGradient
+                  colors={["rgba(255,255,255,0.8)", "rgba(255,255,255,0.6)"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.answeredCardInner}
+                >
+                  <LinearGradient
+                    colors={["rgba(139,92,246,0.08)", "rgba(139,92,246,0)"]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.cardCornerTL}
+                  />
+                  <LinearGradient
+                    colors={["rgba(139,92,246,0)", "rgba(139,92,246,0.08)"]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.cardCornerBR}
+                  />
+                  <Text style={styles.answeredDayLabel}>{dayLabel}</Text>
+                  <View style={styles.answeredCheckCircleWrap}>
+                    <LinearGradient
+                      colors={["#FEF3C7", "#FDE68A", "#FCD34D"]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.answeredCheckCircle}
+                    >
+                      <Feather name="check" size={24} color="#fff" strokeWidth={2.5} />
+                    </LinearGradient>
+                  </View>
+                  <Text style={styles.answeredQuestionText}>{question.text}</Text>
+                </LinearGradient>
               </View>
-              <Text style={styles.answeredQuestionText}>{question.text}</Text>
             </View>
-            <Pressable
-              style={({ pressed }) => [
-                styles.editAnswerButton,
-                pressed && styles.editAnswerButtonPressed,
-              ]}
+            <PrimaryButton
               onPress={() => {
                 setIsEditMode(true);
                 setAnswerText(existingAnswer ?? "");
               }}
             >
-              <Text style={styles.editAnswerButtonText}>{t("today_edit_answer")}</Text>
-            </Pressable>
+              {t("today_edit_answer")}
+            </PrimaryButton>
           </View>
         ) : (
           <>
-            {/* Question card (when no answer or editing) */}
-            <View style={styles.card}>
-              <Text style={styles.dayLabel}>{dayLabel}</Text>
-              <Text style={styles.questionText}>{question.text}</Text>
+            {/* Question card (when no answer or editing): glass outer + gradient inner + corners */}
+            <View style={styles.cardOuterWrap}>
+              <View style={styles.cardOuter}>
+                <View style={styles.cardInnerWrap}>
+                  <LinearGradient
+                    colors={["rgba(255,255,255,0.8)", "rgba(255,255,255,0.6)"]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.cardInner}
+                  >
+                    <LinearGradient
+                      colors={["rgba(139,92,246,0.08)", "rgba(139,92,246,0)"]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.cardCornerTL}
+                    />
+                    <LinearGradient
+                      colors={["rgba(139,92,246,0)", "rgba(139,92,246,0.08)"]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.cardCornerBR}
+                    />
+                    <Text style={styles.cardDayLabel}>{dayLabel}</Text>
+                    <Text style={styles.questionText}>{question.text}</Text>
+                  </LinearGradient>
+                </View>
+              </View>
             </View>
 
             {!showAnswerInput && !hasAnswer ? (
-              <Pressable
-                style={({ pressed }) => [
-                  styles.primaryButton,
-                  pressed && styles.primaryButtonPressed,
-                ]}
+              <PrimaryButton
+                fullWidth
                 onPress={() => setShowAnswerInput(true)}
               >
-                <Text style={styles.primaryButtonText}>{t("today_answer_question")}</Text>
-              </Pressable>
+                {t("today_answer_question")}
+              </PrimaryButton>
             ) : (
               <>
                 <TextInput
@@ -296,23 +336,14 @@ export default function TodayScreen() {
                 <Text style={styles.charCount}>
                   {answerText.length}/{MAX_ANSWER_LENGTH}
                 </Text>
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.submitButton,
-                    !canSubmit && styles.submitButtonDisabled,
-                    pressed && canSubmit && styles.submitButtonPressed,
-                  ]}
+                <PrimaryButton
+                  fullWidth
                   onPress={handleSubmit}
-                  disabled={!canSubmit || submitting}
+                  disabled={!canSubmit}
+                  loading={submitting}
                 >
-                  {submitting ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                  ) : (
-                    <Text style={styles.submitButtonText}>
-                      {hasAnswer ? t("today_update") : t("today_submit")}
-                    </Text>
-                  )}
-                </Pressable>
+                  {hasAnswer ? t("today_update") : t("today_submit")}
+                </PrimaryButton>
                 {hasAnswer && (
                   <Pressable
                     style={({ pressed }) => [styles.cancelEditButton, pressed && { opacity: 0.8 }]}
@@ -379,8 +410,15 @@ function SubmitSuccessOverlay() {
 
   return (
     <Animated.View style={[styles.submitSuccessOverlay, { opacity }]} pointerEvents="none">
-      <Animated.View style={[styles.submitSuccessCircle, { transform: [{ scale }] }]}>
-        <Feather name="check" size={36} color="#fff" strokeWidth={2.5} />
+      <Animated.View style={[styles.submitSuccessCircleWrap, { transform: [{ scale }] }]}>
+        <LinearGradient
+          colors={["#FEF3C7", "#FDE68A", "#FCD34D"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.submitSuccessCircle}
+        >
+          <Feather name="check" size={36} color="#fff" strokeWidth={2.5} />
+        </LinearGradient>
       </Animated.View>
     </Animated.View>
   );
@@ -413,16 +451,13 @@ function EditConfirmModal({ visible, message }: { visible: boolean; message: str
 const editConfirmStyles = StyleSheet.create({
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.35)",
+    backgroundColor: "rgba(0,0,0,0.4)",
     justifyContent: "center",
     alignItems: "center",
     padding: 24,
   },
   card: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 20,
-    minWidth: 200,
+    ...MODAL.CARD,
     alignItems: "center",
   },
   text: {
@@ -477,8 +512,15 @@ function MondayRecapModal({
           <Text style={recapModalStyles.body}>
             {t("recap_body", { count: String(count), total: String(total) })}
           </Text>
-          <Pressable style={recapModalStyles.cta} onPress={handleClose}>
-            <Text style={recapModalStyles.ctaText}>{t("streak_popup_cta")}</Text>
+          <Pressable onPress={handleClose} style={recapModalStyles.ctaWrap}>
+            <LinearGradient
+              colors={["#A78BFA", "#8B5CF6"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={recapModalStyles.cta}
+            >
+              <Text style={recapModalStyles.ctaText}>{t("streak_popup_cta")}</Text>
+            </LinearGradient>
           </Pressable>
         </Pressable>
       </Animated.View>
@@ -515,12 +557,17 @@ const recapModalStyles = StyleSheet.create({
     lineHeight: 22,
     marginBottom: 20,
   },
+  ctaWrap: { alignSelf: "stretch" },
   cta: {
-    alignSelf: "stretch",
     paddingVertical: 14,
     borderRadius: 9999,
-    backgroundColor: COLORS.ACCENT,
     alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "rgba(139,92,246,0.3)",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 1,
+    shadowRadius: 24,
+    elevation: 4,
   },
   ctaText: {
     fontSize: 16,
@@ -635,8 +682,15 @@ function StreakModal({
             {earned} {jokerCount}
           </Text>
           <Text style={streakModalStyles.hint}>{hint}</Text>
-          <Pressable style={streakModalStyles.cta} onPress={handleClose}>
-            <Text style={streakModalStyles.ctaText}>{cta}</Text>
+          <Pressable onPress={handleClose} style={streakModalStyles.ctaWrap}>
+            <LinearGradient
+              colors={["#A78BFA", "#8B5CF6"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={streakModalStyles.cta}
+            >
+              <Text style={streakModalStyles.ctaText}>{cta}</Text>
+            </LinearGradient>
           </Pressable>
         </Pressable>
       </Animated.View>
@@ -691,12 +745,17 @@ const streakModalStyles = StyleSheet.create({
     color: COLORS.TEXT_MUTED,
     marginBottom: 20,
   },
+  ctaWrap: { alignSelf: "stretch" },
   cta: {
-    alignSelf: "stretch",
     paddingVertical: 14,
     borderRadius: 9999,
-    backgroundColor: COLORS.ACCENT,
     alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "rgba(139,92,246,0.3)",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 1,
+    shadowRadius: 24,
+    elevation: 4,
   },
   ctaText: {
     fontSize: 16,
@@ -708,7 +767,8 @@ const streakModalStyles = StyleSheet.create({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.BACKGROUND,
+    backgroundColor: "transparent",
+    paddingBottom: 92,
   },
   scrollContent: {
     padding: 20,
@@ -734,11 +794,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     zIndex: 10,
   },
+  submitSuccessCircleWrap: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+  },
   submitSuccessCircle: {
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: "#FBBF24",
     borderWidth: 1,
     borderColor: "rgba(251,191,36,0.4)",
     justifyContent: "center",
@@ -755,21 +819,29 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingVertical: 24,
   },
-  answeredCard: {
+  answeredCardOuter: {
     width: "100%",
     marginBottom: 32,
-    backgroundColor: "rgba(255,255,255,0.95)",
     borderRadius: 28,
+    padding: 1.5,
+    backgroundColor: "rgba(255,255,255,0.5)",
     borderWidth: 1,
     borderColor: "rgba(139,92,246,0.15)",
-    padding: 28,
-    paddingTop: 48,
-    alignItems: "center",
-    shadowColor: "#000",
+    shadowColor: "#8B5CF6",
     shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 0.08,
     shadowRadius: 40,
     elevation: 4,
+  },
+  answeredCardInnerWrap: {
+    borderRadius: 27,
+    overflow: "hidden",
+  },
+  answeredCardInner: {
+    borderRadius: 27,
+    paddingVertical: 48,
+    paddingHorizontal: 16,
+    alignItems: "center",
   },
   answeredDayLabel: {
     position: "absolute",
@@ -778,22 +850,23 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: "700",
     letterSpacing: 0.8,
-    color: "rgba(139,92,246,0.35)",
+    color: "rgba(139,92,246,0.3)",
+  },
+  answeredCheckCircleWrap: {
+    marginBottom: 14,
   },
   answeredCheckCircle: {
     width: 51,
     height: 51,
     borderRadius: 25.5,
-    backgroundColor: "#FBBF24",
     borderWidth: 1,
     borderColor: "rgba(251,191,36,0.4)",
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 14,
     shadowColor: "#B45309",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.35,
-    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.22,
+    shadowRadius: 12,
     elevation: 3,
   },
   answeredQuestionText: {
@@ -884,6 +957,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 8,
   },
+  headerSpacer: {
+    flex: 1,
+  },
   headerTitle: {
     fontSize: 24,
     fontWeight: "700",
@@ -905,31 +981,66 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: JOKER.TEXT,
   },
-  card: {
-    backgroundColor: "rgba(255,255,255,0.95)",
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.6)",
-    padding: 24,
+  cardOuterWrap: {
+    width: "100%",
     marginBottom: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
+    paddingHorizontal: 4,
+  },
+  cardOuter: {
+    borderRadius: 28,
+    padding: 1.5,
+    backgroundColor: "rgba(255,255,255,0.5)",
+    borderWidth: 1,
+    borderColor: "rgba(139,92,246,0.15)",
+    shadowColor: "#8B5CF6",
+    shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 0.08,
-    shadowRadius: 16,
+    shadowRadius: 40,
     elevation: 3,
   },
-  dayLabel: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: COLORS.ACCENT,
-    marginBottom: 12,
-    letterSpacing: 0.5,
+  cardInnerWrap: {
+    borderRadius: 27,
+    overflow: "hidden",
+  },
+  cardInner: {
+    borderRadius: 27,
+    paddingVertical: 48,
+    paddingHorizontal: 16,
+    minHeight: 140,
+    justifyContent: "center",
+  },
+  cardCornerTL: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: 48,
+    height: 48,
+    borderBottomRightRadius: 999,
+  },
+  cardCornerBR: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    width: 48,
+    height: 48,
+    borderTopLeftRadius: 999,
+  },
+  cardDayLabel: {
+    position: "absolute",
+    top: 16,
+    right: 20,
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 0.8,
+    color: "rgba(139,92,246,0.3)",
   },
   questionText: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "500",
-    color: COLORS.TEXT_PRIMARY,
-    lineHeight: 26,
+    color: "#374151",
+    textAlign: "center",
+    lineHeight: 28,
+    marginTop: 8,
   },
   input: {
     width: "100%",
@@ -937,11 +1048,16 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "rgba(229,231,235,0.9)",
-    backgroundColor: "#fff",
+    borderColor: "rgba(255,255,255,0.6)",
+    backgroundColor: "rgba(255,255,255,0.85)",
     fontSize: 16,
     color: COLORS.TEXT_PRIMARY,
     marginBottom: 6,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
   charCount: {
     fontSize: 12,

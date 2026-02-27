@@ -14,6 +14,7 @@ import {
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Feather from "@expo/vector-icons/Feather";
+import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Notifications from "expo-notifications";
 
@@ -66,6 +67,42 @@ async function requestNotificationPermission(): Promise<boolean> {
 
 async function saveReminderTime(time: "morning" | "afternoon" | "evening") {
   await AsyncStorage.setItem(REMINDER_TIME_KEY, time);
+}
+
+function OnboardingPrimaryButton({
+  onPress,
+  disabled,
+  fullWidth,
+  children,
+  style,
+}: {
+  onPress: () => void;
+  disabled?: boolean;
+  fullWidth?: boolean;
+  children: React.ReactNode;
+  style?: object;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      style={({ pressed }) => [
+        styles.primaryButtonWrap,
+        fullWidth && styles.primaryButtonFull,
+        pressed && !disabled && styles.primaryButtonPressed,
+        style,
+      ]}
+    >
+      <LinearGradient
+        colors={disabled ? ["#9CA3AF", "#9CA3AF"] : ["#8B5CF6", "#7C3AED"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={[styles.primaryButtonGradient, disabled && styles.primaryButtonDisabled]}
+      >
+        {children}
+      </LinearGradient>
+    </Pressable>
+  );
 }
 
 export default function OnboardingScreen() {
@@ -207,17 +244,11 @@ export default function OnboardingScreen() {
                         </View>
                       </View>
                       <View style={styles.ctaWrap}>
-                        <Pressable
-                          style={({ pressed }) => [
-                            styles.primaryButton,
-                            pressed && styles.primaryButtonPressed,
-                          ]}
-                          onPress={() => goNext("jokers")}
-                        >
+                        <OnboardingPrimaryButton onPress={() => goNext("jokers")}>
                           <Text style={styles.primaryButtonText}>
                             {t("onboarding_continue")}
                           </Text>
-                        </Pressable>
+                        </OnboardingPrimaryButton>
                       </View>
                     </View>
                 </FadeInView>
@@ -298,18 +329,14 @@ export default function OnboardingScreen() {
                           </View>
                         </View>
                       </View>
-                      <Pressable
-                        style={({ pressed }) => [
-                          styles.primaryButton,
-                          styles.primaryButtonFull,
-                          pressed && styles.primaryButtonPressed,
-                        ]}
+                      <OnboardingPrimaryButton
+                        fullWidth
                         onPress={() => goNext("notifications")}
                       >
                         <Text style={styles.primaryButtonText}>
                           {t("onboarding_continue")}
                         </Text>
-                      </Pressable>
+                      </OnboardingPrimaryButton>
                     </View>
                 </FadeInView>
               )}
@@ -385,22 +412,15 @@ export default function OnboardingScreen() {
                           </Pressable>
                         ))}
                       </View>
-                      <Pressable
-                        style={({ pressed }) => [
-                          styles.primaryButton,
-                          styles.primaryButtonFull,
-                          !notificationTime && styles.primaryButtonDisabled,
-                          pressed &&
-                            notificationTime &&
-                            styles.primaryButtonPressed,
-                        ]}
+                      <OnboardingPrimaryButton
+                        fullWidth
                         onPress={handleNotificationsContinue}
                         disabled={!notificationTime}
                       >
                         <Text style={styles.primaryButtonText}>
                           {t("onboarding_continue")}
                         </Text>
-                      </Pressable>
+                      </OnboardingPrimaryButton>
                     </View>
                 </FadeInView>
               )}
@@ -446,21 +466,13 @@ export default function OnboardingScreen() {
                           secureTextEntry
                           autoComplete={isLoginMode ? "password" : "new-password"}
                         />
-                        <Pressable
-                          style={({ pressed }) => [
-                            styles.primaryButton,
-                            styles.primaryButtonFull,
-                            styles.authSubmit,
-                            (submitting || !email.trim() || !password.trim()) &&
-                              styles.primaryButtonDisabled,
-                            pressed &&
-                              !submitting &&
-                              styles.primaryButtonPressed,
-                          ]}
+                        <OnboardingPrimaryButton
+                          fullWidth
                           onPress={handleAuthSubmit}
                           disabled={
                             submitting || !email.trim() || !password.trim()
                           }
+                          style={styles.authSubmit}
                         >
                           {submitting ? (
                             <ActivityIndicator
@@ -474,7 +486,7 @@ export default function OnboardingScreen() {
                                 : t("onboarding_sign_up")}
                             </Text>
                           )}
-                        </Pressable>
+                        </OnboardingPrimaryButton>
                       </View>
                       {authError && (
                         <Text style={styles.authError}>{authError}</Text>
@@ -507,7 +519,7 @@ export default function OnboardingScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: COLORS.BACKGROUND,
+    backgroundColor: "transparent",
   },
   keyboard: {
     flex: 1,
@@ -636,19 +648,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 8,
   },
-  primaryButton: {
+  primaryButtonWrap: {
     minWidth: 160,
+  },
+  primaryButtonGradient: {
     paddingHorizontal: 40,
     paddingVertical: 18,
     minHeight: 56,
     borderRadius: 9999,
-    backgroundColor: COLORS.ACCENT,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: COLORS.ACCENT,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.35,
-    shadowRadius: 24,
+    shadowColor: "rgba(139,92,246,0.35)",
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 1,
+    shadowRadius: 50,
     elevation: 6,
   },
   primaryButtonFull: {
@@ -656,7 +669,6 @@ const styles = StyleSheet.create({
     marginTop: 32,
   },
   primaryButtonDisabled: {
-    backgroundColor: "#9CA3AF",
     shadowOpacity: 0,
   },
   primaryButtonPressed: {

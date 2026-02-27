@@ -141,5 +141,7 @@ export const MODAL: {
     backgroundColor: "rgba(243,244,246,0.8)",
     alignItems: "center",
     justifyContent: "center",
+    zIndex: 2,
+    elevation: 2,
   },
 };

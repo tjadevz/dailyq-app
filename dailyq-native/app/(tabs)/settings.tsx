@@ -12,6 +12,7 @@ import {
 import { useRouter } from "expo-router";
 import Constants from "expo-constants";
 import Feather from "@expo/vector-icons/Feather";
+import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { COLORS, MODAL, MODAL_CLOSE_MS } from "@/src/config/constants";
@@ -134,15 +135,22 @@ function DeleteAccountModal({
               <Text style={styles.modalButtonSecondaryText}>{t("common_cancel")}</Text>
             </Pressable>
             <Pressable
-              style={[styles.modalButton, styles.modalButtonDanger]}
+              style={[styles.modalButton, styles.modalButtonDangerWrap]}
               onPress={handleConfirm}
               disabled={deleting}
             >
-              {deleting ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <Text style={styles.modalButtonPrimaryText}>{t("settings_delete_account")}</Text>
-              )}
+              <LinearGradient
+                colors={["#DC2626", "#B91C1C"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={[styles.modalButton, styles.modalButtonDanger]}
+              >
+                {deleting ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.modalButtonPrimaryText}>{t("settings_delete_account")}</Text>
+                )}
+              </LinearGradient>
             </Pressable>
           </View>
         </View>
@@ -252,26 +260,27 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* Sign out */}
-        <Pressable style={[styles.card, styles.cardButton]} onPress={handleSignOut}>
+        {/* Sign out: neutral card, TEXT_PRIMARY, no purple CTA */}
+        <Pressable style={styles.card} onPress={handleSignOut}>
           <View style={styles.cardIconWrap}>
             <View style={[styles.cardIcon, styles.cardIconRed]}>
               <Feather name="log-out" size={16} strokeWidth={2} color="#DC2626" />
             </View>
-            <Text style={styles.cardButtonText}>{t("settings_sign_out")}</Text>
+            <View style={styles.cardTextWrap}>
+              <Text style={styles.cardTitle}>{t("settings_sign_out")}</Text>
+            </View>
           </View>
         </Pressable>
 
-        {/* Delete account */}
-        <Pressable
-          style={[styles.card, styles.cardButtonDanger]}
-          onPress={() => setDeleteModalVisible(true)}
-        >
+        {/* Delete account: card with red icon + red text, no full red button in list */}
+        <Pressable style={styles.card} onPress={() => setDeleteModalVisible(true)}>
           <View style={styles.cardIconWrap}>
             <View style={[styles.cardIcon, styles.cardIconRedDark]}>
               <Feather name="trash-2" size={16} strokeWidth={2} color="#B91C1C" />
             </View>
-            <Text style={styles.cardButtonDangerText}>{t("settings_delete_account")}</Text>
+            <View style={styles.cardTextWrap}>
+              <Text style={styles.cardTitleDanger}>{t("settings_delete_account")}</Text>
+            </View>
           </View>
         </Pressable>
 
@@ -312,7 +321,8 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.BACKGROUND,
+    backgroundColor: "transparent",
+    paddingBottom: 92,
   },
   scrollContent: {
     padding: 20,
@@ -382,21 +392,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: COLORS.TEXT_SECONDARY,
   },
-  cardButton: {
-    justifyContent: "center",
-    backgroundColor: COLORS.ACCENT,
-    borderColor: "transparent",
-  },
-  cardButtonText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#fff",
-  },
-  cardButtonDanger: {
-    backgroundColor: "transparent",
-    borderColor: "#DC2626",
-  },
-  cardButtonDangerText: {
+  cardTitleDanger: {
     fontSize: 14,
     fontWeight: "600",
     color: "#B91C1C",
@@ -464,8 +460,9 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: COLORS.TEXT_PRIMARY,
   },
+  modalButtonDangerWrap: { flex: 1 },
   modalButtonDanger: {
-    backgroundColor: "#DC2626",
+    backgroundColor: "transparent",
   },
   modalButtonPrimaryText: {
     fontSize: 16,

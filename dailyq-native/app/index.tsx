@@ -149,7 +149,7 @@ export default function Index() {
 const loadingScreenStyles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: COLORS.BACKGROUND,
+    backgroundColor: "transparent",
     paddingHorizontal: 16,
     paddingTop: 8,
   },

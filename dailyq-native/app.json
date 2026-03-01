@@ -7,7 +7,7 @@
     "scheme": "dailyq",
     "icon": "./assets/images/icon.png",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "plugins": [
       "expo-font"
     ],

@@ -8,7 +8,9 @@
     "icon": "./assets/images/icon.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "plugins": [],
+    "plugins": [
+      "expo-font"
+    ],
     "ios": {
       "bundleIdentifier": "com.tjade.dailyq",
       "supportsTablet": false,

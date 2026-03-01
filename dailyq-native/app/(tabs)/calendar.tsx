@@ -35,8 +35,9 @@ import { getNow, getLocalDayKey } from "@/src/lib/date";
 import { supabase } from "@/src/config/supabase";
 import { JokerModal } from "@/src/components/JokerModal";
 import { JokerBadge } from "@/src/components/JokerBadge";
+import { GlassCardContainer } from "@/src/components/GlassCardContainer";
 
-const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const GRID_ROWS = 6;
 const GRID_COLS = 7;
 
@@ -57,6 +58,16 @@ function getMonthNameOnly(yearMonth: string, lang: string): string {
   return d.toLocaleDateString(lang === "nl" ? "nl-NL" : "en-US", { month: "long" });
 }
 
+function getDayKeyDisplayLabel(dayKey: string, lang: string): string {
+  const [y, m, day] = dayKey.split("-").map(Number);
+  const d = new Date(y, m - 1, day);
+  return d.toLocaleDateString(lang === "nl" ? "nl-NL" : "en-US", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
 function isBeforeAccountStart(dayKey: string, accountCreatedAt: string | undefined): boolean {
   if (!accountCreatedAt) return false;
   const createdDate = accountCreatedAt.slice(0, 10);
@@ -67,7 +78,7 @@ function getDaysInMonthGrid(yearMonth: string): { dayKey: string | null; dayNum:
   const [y, m] = yearMonth.split("-").map(Number);
   const first = new Date(y, m - 1, 1);
   const last = new Date(y, m, 0);
-  const firstWeekday = first.getDay();
+  const firstWeekday = (first.getDay() + 6) % 7;
   const lastDay = last.getDate();
   const cells: { dayKey: string | null; dayNum: number }[] = [];
   const total = GRID_ROWS * GRID_COLS;
@@ -119,7 +130,7 @@ function ViewAnswerModal({
   entry: CalendarAnswerEntry | null;
   onClose: () => void;
 }) {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const opacity = React.useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -130,21 +141,37 @@ function ViewAnswerModal({
     }
   }, [visible, opacity]);
 
+  const dateLabel = dayKey ? getDayKeyDisplayLabel(dayKey, lang) : "";
+
   if (!visible) return null;
   return (
     <Modal transparent visible={visible} animationType="none">
       <Animated.View style={[styles.modalBackdrop, { opacity }]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-        <View style={styles.modalCard}>
+        <View style={[styles.modalCard, styles.modalCardViewAnswer]}>
           <Pressable style={MODAL.CLOSE_BUTTON} onPress={onClose}>
             <Feather name="x" size={18} color={COLORS.TEXT_SECONDARY} strokeWidth={2.5} />
           </Pressable>
+          {dateLabel ? (
+            <View style={styles.viewAnswerDateWrap}>
+              <View style={styles.viewAnswerDateButton}>
+                <Text style={styles.viewAnswerDateText}>{dateLabel}</Text>
+              </View>
+            </View>
+          ) : null}
           {entry && (
-            <>
-              <Text style={styles.modalQuestion}>{entry.questionText}</Text>
-              <Text style={styles.modalAnswerLabel}>{t("calendar_your_answer")}</Text>
-              <Text style={styles.modalAnswerText}>{entry.answerText}</Text>
-            </>
+            <View style={styles.viewAnswerContent}>
+              <ScrollView
+                style={styles.viewAnswerScroll}
+                contentContainerStyle={styles.viewAnswerScrollContent}
+                showsVerticalScrollIndicator={true}
+                keyboardShouldPersistTaps="handled"
+              >
+                <Text style={styles.modalQuestionViewAnswer}>{entry.questionText}</Text>
+                <Text style={styles.modalAnswerLabelViewAnswer}>{t("calendar_your_answer")}</Text>
+                <Text style={styles.modalAnswerTextViewAnswer}>{entry.answerText}</Text>
+              </ScrollView>
+            </View>
           )}
         </View>
       </Animated.View>
@@ -541,9 +568,15 @@ export default function CalendarScreen() {
   }
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      {/* Year centred (aligned with month); joker badge right */}
-      <View style={styles.yearRow}>
+    <GlassCardContainer>
+      <ScrollView
+        style={[styles.container, { paddingTop: insets.top }]}
+        contentContainerStyle={styles.calendarScrollContent}
+        scrollEnabled={false}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Year centred (aligned with month); joker badge right */}
+        <View style={styles.yearRow}>
         <View style={styles.yearRowSpacer} />
         <Pressable style={styles.yearPressable} onPress={() => setShowYearPicker(true)}>
           <Text style={styles.yearText}>{y}</Text>
@@ -598,8 +631,10 @@ export default function CalendarScreen() {
                     isPlaceholder && styles.cellEmpty,
                     !isPlaceholder && isTodayNoAnswer && styles.cellTodayNoAnswer,
                     !isPlaceholder && state === "today" && entry && styles.cellTodayAnswered,
-                    !isPlaceholder && state === "answered" && styles.cellAnswered,
-                    !isPlaceholder && state === "joker" && styles.cellJoker,
+                    !isPlaceholder && state === "answered" && cell.dayKey === todayKey && styles.cellTodayAnswered,
+                    !isPlaceholder && state === "answered" && cell.dayKey !== todayKey && styles.cellAnswered,
+                    !isPlaceholder && state === "joker" && cell.dayKey === todayKey && styles.cellTodayJoker,
+                    !isPlaceholder && state === "joker" && cell.dayKey !== todayKey && styles.cellJoker,
                     !isPlaceholder && state === "missed" && styles.cellMissed,
                     !isPlaceholder && state === "future" && styles.cellFuture,
                     !isPlaceholder && state === "before" && styles.cellBefore,
@@ -625,52 +660,68 @@ export default function CalendarScreen() {
           </View>
         ))}
         <View style={styles.cardDivider} />
-        <View style={styles.statsWrap}>
-          <View style={styles.statsRow1}>
-            <Text style={styles.statsNumCaptured}>{capturedThisMonth}</Text>
-            <Text style={styles.statsLabel}>
-              {lang === "nl" ? "van de" : "out of"} {answerableDaysThisMonth}{" "}
-              {lang === "nl" ? "dagen beantwoord" : "days answered"}
-            </Text>
-          </View>
-          <View style={styles.statsRow2}>
-            <Text style={styles.statsNumStreak}>{realStreak}</Text>
-            <Text style={styles.statsLabel}>
-              {lang === "nl" ? "dagen streak" : "day streak"}
-            </Text>
-          </View>
-        </View>
         {nextMilestone != null && (
           <View style={styles.nextRewardBlock}>
-            <View style={styles.nextRewardHeader}>
-              <View style={styles.nextRewardCrownCircle}>
-                <MaterialCommunityIcons name="crown" size={20} color="#F59E0B" />
+            <LinearGradient
+              colors={[
+                "rgba(254,243,199,0.4)",
+                "rgba(253,230,138,0.3)",
+                "rgba(252,211,77,0.2)",
+              ]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+            <View style={styles.nextRewardStatsBanner}>
+              <View style={styles.nextRewardStatsItem}>
+                <Feather name="check-circle" size={14} color="#F59E0B" strokeWidth={2.5} />
+                <Text style={styles.nextRewardStatsNum}>{capturedThisMonth}</Text>
+                <Text style={styles.nextRewardStatsLabel}>{t("calendar_stats_days_answered")}</Text>
               </View>
-              <View style={styles.nextRewardTextWrap}>
-                <Text style={styles.nextRewardTitle}>{t("calendar_next_reward")}</Text>
-                <Text style={styles.nextRewardMilestone}>
-                  {t("calendar_next_reward_milestone", { count: nextMilestone })}
+              <View style={styles.nextRewardStatsDot} />
+              <View style={styles.nextRewardStatsItem}>
+                <Feather name="zap" size={14} color="#F59E0B" strokeWidth={2.5} />
+                <Text style={styles.nextRewardStatsNum}>{realStreak}</Text>
+                <Text style={styles.nextRewardStatsLabel}>{t("calendar_stats_day_streak")}</Text>
+              </View>
+            </View>
+            <View style={styles.nextRewardContent}>
+              <View style={styles.nextRewardHeader}>
+                <View style={styles.nextRewardCrownCircleWrap}>
+                  <LinearGradient
+                    colors={["#FEF3C7", "#FDE68A", "#FCD34D"]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={StyleSheet.absoluteFill}
+                  />
+                  <MaterialCommunityIcons name="crown" size={20} color="#F59E0B" />
+                </View>
+                <View style={styles.nextRewardTextWrap}>
+                  <Text style={styles.nextRewardTitle}>{t("calendar_next_reward")}</Text>
+                  <Text style={styles.nextRewardMilestone}>
+                    {t("calendar_next_reward_milestone", { count: nextMilestone })}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.nextRewardProgressRow}>
+                <Text style={styles.nextRewardDaysLeft}>
+                  {daysLeft === 1
+                    ? t("calendar_next_reward_days_left_one")
+                    : t("calendar_next_reward_days_left_other", { count: daysLeft })}
+                </Text>
+                <Text style={styles.nextRewardFraction}>
+                  {realStreak}/{nextMilestone}
                 </Text>
               </View>
-            </View>
-            <View style={styles.nextRewardProgressRow}>
-              <Text style={styles.nextRewardDaysLeft}>
-                {daysLeft === 1
-                  ? t("calendar_next_reward_days_left_one")
-                  : t("calendar_next_reward_days_left_other", { count: daysLeft })}
-              </Text>
-              <Text style={styles.nextRewardFraction}>
-                {realStreak}/{nextMilestone}
-              </Text>
-            </View>
-            <View style={styles.nextRewardBarBg}>
-              <View style={[styles.nextRewardBarFillWrap, { width: `${progressPercent}%` }]}>
-                <LinearGradient
-                  colors={["#FDE68A", "#FBBF24"]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.nextRewardBarFill}
-                />
+              <View style={styles.nextRewardBarBg}>
+                <View style={[styles.nextRewardBarFillWrap, { width: `${progressPercent}%` }]}>
+                  <LinearGradient
+                    colors={["#FDE68A", "#F59E0B"]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.nextRewardBarFill}
+                  />
+                </View>
               </View>
             </View>
           </View>
@@ -720,7 +771,8 @@ export default function CalendarScreen() {
         jokerBalance={jokerCount}
         t={t}
       />
-    </View>
+      </ScrollView>
+    </GlassCardContainer>
   );
 }
 
@@ -730,6 +782,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "transparent",
+  },
+  calendarScrollContent: {
+    flexGrow: 1,
     paddingBottom: 92,
   },
   centered: {
@@ -863,9 +918,19 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(139,92,246,0.5)",
   },
   cellJoker: {
+    backgroundColor: "rgba(251,191,36,0.45)",
+    borderWidth: 1,
+    borderColor: "rgba(245,158,11,0.18)",
+  },
+  cellTodayJoker: {
     backgroundColor: "#FBBF24",
     borderWidth: 1,
-    borderColor: "rgba(245,158,11,0.3)",
+    borderColor: "rgba(245,158,11,0.35)",
+    shadowColor: "#B45309",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3,
   },
   cellMissed: {
     backgroundColor: "transparent",
@@ -886,80 +951,100 @@ const styles = StyleSheet.create({
   cellNumEmpty: { color: "#6B7280" },
   cellNumFuture: { color: "#D1D5DB" },
   cellNumBefore: { color: "#E5E7EB" },
-  statsWrap: { marginTop: 10 },
-  statsRow1: {
+  nextRewardBlock: {
+    marginTop: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(245,158,11,0.2)",
+    overflow: "hidden",
+    shadowColor: "#F59E0B",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    elevation: 3,
+  },
+  nextRewardStatsBanner: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    justifyContent: "center",
+    gap: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
   },
-  statsRow2: {
+  nextRewardStatsItem: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    marginTop: 8,
+    gap: 6,
   },
-  statsNumCaptured: {
-    fontSize: 18,
+  nextRewardStatsNum: {
+    fontSize: 12,
     fontWeight: "600",
     color: "#F59E0B",
   },
-  statsNumStreak: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#7C3AED",
-  },
-  statsLabel: {
-    fontSize: 14,
+  nextRewardStatsLabel: {
+    fontSize: 10,
+    fontWeight: "500",
     color: "#6B7280",
   },
-  nextRewardBlock: {
-    marginTop: 16,
-    paddingBottom: 14,
-    backgroundColor: "rgba(254,243,199,0.4)",
-    borderWidth: 1,
-    borderColor: "rgba(245,158,11,0.2)",
-    borderRadius: 20,
-    padding: 16,
+  nextRewardStatsDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "rgba(245,158,11,0.3)",
+  },
+  nextRewardContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    paddingTop: 4,
   },
   nextRewardHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    marginBottom: 10,
+    gap: 12,
+    marginBottom: 12,
   },
-  nextRewardCrownCircle: {
+  nextRewardCrownCircleWrap: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "rgba(254,243,199,0.9)",
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "rgba(245,158,11,0.3)",
     alignItems: "center",
     justifyContent: "center",
+    shadowColor: "#F59E0B",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 2,
   },
   nextRewardTextWrap: { flex: 1 },
-  nextRewardTitle: { fontSize: 12, color: "#92400E", marginBottom: 2 },
-  nextRewardMilestone: { fontSize: 16, fontWeight: "700", color: "#78350F" },
+  nextRewardTitle: { fontSize: 12, color: "#6B7280", marginBottom: 2, fontWeight: "500" },
+  nextRewardMilestone: { fontSize: 16, fontWeight: "700", color: "#374151" },
   nextRewardProgressRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 6,
+    marginBottom: 8,
   },
-  nextRewardDaysLeft: { fontSize: 13, color: "#92400E" },
-  nextRewardFraction: { fontSize: 13, fontWeight: "700", color: "#F59E0B" },
+  nextRewardDaysLeft: { fontSize: 12, color: "#6B7280", fontWeight: "500" },
+  nextRewardFraction: { fontSize: 12, fontWeight: "700", color: "#F59E0B" },
   nextRewardBarBg: {
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "rgba(255,255,255,0.7)",
+    height: 10,
+    borderRadius: 9999,
+    backgroundColor: "rgba(255,255,255,0.6)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.4)",
     overflow: "hidden",
   },
   nextRewardBarFillWrap: {
     height: "100%",
-    borderRadius: 3,
+    borderRadius: 9999,
     overflow: "hidden",
   },
   nextRewardBarFill: {
     height: "100%",
-    borderRadius: 3,
+    borderRadius: 9999,
     minWidth: 0,
   },
   yearPickerBackdrop: {
@@ -1004,9 +1089,65 @@ const styles = StyleSheet.create({
     ...MODAL.CARD,
     minWidth: 320,
   },
+  modalCardViewAnswer: {
+    maxHeight: "78%",
+    minHeight: 320,
+    paddingTop: 52,
+    paddingHorizontal: 28,
+    paddingBottom: 28,
+  },
   modalCardWide: {
     ...MODAL.CARD_WIDE,
     minWidth: 320,
+  },
+  viewAnswerDateWrap: {
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  viewAnswerDateButton: {
+    backgroundColor: COLORS.ACCENT,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 9999,
+    shadowColor: COLORS.ACCENT,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  viewAnswerDateText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#FFFFFF",
+  },
+  viewAnswerContent: {
+    flex: 1,
+    minHeight: 200,
+  },
+  viewAnswerScroll: { flex: 1 },
+  viewAnswerScrollContent: {
+    paddingBottom: 24,
+    paddingRight: 8,
+  },
+  modalQuestionViewAnswer: {
+    fontSize: 17,
+    fontWeight: "500",
+    color: COLORS.TEXT_PRIMARY,
+    marginBottom: 20,
+    lineHeight: 24,
+    paddingRight: 24,
+    textAlign: "center",
+  },
+  modalAnswerLabelViewAnswer: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: COLORS.TEXT_SECONDARY,
+    marginBottom: 10,
+  },
+  modalAnswerTextViewAnswer: {
+    fontSize: 16,
+    color: COLORS.TEXT_PRIMARY,
+    lineHeight: 26,
   },
   modalTitle: { fontSize: 18, fontWeight: "600", color: COLORS.TEXT_PRIMARY, marginBottom: 12 },
   modalSubtitle: { fontSize: 14, color: COLORS.TEXT_SECONDARY, marginBottom: 8 },

@@ -22,8 +22,14 @@ export const translations: Record<Lang, Record<string, string>> = {
     joker_modal_title_many: "Jokers",
     joker_modal_body:
       "You have {joker_balance} jokers.\n\nUse a joker to still answer a missed day.",
+    joker_modal_body_before: "You have ",
+    joker_modal_body_after:
+      " jokers.\n\nUse a joker to still answer a missed day.",
     joker_modal_body_singular:
       "You have 1 joker.\n\nUse a joker to still answer a missed day.",
+    joker_modal_body_singular_before: "You have ",
+    joker_modal_body_singular_after:
+      " joker.\n\nUse a joker to still answer a missed day.",
     onboarding_email: "Email",
     onboarding_password: "Password",
     onboarding_sign_up: "Sign up",
@@ -118,6 +124,8 @@ export const translations: Record<Lang, Record<string, string>> = {
     calendar_view_answer_close: "Close",
     calendar_your_answer: "Your answer",
     calendar_next_reward: "Next Reward",
+    calendar_stats_days_answered: "days answered",
+    calendar_stats_day_streak: "day streak",
     calendar_next_reward_milestone: "{count}-Day Streak",
     calendar_next_reward_days_left_one: "1 more day to go",
     calendar_next_reward_days_left_other: "{count} more days to go",
@@ -171,8 +179,14 @@ export const translations: Record<Lang, Record<string, string>> = {
     joker_modal_title_many: "Jokers",
     joker_modal_body:
       "Je hebt {joker_balance} jokers.\n\nGebruik een joker om een gemiste dag alsnog te beantwoorden.",
+    joker_modal_body_before: "Je hebt ",
+    joker_modal_body_after:
+      " jokers.\n\nGebruik een joker om een gemiste dag alsnog te beantwoorden.",
     joker_modal_body_singular:
       "Je hebt 1 joker.\n\nGebruik een joker om een gemiste dag alsnog te beantwoorden.",
+    joker_modal_body_singular_before: "Je hebt ",
+    joker_modal_body_singular_after:
+      " joker.\n\nGebruik een joker om een gemiste dag alsnog te beantwoorden.",
     onboarding_email: "Email",
     onboarding_password: "Wachtwoord",
     onboarding_sign_up: "Registreren",
@@ -269,6 +283,8 @@ export const translations: Record<Lang, Record<string, string>> = {
     calendar_view_answer_close: "Sluiten",
     calendar_your_answer: "Je antwoord",
     calendar_next_reward: "Volgende beloning",
+    calendar_stats_days_answered: "dagen beantwoord",
+    calendar_stats_day_streak: "dagen streak",
     calendar_next_reward_milestone: "{count}-dagen streak",
     calendar_next_reward_days_left_one: "Nog 1 dag te gaan",
     calendar_next_reward_days_left_other: "Nog {count} dagen te gaan",

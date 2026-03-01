@@ -14,17 +14,15 @@ import {
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Feather from "@expo/vector-icons/Feather";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as Notifications from "expo-notifications";
 
 import { COLORS } from "@/src/config/constants";
 import { useLanguage } from "@/src/context/LanguageContext";
 import { useAuth } from "@/src/context/AuthContext";
 import { supabase } from "@/src/config/supabase";
-import { getExpoPushTokenAsync } from "@/src/native/notifications";
 import {
-  setStoredExpoPushToken,
   getStoredExpoPushToken,
   upsertPushSubscription,
 } from "@/src/lib/pushSubscription";
@@ -53,16 +51,6 @@ function FadeInView({
   return (
     <Animated.View style={[style, { opacity }]}>{children}</Animated.View>
   );
-}
-
-/** Ask for notification permission; call when user taps Continue on step 3 so the system dialog is shown. */
-async function requestNotificationPermission(): Promise<boolean> {
-  try {
-    const { status } = await Notifications.requestPermissionsAsync();
-    return status === "granted";
-  } catch {
-    return false;
-  }
 }
 
 async function saveReminderTime(time: "morning" | "afternoon" | "evening") {
@@ -126,11 +114,6 @@ export default function OnboardingScreen() {
   const handleNotificationsContinue = useCallback(async () => {
     if (!notificationTime) return;
     await saveReminderTime(notificationTime);
-    const granted = await requestNotificationPermission();
-    if (granted) {
-      const token = await getExpoPushTokenAsync();
-      await setStoredExpoPushToken(token);
-    }
     goNext("auth");
   }, [notificationTime, goNext]);
 
@@ -176,6 +159,28 @@ export default function OnboardingScreen() {
     }
   }, [email, password, isLoginMode, notificationTime, router]);
 
+  // #region agent log
+  useEffect(() => {
+    fetch("http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "6dee77" },
+      body: JSON.stringify({
+        sessionId: "6dee77",
+        runId: "run1",
+        hypothesisId: "H1",
+        location: "onboarding.tsx",
+        message: "Onboarding mount",
+        data: {
+          step,
+          cardBg: styles.card.backgroundColor ?? "undefined",
+          pastAnswersBg: styles.pastAnswersCard.backgroundColor,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+  }, [step]);
+  // #endregion
+
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <KeyboardAvoidingView
@@ -183,8 +188,9 @@ export default function OnboardingScreen() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         keyboardVerticalOffset={Platform.OS === "ios" ? 60 : 0}
       >
-        <View style={styles.card}>
+        <View style={[styles.card, { backgroundColor: "transparent" }]}>
           <ScrollView
+            style={{ backgroundColor: "transparent" }}
             contentContainerStyle={styles.scrollContent}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
@@ -259,11 +265,10 @@ export default function OnboardingScreen() {
                   <View style={styles.contentWrapper}>
                       <View style={styles.jokersHeader}>
                         <View style={[styles.logoCircle, styles.jokerCircle]}>
-                          <Feather
-                            name="award"
+                          <MaterialCommunityIcons
+                            name="crown"
                             size={40}
-                            color="#F59E0B"
-                            strokeWidth={2.5}
+                            color="#FFFFFF"
                           />
                         </View>
                         <Text style={styles.introTitle}>
@@ -530,9 +535,9 @@ const styles = StyleSheet.create({
     marginTop: 8,
     borderRadius: 32,
     overflow: "hidden",
-    backgroundColor: "rgba(255,255,255,0.95)",
+    backgroundColor: "transparent",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.6)",
+    borderColor: "rgba(255,255,255,0.8)",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 20 },
     shadowOpacity: 0.15,
@@ -573,7 +578,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   jokerCircle: {
-    backgroundColor: "rgba(245,158,11,0.2)",
+    backgroundColor: "#FDE68A",
   },
   notifCircle: {
     backgroundColor: "rgba(139,92,246,0.15)",
@@ -592,16 +597,16 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   pastAnswersCard: {
-    backgroundColor: "rgba(255,255,255,0.7)",
+    backgroundColor: "rgba(255,255,255,0.75)",
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.6)",
+    borderColor: "rgba(139,92,246,0.15)",
     paddingVertical: 20,
     paddingHorizontal: 24,
     marginBottom: 32,
-    shadowColor: "#000",
+    shadowColor: "#8B5CF6",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.08,
     shadowRadius: 16,
     elevation: 2,
   },

@@ -44,30 +44,33 @@ export function GlassTabBar({ state, descriptors, navigation }: TabBarProps) {
   const pillTranslateX = useRef(new Animated.Value(0)).current;
   const indexRef = useRef(state.index);
 
+  const visibleRoutes = state.routes.filter(r => r.name !== "index");
+  const visibleIndex = visibleRoutes.findIndex(r => r.key === state.routes[state.index]?.key);
+
   const onBarLayout = (e: LayoutChangeEvent) => {
     const w = e.nativeEvent.layout.width;
     if (w <= 0) return;
     setBarWidth(w);
-    const segment = w / 3;
-    const left = state.index * segment + 5;
+    const segment = w / visibleRoutes.length;
+    const left = visibleIndex * segment + 5;
     pillTranslateX.setValue(left);
-    indexRef.current = state.index;
+    indexRef.current = visibleIndex;
   };
 
   useEffect(() => {
     if (barWidth <= 0) return;
-    const segment = barWidth / 3;
-    const left = state.index * segment + 5;
-    if (indexRef.current !== state.index) {
+    const segment = barWidth / visibleRoutes.length;
+    const left = visibleIndex * segment + 5;
+    if (indexRef.current !== visibleIndex) {
       Animated.spring(pillTranslateX, {
         toValue: left,
         useNativeDriver: true,
         speed: 24,
         bounciness: 10,
       }).start();
-      indexRef.current = state.index;
+      indexRef.current = visibleIndex;
     }
-  }, [state.index, barWidth, pillTranslateX]);
+  }, [state.index, barWidth, pillTranslateX, visibleRoutes.length, visibleIndex]);
 
   const onTabPress = (route: { name: string; key: string }, isFocused: boolean) => {
     const event = navigation.emit({ type: "tabPress", target: route.key });
@@ -77,7 +80,7 @@ export function GlassTabBar({ state, descriptors, navigation }: TabBarProps) {
   };
 
   const bottomPadding = Math.max(PILL_INSET, insets.bottom);
-  const pillW = barWidth > 0 ? barWidth / 3 - 10 : 80;
+  const pillW = barWidth > 0 ? barWidth / visibleRoutes.length - 10 : 80;
 
   const tabBarContent = (
     <View style={styles.barInner}>
@@ -88,9 +91,9 @@ export function GlassTabBar({ state, descriptors, navigation }: TabBarProps) {
           { width: pillW, transform: [{ translateX: pillTranslateX }] },
         ]}
       />
-      {state.routes.map((route, index) => {
+      {visibleRoutes.map((route, index) => {
         const { options } = descriptors[route.key] ?? {};
-        const isFocused = state.index === index;
+        const isFocused = visibleRoutes[index]?.key === state.routes[state.index]?.key;
         const label = options?.tabBarLabel ?? route.name;
         const icon = options?.tabBarIcon?.({
           focused: isFocused,

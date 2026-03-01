@@ -8,10 +8,14 @@
     "icon": "./assets/images/icon.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "plugins": [],
     "ios": {
       "bundleIdentifier": "com.tjade.dailyq",
       "supportsTablet": false,
       "associatedDomains": [],
+      "entitlements": {
+        "aps-environment": "production"
+      },
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSUserNotificationsUsageDescription": "DailyQ sends a daily reminder so you don't miss your question."

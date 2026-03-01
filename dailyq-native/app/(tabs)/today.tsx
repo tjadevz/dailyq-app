@@ -23,14 +23,17 @@ import { useTodayQuestion } from "@/src/hooks/useTodayQuestion";
 import { useProfile } from "@/src/hooks/useProfile";
 import { getDayOfYear, getNow, getLocalDayKey, isMonday, getPreviousWeekRange, getAnswerableDaysInRange } from "@/src/lib/date";
 import { supabase } from "@/src/config/supabase";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { JokerModal } from "@/src/components/JokerModal";
 import { JokerBadge } from "@/src/components/JokerBadge";
 import { PrimaryButton } from "@/src/components/PrimaryButton";
+import { GlassCardContainer } from "@/src/components/GlassCardContainer";
 
 const MAX_ANSWER_LENGTH = 280;
 const RECAP_STORAGE_PREFIX = "dailyq_recap_";
 
 export default function TodayScreen() {
+  const insets = useSafeAreaInsets();
   const { lang, t } = useLanguage();
   const { effectiveUser } = useAuth();
   const userId = effectiveUser?.id ?? null;
@@ -205,24 +208,27 @@ export default function TodayScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
-    >
-      {/* Joker badge top-right (no DailyQ title) */}
-      <View style={styles.header}>
-        <View style={styles.headerSpacer} />
-        <JokerBadge
-          count={profile?.joker_balance ?? 0}
-          onPress={() => setJokerModalVisible(true)}
-        />
-      </View>
+    <GlassCardContainer>
+      <KeyboardAvoidingView
+        style={[styles.container, { paddingTop: insets.top }]}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+      >
+        {/* Joker badge top-right (same position as Calendar: yearRow + yearRowRight) */}
+        <View style={styles.header}>
+          <View style={styles.headerSpacer} />
+          <View style={styles.headerRight}>
+            <JokerBadge
+              count={profile?.joker_balance ?? 0}
+              onPress={() => setJokerModalVisible(true)}
+            />
+          </View>
+        </View>
 
       <ScrollView
         contentContainerStyle={[
           styles.scrollContent,
-          hasAnswer && !isEditMode && styles.scrollContentCentered,
+          styles.scrollContentCentered,
         ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
@@ -388,7 +394,8 @@ export default function TodayScreen() {
         onClose={() => setStreakModal({ open: false, milestone: null })}
         t={t}
       />
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </GlassCardContainer>
   );
 }
 
@@ -953,12 +960,18 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 0,
-    paddingHorizontal: 20,
-    paddingTop: 8,
+    paddingHorizontal: 16,
+    marginTop: 4,
+    minHeight: 32,
   },
   headerSpacer: {
     flex: 1,
+  },
+  headerRight: {
+    flex: 1,
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    alignItems: "center",
   },
   headerTitle: {
     fontSize: 24,

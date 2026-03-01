@@ -8,6 +8,16 @@ import { useAuth } from "@/src/context/AuthContext";
 import { useLanguage } from "@/src/context/LanguageContext";
 import { COLORS } from "@/src/config/constants";
 
+// #region agent log
+function logIndex(id: string, message: string, data: Record<string, unknown>) {
+  fetch("http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "332a30" },
+    body: JSON.stringify({ sessionId: "332a30", runId: "run1", hypothesisId: id, location: "index.tsx", message, data, timestamp: Date.now() }),
+  }).catch(() => {});
+}
+// #endregion
+
 function LoadingDots() {
   const dot1 = useRef(new Animated.Value(0)).current;
   const dot2 = useRef(new Animated.Value(0)).current;
@@ -133,9 +143,12 @@ function PostLoginLoadingScreen() {
 }
 
 export default function Index() {
-  const { user, loading } = useAuth();
+  const { user, authCheckDone } = useAuth();
+  // #region agent log
+  logIndex("H1", "Index render", { authCheckDone, hasUser: !!user });
+  // #endregion
 
-  if (loading) {
+  if (!authCheckDone) {
     return <PostLoginLoadingScreen />;
   }
 

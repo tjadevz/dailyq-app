@@ -4,6 +4,12 @@ import Feather from "@expo/vector-icons/Feather";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { COLORS, JOKER, MODAL, MODAL_CLOSE_MS } from "@/src/config/constants";
 
+const JOKER_GOLD_BG = "#FDE68A";
+/** Lighter gold for the joker count number (echt goud) */
+const JOKER_NUMBER_GOLD = "#D97706";
+/** Body text: slightly darker than light gray */
+const JOKER_BODY_TEXT = "#4B5563";
+
 export function JokerModal({
   visible,
   onClose,
@@ -27,12 +33,9 @@ export function JokerModal({
 
   if (!visible) return null;
 
-  const title =
-    jokerBalance === 1 ? t("joker_modal_title_one") : t("joker_modal_title");
-  const body =
-    jokerBalance === 1
-      ? t("joker_modal_body_singular")
-      : t("joker_modal_body", { joker_balance: String(jokerBalance) });
+  const isSingular = jokerBalance === 1;
+  const before = isSingular ? t("joker_modal_body_singular_before") : t("joker_modal_body_before");
+  const after = isSingular ? t("joker_modal_body_singular_after") : t("joker_modal_body_after");
 
   return (
     <Modal transparent visible={visible} animationType="none">
@@ -46,17 +49,16 @@ export function JokerModal({
             <View style={styles.iconCircle}>
               <MaterialCommunityIcons
                 name="crown"
-                size={20}
-                color={JOKER.TEXT}
+                size={24}
+                color="#FFFFFF"
               />
             </View>
-            <View style={styles.badge}>
-              <Text style={styles.badgeLabel}>{t("joker_modal_badge_label")}</Text>
-              <Text style={styles.badgeCount}>{jokerBalance}</Text>
-            </View>
           </View>
-          <Text style={styles.title}>{title}</Text>
-          <Text style={styles.body}>{body}</Text>
+          <Text style={styles.body}>
+            {before}
+            <Text style={styles.bodyNumber}>{jokerBalance}</Text>
+            {after}
+          </Text>
         </View>
       </Animated.View>
     </Modal>
@@ -78,49 +80,27 @@ const styles = StyleSheet.create({
   iconRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 12,
-    gap: 10,
+    justifyContent: "center",
+    marginBottom: 16,
   },
   iconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: JOKER.BACKGROUND,
-    borderWidth: 1,
-    borderColor: JOKER.BORDER,
-  },
-  badge: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 9999,
-    backgroundColor: "rgba(254,243,199,0.9)",
+    backgroundColor: JOKER_GOLD_BG,
     borderWidth: 1,
     borderColor: "rgba(251,191,36,0.5)",
   },
-  badgeLabel: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: COLORS.TEXT_SECONDARY,
-    marginRight: 6,
-  },
-  badgeCount: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: JOKER.TEXT,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: COLORS.TEXT_PRIMARY,
-    marginBottom: 12,
-  },
   body: {
     fontSize: 15,
-    color: COLORS.TEXT_SECONDARY,
+    color: JOKER_BODY_TEXT,
     lineHeight: 22,
+    textAlign: "center",
+  },
+  bodyNumber: {
+    fontWeight: "800",
+    color: JOKER_NUMBER_GOLD,
   },
 });

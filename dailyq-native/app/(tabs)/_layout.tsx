@@ -16,6 +16,10 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen
+        name="index"
+        options={{ tabBarButton: () => null }}
+      />
+      <Tabs.Screen
         name="today"
         options={{
           title: "Today",
@@ -42,6 +46,7 @@ export default function TabsLayout() {
         options={{
           title: "Settings",
           tabBarLabel: "Settings",
+          headerShown: false,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="settings-outline" size={size ?? 22} color={color} />
           ),

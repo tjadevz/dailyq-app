@@ -64,6 +64,6 @@ const styles = StyleSheet.create({
   count: {
     fontSize: 14,
     fontWeight: "700",
-    color: "#FFFFFF",
+    color: JOKER.TEXT,
   },
 });

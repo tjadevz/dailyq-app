@@ -10,12 +10,14 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Constants from "expo-constants";
 import Feather from "@expo/vector-icons/Feather";
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { COLORS, MODAL, MODAL_CLOSE_MS } from "@/src/config/constants";
+import { GlassCardContainer } from "@/src/components/GlassCardContainer";
 import { useLanguage } from "@/src/context/LanguageContext";
 import { useAuth } from "@/src/context/AuthContext";
 import type { Lang } from "@/src/i18n/translations";
@@ -170,6 +172,7 @@ function getReminderSubtitle(
 }
 
 export default function SettingsScreen() {
+  const insets = useSafeAreaInsets();
   const { t, lang, setLang } = useLanguage();
   const { effectiveUser, signOut, deleteUser } = useAuth();
   const router = useRouter();
@@ -208,13 +211,13 @@ export default function SettingsScreen() {
   const currentLangLabel = lang === "en" ? t("settings_lang_en") : t("settings_lang_nl");
 
   return (
-    <View style={styles.container}>
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <Text style={styles.title}>{t("settings_title")}</Text>
-        <Text style={styles.subtitle}>{t("settings_subtitle")}</Text>
+    <GlassCardContainer>
+      <View style={[styles.container, { paddingTop: insets.top }]}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <Text style={styles.title}>{t("settings_title")}</Text>
 
         {/* Reminder (read-only) */}
         <View style={[styles.card, styles.cardDisabled]}>
@@ -298,9 +301,6 @@ export default function SettingsScreen() {
             </View>
           </View>
         </View>
-
-        {/* Tagline */}
-        <Text style={styles.tagline}>{t("settings_tagline")}</Text>
       </ScrollView>
 
       <LanguageModal
@@ -314,7 +314,8 @@ export default function SettingsScreen() {
         onClose={() => setDeleteModalVisible(false)}
         onConfirm={handleDeleteAccount}
       />
-    </View>
+      </View>
+    </GlassCardContainer>
   );
 }
 
@@ -335,11 +336,6 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: "700",
     color: COLORS.TEXT_PRIMARY,
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 15,
-    color: COLORS.TEXT_SECONDARY,
     marginBottom: 24,
   },
   card: {
@@ -350,7 +346,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     backgroundColor: "rgba(255,254,249,0.65)",
     borderRadius: 20,
-    marginBottom: 10,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.5)",
     shadowColor: "#000",
@@ -396,13 +392,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: "#B91C1C",
-  },
-  tagline: {
-    fontSize: 14,
-    color: COLORS.TEXT_MUTED,
-    textAlign: "center",
-    fontStyle: "italic",
-    marginTop: 24,
   },
   modalBackdrop: {
     ...MODAL.WRAPPER,

@@ -1,0 +1,56 @@
+diff --git a/node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios/ReactCommon/RCTTurboModule.mm b/node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios/ReactCommon/RCTTurboModule.mm
+index 6646570..f020d38 100644
+--- a/node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios/ReactCommon/RCTTurboModule.mm
++++ b/node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios/ReactCommon/RCTTurboModule.mm
+@@ -398,18 +398,26 @@ id convertJSIValueToObjCObject(
+       TurboModulePerfLogger::asyncMethodCallExecutionStart(moduleName, methodName, asyncCallCounter);
+     }
+ 
++    // iOS 26 fix: defer C++ throw until AFTER @catch exits to avoid
++    // objc_exception_rethrow -> __cxa_rethrow -> std::terminate on iOS 26+
++    __block NSException *_caughtException = nil;
+     @try {
+       [inv invokeWithTarget:strongModule];
+     } @catch (NSException *exception) {
++      _caughtException = exception;
++    } @finally {
++      [retainedObjectsForInvocation removeAllObjects];
++    }
++    if (_caughtException) {
+       if (isSync) {
+         // We can only convert NSException to JSError in sync method calls.
+         // See https://github.com/reactwg/react-native-new-architecture/discussions/276#discussioncomment-12567155
+-        throw convertNSExceptionToJSError(runtime, exception, std::string{moduleName}, methodNameStr);
++        throw convertNSExceptionToJSError(runtime, _caughtException, std::string{moduleName}, methodNameStr);
+       } else {
+-        @throw exception;
++        // For async methods, log and continue — cannot propagate to JS
++        RCTLogError(@"[TurboModule] NSException in async method %s::%s — %@: %@",
++                    moduleName, methodName, _caughtException.name, _caughtException.reason);
+       }
+-    } @finally {
+-      [retainedObjectsForInvocation removeAllObjects];
+     }
+ 
+     if (!isSync) {
+@@ -467,13 +475,19 @@ TraceSection s(
+       TurboModulePerfLogger::asyncMethodCallExecutionStart(moduleName, methodName, asyncCallCounter);
+     }
+ 
++    // iOS 26 fix: defer C++ throw until AFTER @catch exits to avoid
++    // objc_exception_rethrow -> __cxa_rethrow -> std::terminate on iOS 26+
++    __block NSException *_caughtException = nil;
+     @try {
+       [inv invokeWithTarget:strongModule];
+     } @catch (NSException *exception) {
+-      throw convertNSExceptionToJSError(runtime, exception, std::string{moduleName}, methodNameStr);
++      _caughtException = exception;
+     } @finally {
+       [retainedObjectsForInvocation removeAllObjects];
+     }
++    if (_caughtException) {
++      throw convertNSExceptionToJSError(runtime, _caughtException, std::string{moduleName}, methodNameStr);
++    }
+ 
+     if (shouldVoidMethodsExecuteSync_) {
+       TurboModulePerfLogger::syncMethodCallExecutionEnd(moduleName, methodName);

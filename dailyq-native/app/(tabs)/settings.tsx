@@ -11,12 +11,11 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Constants from "expo-constants";
 import Feather from "@expo/vector-icons/Feather";
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import { COLORS, MODAL, MODAL_CLOSE_MS } from "@/src/config/constants";
+import { COLORS, MODAL, MODAL_CLOSE_MS, APP_VERSION } from "@/src/config/constants";
 import { GlassCardContainer } from "@/src/components/GlassCardContainer";
 import { useLanguage } from "@/src/context/LanguageContext";
 import { useAuth } from "@/src/context/AuthContext";
@@ -193,8 +192,7 @@ export default function SettingsScreen() {
 
   const email = effectiveUser?.email ?? "";
 
-  const appVersion =
-    Constants.expoConfig?.version ?? Constants.manifest?.version ?? "1.0.0";
+  const appVersion = APP_VERSION;
 
   const handleSignOut = useCallback(async () => {
     await signOut();

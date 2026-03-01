@@ -1,16 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
 import { View, Text, StyleSheet, Pressable, Animated, type LayoutChangeEvent } from "react-native";
+import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 
 const ACTIVE_COLOR = "#7C3AED";
 const INACTIVE_COLOR = "#6B7280";
 
-type TabBarProps = {
-  state: { index: number; routes: { name: string; key: string }[] };
-  descriptors: Record<string, { options: { tabBarLabel?: string; tabBarIcon?: (props: { focused: boolean; color: string; size: number }) => React.ReactNode } }>;
-  navigation: { emit: (args: { type: string; target: string }) => { defaultPrevented: boolean }; navigate: (name: string) => void };
-};
-
-export function TabBarWithPill({ state, descriptors, navigation }: TabBarProps) {
+export function TabBarWithPill({ state, descriptors, navigation }: BottomTabBarProps) {
   const [barWidth, setBarWidth] = useState(0);
   const pillX = useRef(new Animated.Value(0)).current;
   const indexRef = useRef(-1);
@@ -58,7 +53,7 @@ export function TabBarWithPill({ state, descriptors, navigation }: TabBarProps) 
               key={route.key}
               style={styles.tab}
               onPress={() => {
-                const event = navigation.emit({ type: "tabPress", target: route.key });
+                const event = navigation.emit({ type: "tabPress", target: route.key, canPreventDefault: true });
                 if (!isFocused && !event.defaultPrevented) navigation.navigate(route.name);
               }}
               accessibilityRole="button"

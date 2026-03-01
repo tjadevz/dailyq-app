@@ -10,7 +10,6 @@ export default function TabsLayout() {
         tabBarActiveTintColor: "#8B5CF6",
         tabBarInactiveTintColor: "#9CA3AF",
         tabBarStyle: { position: "absolute", backgroundColor: "transparent" },
-        sceneContainerStyle: { backgroundColor: "transparent" },
         headerShown: true,
         headerTitle: "DailyQ",
       }}

@@ -7,9 +7,9 @@
     "scheme": "dailyq",
     "icon": "./assets/images/icon.png",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": false,
     "plugins": [
-      "expo-font"
+      "expo-font",
+      "expo-router"
     ],
     "ios": {
       "bundleIdentifier": "com.tjade.dailyq",

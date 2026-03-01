@@ -9,7 +9,8 @@
     "userInterfaceStyle": "automatic",
     "plugins": [
       "expo-font",
-      "expo-router"
+      "expo-router",
+      ["expo-build-properties", { "ios": { "buildReactNativeFromSource": true } }]
     ],
     "ios": {
       "bundleIdentifier": "com.tjade.dailyq",

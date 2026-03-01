@@ -12,10 +12,7 @@
       "distribution": "internal"
     },
     "production": {
-      "autoIncrement": true,
-      "artifacts": {
-        "buildArtifactsPaths": ["ios/build/**/*.dSYM"]
-      }
+      "autoIncrement": true
     }
   },
   "submit": {

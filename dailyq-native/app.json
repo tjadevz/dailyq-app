@@ -10,7 +10,15 @@
     "plugins": [
       "expo-font",
       "expo-router",
-      ["expo-build-properties", { "ios": { "buildReactNativeFromSource": true } }]
+      "expo-build-properties",
+      [
+        "expo-notifications",
+        {
+          "color": "#8B5CF6",
+          "iosDisplayInForeground": true,
+          "sounds": []
+        }
+      ]
     ],
     "ios": {
       "bundleIdentifier": "com.tjade.dailyq",

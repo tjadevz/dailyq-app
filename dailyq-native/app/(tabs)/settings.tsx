@@ -20,9 +20,15 @@ import { GlassCardContainer } from "@/src/components/GlassCardContainer";
 import { useLanguage } from "@/src/context/LanguageContext";
 import { useAuth } from "@/src/context/AuthContext";
 import type { Lang } from "@/src/i18n/translations";
+import {
+  upsertPushSubscription,
+  getStoredExpoPushToken,
+  setStoredExpoPushToken,
+  type ReminderTime,
+} from "@/src/lib/pushSubscription";
+import { getExpoPushTokenAsync } from "@/src/native/notifications";
 
 const REMINDER_TIME_KEY = "dailyq-reminder-time";
-type ReminderTime = "morning" | "afternoon" | "evening";
 
 // ----- LanguageModal -----
 function LanguageModal({
@@ -164,10 +170,77 @@ function getReminderSubtitle(
   t: (key: string) => string,
   slot: ReminderTime | null
 ): string {
-  if (!slot) return t("settings_reminder_time");
+  if (!slot) return t("settings_reminder_off");
   if (slot === "morning") return t("onboarding_notif_morning_time");
   if (slot === "afternoon") return t("onboarding_notif_afternoon_time");
   return t("onboarding_notif_evening_time");
+}
+
+// ----- ReminderModal -----
+function ReminderModal({
+  visible,
+  current,
+  onClose,
+  onSelect,
+}: {
+  visible: boolean;
+  current: ReminderTime | null;
+  onClose: () => void;
+  onSelect: (slot: ReminderTime | null) => void;
+}) {
+  const { t } = useLanguage();
+  const opacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (visible) {
+      Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: true }).start();
+    } else {
+      Animated.timing(opacity, { toValue: 0, duration: MODAL_CLOSE_MS, useNativeDriver: true }).start();
+    }
+  }, [visible, opacity]);
+
+  if (!visible) return null;
+
+  const OPTIONS: { value: ReminderTime | null; labelKey: string; timeKey?: string }[] = [
+    { value: null, labelKey: "settings_reminder_off" },
+    { value: "morning", labelKey: "onboarding_notif_morning", timeKey: "onboarding_notif_morning_time" },
+    { value: "afternoon", labelKey: "onboarding_notif_afternoon", timeKey: "onboarding_notif_afternoon_time" },
+    { value: "evening", labelKey: "onboarding_notif_evening", timeKey: "onboarding_notif_evening_time" },
+  ];
+
+  return (
+    <Modal transparent visible={visible} animationType="none">
+      <Animated.View style={[styles.modalBackdrop, { opacity }]}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <View style={styles.modalCard}>
+          <Pressable style={MODAL.CLOSE_BUTTON} onPress={onClose}>
+            <Feather name="x" size={18} color={COLORS.TEXT_SECONDARY} strokeWidth={2.5} />
+          </Pressable>
+          <Text style={styles.modalTitle}>{t("settings_reminder_modal_title")}</Text>
+          {OPTIONS.map((opt) => (
+            <Pressable
+              key={String(opt.value)}
+              style={[styles.optionRow, current === opt.value && styles.optionRowSelected]}
+              onPress={() => {
+                onSelect(opt.value);
+                onClose();
+              }}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={styles.optionText}>{t(opt.labelKey)}</Text>
+                {opt.timeKey && (
+                  <Text style={styles.optionSubtext}>{t(opt.timeKey)}</Text>
+                )}
+              </View>
+              {current === opt.value && (
+                <Feather name="check" size={20} color={COLORS.ACCENT} strokeWidth={2.5} />
+              )}
+            </Pressable>
+          ))}
+        </View>
+      </Animated.View>
+    </Modal>
+  );
 }
 
 export default function SettingsScreen() {
@@ -178,6 +251,7 @@ export default function SettingsScreen() {
 
   const [languageModalVisible, setLanguageModalVisible] = useState(false);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [reminderModalVisible, setReminderModalVisible] = useState(false);
   const [reminderTime, setReminderTime] = useState<ReminderTime | null>(null);
 
   useEffect(() => {
@@ -206,6 +280,27 @@ export default function SettingsScreen() {
     }
   }, [deleteUser, router]);
 
+  const handleReminderSelect = useCallback(
+    async (slot: ReminderTime | null) => {
+      setReminderTime(slot);
+      if (slot) {
+        await AsyncStorage.setItem(REMINDER_TIME_KEY, slot);
+      } else {
+        await AsyncStorage.removeItem(REMINDER_TIME_KEY);
+      }
+      const userId = effectiveUser?.id;
+      if (!userId || userId === "dev-user") return;
+      // Re-request token in case it was never stored (e.g. permissions granted later).
+      let token = await getStoredExpoPushToken();
+      if (!token && slot) {
+        token = await getExpoPushTokenAsync();
+        await setStoredExpoPushToken(token);
+      }
+      await upsertPushSubscription(userId, slot ? token : null, slot);
+    },
+    [effectiveUser?.id]
+  );
+
   const currentLangLabel = lang === "en" ? t("settings_lang_en") : t("settings_lang_nl");
 
   return (
@@ -217,8 +312,8 @@ export default function SettingsScreen() {
         >
           <Text style={styles.title}>{t("settings_title")}</Text>
 
-        {/* Reminder (read-only) */}
-        <View style={[styles.card, styles.cardDisabled]}>
+        {/* Reminder */}
+        <Pressable style={styles.card} onPress={() => setReminderModalVisible(true)}>
           <View style={styles.cardIconWrap}>
             <View style={[styles.cardIcon, styles.cardIconPurple]}>
               <Feather name="bell" size={16} strokeWidth={2} color={COLORS.ACCENT} />
@@ -229,8 +324,9 @@ export default function SettingsScreen() {
                 {getReminderSubtitle(t, reminderTime)}
               </Text>
             </View>
+            <Feather name="chevron-right" size={20} color={COLORS.TEXT_MUTED} />
           </View>
-        </View>
+        </Pressable>
 
         {/* Language */}
         <Pressable style={styles.card} onPress={() => setLanguageModalVisible(true)}>
@@ -301,6 +397,12 @@ export default function SettingsScreen() {
         </View>
       </ScrollView>
 
+      <ReminderModal
+        visible={reminderModalVisible}
+        current={reminderTime}
+        onClose={() => setReminderModalVisible(false)}
+        onSelect={handleReminderSelect}
+      />
       <LanguageModal
         visible={languageModalVisible}
         currentLang={lang}
@@ -353,10 +455,7 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 2,
   },
-  cardDisabled: {
-    opacity: 0.85,
-  },
-  cardIconWrap: {
+cardIconWrap: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
@@ -426,6 +525,11 @@ const styles = StyleSheet.create({
   optionText: {
     fontSize: 16,
     color: COLORS.TEXT_PRIMARY,
+  },
+  optionSubtext: {
+    fontSize: 13,
+    color: COLORS.TEXT_SECONDARY,
+    marginTop: 1,
   },
   modalActions: {
     flexDirection: "row",

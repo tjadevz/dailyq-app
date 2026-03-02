@@ -24,8 +24,10 @@ import { useAuth } from "@/src/context/AuthContext";
 import { supabase } from "@/src/config/supabase";
 import {
   getStoredExpoPushToken,
+  setStoredExpoPushToken,
   upsertPushSubscription,
 } from "@/src/lib/pushSubscription";
+import { registerForPushNotificationsAsync } from "@/src/native/notifications";
 
 const REMINDER_TIME_KEY = "dailyq-reminder-time";
 
@@ -114,6 +116,8 @@ export default function OnboardingScreen() {
   const handleNotificationsContinue = useCallback(async () => {
     if (!notificationTime) return;
     await saveReminderTime(notificationTime);
+    // Request permission and store token; non-blocking — auth step proceeds regardless.
+    registerForPushNotificationsAsync().then((token) => setStoredExpoPushToken(token));
     goNext("auth");
   }, [notificationTime, goNext]);
 

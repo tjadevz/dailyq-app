@@ -19,6 +19,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { COLORS, JOKER, MODAL, MODAL_ENTER_MS, MODAL_CLOSE_MS } from "@/src/config/constants";
 import { useLanguage } from "@/src/context/LanguageContext";
 import { useAuth } from "@/src/context/AuthContext";
+import { useCalendarAnswersContext } from "@/src/context/CalendarAnswersContext";
 import { useTodayQuestion } from "@/src/hooks/useTodayQuestion";
 import { useProfile } from "@/src/hooks/useProfile";
 import { getDayOfYear, getNow, getLocalDayKey, isMonday, getPreviousWeekRange, getAnswerableDaysInRange } from "@/src/lib/date";
@@ -38,6 +39,7 @@ export default function TodayScreen() {
   const { effectiveUser } = useAuth();
   const userId = effectiveUser?.id ?? null;
 
+  const { setAnswerForDay } = useCalendarAnswersContext();
   const { question, loading: questionLoading, error: questionError } = useTodayQuestion(lang, userId);
   const { profile } = useProfile(userId);
 
@@ -123,6 +125,8 @@ export default function TodayScreen() {
         .upsert(upsertPayload, { onConflict: "user_id,question_date" });
       if (error) throw error;
 
+      setAnswerForDay(dayKey, { questionText: question.text, answerText: text });
+
       const wasUpdate = existingAnswer != null && existingAnswer.length > 0;
       setExistingAnswer(text);
       setIsEditMode(false);
@@ -180,7 +184,7 @@ export default function TodayScreen() {
     } finally {
       setSubmitting(false);
     }
-  }, [userId, question, answerText, existingAnswer, effectiveUser?.created_at, t]);
+  }, [userId, question, answerText, existingAnswer, effectiveUser?.created_at, t, setAnswerForDay]);
 
   const dayLabel = question ? `#${String(getDayOfYear(question.day)).padStart(3, "0")}` : "";
   const hasAnswer = existingAnswer != null && existingAnswer.length > 0;

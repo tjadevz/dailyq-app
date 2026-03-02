@@ -73,13 +73,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const initAuth = async () => {
       try {
         const {
-          data: { user: u },
-        } = await supabase.auth.getUser();
+          data: { session },
+        } = await supabase.auth.getSession();
         // #region agent log
-        logAuth("H2", "getUser returned", { ts: Date.now(), elapsed: Date.now() - t0, hasUser: !!u });
+        logAuth("H2", "getSession returned", { ts: Date.now(), elapsed: Date.now() - t0, hasUser: !!session?.user });
         // #endregion
         if (!cancelled) {
-          setUser(u ?? null);
+          setUser(session?.user ?? null);
           setAuthCheckDone(true);
         }
       } catch (e) {

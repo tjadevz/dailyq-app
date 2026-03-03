@@ -19,9 +19,10 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { COLORS, JOKER, MODAL, MODAL_ENTER_MS, MODAL_CLOSE_MS } from "@/src/config/constants";
 import { useLanguage } from "@/src/context/LanguageContext";
 import { useAuth } from "@/src/context/AuthContext";
+import { useStreakMilestone, getHighestMilestoneCrossed, getMilestonesCrossed } from "@/src/context/StreakMilestoneContext";
 import { useCalendarAnswersContext } from "@/src/context/CalendarAnswersContext";
 import { useTodayQuestion } from "@/src/hooks/useTodayQuestion";
-import { useProfile } from "@/src/hooks/useProfile";
+import { useProfileContext } from "@/src/context/ProfileContext";
 import { getDayOfYear, getNow, getLocalDayKey, isMonday, getPreviousWeekRange, getAnswerableDaysInRange } from "@/src/lib/date";
 import { supabase } from "@/src/config/supabase";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -41,7 +42,8 @@ export default function TodayScreen() {
 
   const { setAnswerForDay } = useCalendarAnswersContext();
   const { question, loading: questionLoading, error: questionError } = useTodayQuestion(lang, userId);
-  const { profile } = useProfile(userId);
+  const { profile, refetch: refetchProfile } = useProfileContext();
+  const { showMilestone } = useStreakMilestone();
 
   const [answerText, setAnswerText] = useState("");
   const [existingAnswer, setExistingAnswer] = useState<string | null>(null);
@@ -54,7 +56,6 @@ export default function TodayScreen() {
   const [jokerModalVisible, setJokerModalVisible] = useState(false);
   const [editConfirmVisible, setEditConfirmVisible] = useState(false);
   const [recapModal, setRecapModal] = useState<{ open: boolean; count: number; total: number }>({ open: false, count: 0, total: 0 });
-  const [streakModal, setStreakModal] = useState<{ open: boolean; milestone: 7 | 30 | 100 | null }>({ open: false, milestone: null });
 
   // Load existing answer when question is available
   useEffect(() => {
@@ -91,6 +92,7 @@ export default function TodayScreen() {
   }, [userId, question?.day]);
 
   const handleSubmit = useCallback(async () => {
+    console.log("Submitting with userId:", userId);
     if (!userId || !question || userId === "dev-user") return;
     const text = answerText.trim();
     if (!text) return;
@@ -98,6 +100,18 @@ export default function TodayScreen() {
     setSubmitError(null);
     setSubmitting(true);
     try {
+      // Streak before submit (for milestone "crossed" check)
+      let previousStreak = 0;
+      try {
+        const { data: streaksBefore } = await supabase.rpc("get_user_streaks", { p_user_id: userId });
+        const rowBefore = Array.isArray(streaksBefore) && streaksBefore.length > 0 ? streaksBefore[0] : null;
+        const vBefore = rowBefore?.visual_streak ?? 0;
+        const rBefore = rowBefore?.real_streak ?? 0;
+        previousStreak = Math.max(Number(vBefore), Number(rBefore));
+      } catch {
+        // ignore
+      }
+
       // answers_user_date_unique (user_id, question_date). Kolomnaam in DB: question_date.
       const dayKey = question.day;
       const upsertPayload = {
@@ -163,14 +177,20 @@ export default function TodayScreen() {
         }
       }
 
-      // Streak modal: 7 / 30 / 100
+      // Streak milestone: check if we crossed any (previousStreak < m <= newStreak), grant jokers, show modal
       const { data: streaks } = await supabase.rpc("get_user_streaks", { p_user_id: userId });
       const row = Array.isArray(streaks) && streaks.length > 0 ? streaks[0] : null;
       const visual = row?.visual_streak ?? 0;
       const real = row?.real_streak ?? 0;
-      const streak = Math.max(Number(visual), Number(real));
-      if (streak === 7 || streak === 30 || streak === 100) {
-        setStreakModal({ open: true, milestone: streak });
+      const newStreak = Math.max(Number(visual), Number(real));
+      const crossed = getMilestonesCrossed(previousStreak, newStreak);
+      for (const m of crossed) {
+        await supabase.rpc("grant_milestone_jokers", { p_user_id: userId, p_milestone: m });
+      }
+      if (crossed.length > 0) {
+        await refetchProfile();
+        const highest = getHighestMilestoneCrossed(previousStreak, newStreak);
+        if (highest) showMilestone(highest);
       }
     } catch (e: unknown) {
       const err = e as { message?: string; code?: string; details?: string };
@@ -184,7 +204,7 @@ export default function TodayScreen() {
     } finally {
       setSubmitting(false);
     }
-  }, [userId, question, answerText, existingAnswer, effectiveUser?.created_at, t, setAnswerForDay]);
+  }, [userId, question, answerText, existingAnswer, effectiveUser?.created_at, t, setAnswerForDay, refetchProfile, showMilestone]);
 
   const dayLabel = question ? `#${String(getDayOfYear(question.day)).padStart(3, "0")}` : "";
   const hasAnswer = existingAnswer != null && existingAnswer.length > 0;
@@ -342,6 +362,7 @@ export default function TodayScreen() {
                   numberOfLines={3}
                   editable={!submitting}
                   textAlignVertical="top"
+                  autoCapitalize="sentences"
                 />
                 <Text style={styles.charCount}>
                   {answerText.length}/{MAX_ANSWER_LENGTH}
@@ -392,12 +413,6 @@ export default function TodayScreen() {
         t={t}
       />
 
-      <StreakModal
-        visible={streakModal.open}
-        milestone={streakModal.milestone}
-        onClose={() => setStreakModal({ open: false, milestone: null })}
-        t={t}
-      />
       </KeyboardAvoidingView>
     </GlassCardContainer>
   );
@@ -465,14 +480,14 @@ const editConfirmStyles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.4)",
     justifyContent: "center",
     alignItems: "center",
-    padding: 24,
+    padding: 28,
   },
   card: {
     ...MODAL.CARD,
     alignItems: "center",
   },
   text: {
-    fontSize: 16,
+    fontSize: 17,
     color: COLORS.TEXT_PRIMARY,
     fontWeight: "500",
   },
@@ -545,194 +560,10 @@ const recapModalStyles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.4)",
     justifyContent: "center",
     alignItems: "center",
-    padding: 24,
+    padding: 28,
   },
   card: {
     ...MODAL.CARD,
-    minWidth: 300,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: COLORS.TEXT_PRIMARY,
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: COLORS.TEXT_SECONDARY,
-    marginBottom: 16,
-  },
-  body: {
-    fontSize: 15,
-    color: COLORS.TEXT_PRIMARY,
-    lineHeight: 22,
-    marginBottom: 20,
-  },
-  ctaWrap: { alignSelf: "stretch" },
-  cta: {
-    paddingVertical: 14,
-    borderRadius: 9999,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "rgba(139,92,246,0.3)",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 1,
-    shadowRadius: 24,
-    elevation: 4,
-  },
-  ctaText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#fff",
-  },
-});
-
-function StreakModal({
-  visible,
-  milestone,
-  onClose,
-  t,
-}: {
-  visible: boolean;
-  milestone: 7 | 30 | 100 | null;
-  onClose: () => void;
-  t: (key: string, params?: Record<string, string | number>) => string;
-}) {
-  const opacity = React.useRef(new Animated.Value(0)).current;
-  const confettiAnims = useRef<Animated.Value[]>([]).current;
-  if (confettiAnims.length === 0) {
-    for (let i = 0; i < 12; i++) confettiAnims.push(new Animated.Value(0));
-  }
-  const handleClose = useCallback(() => {
-    Animated.timing(opacity, {
-      toValue: 0,
-      duration: MODAL_CLOSE_MS,
-      useNativeDriver: true,
-    }).start(() => onClose());
-  }, [opacity, onClose]);
-  useEffect(() => {
-    if (visible && milestone) {
-      opacity.setValue(0);
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: MODAL_ENTER_MS,
-        useNativeDriver: true,
-      }).start();
-    }
-  }, [visible, milestone, opacity]);
-  useEffect(() => {
-    if (!visible || !milestone) return;
-    confettiAnims.forEach((v) => v.setValue(0));
-    const duration = 1200;
-    confettiAnims.forEach((anim) => {
-      Animated.timing(anim, {
-        toValue: 1,
-        duration: duration + Math.random() * 300,
-        useNativeDriver: true,
-      }).start();
-    });
-  }, [visible, milestone, confettiAnims]);
-
-  if (!visible || !milestone) return null;
-
-  const titleKey = `streak_popup_title_${milestone}` as const;
-  const subtitleKey = `streak_popup_subtitle_${milestone}` as const;
-  const title = t(titleKey);
-  const subtitle = t(subtitleKey);
-  const earned = t("streak_popup_earned");
-  const jokerCount = t("streak_popup_joker_count");
-  const hint = t("streak_popup_joker_hint");
-  const cta = t("streak_popup_cta");
-
-  return (
-    <Modal transparent visible animationType="none">
-      <Animated.View style={[streakModalStyles.backdrop, { opacity }]}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
-        <Pressable style={streakModalStyles.card} onPress={(e) => e.stopPropagation()}>
-          {/* Confetti-like: small circles that move out and fade */}
-          <View style={streakModalStyles.confettiWrap} pointerEvents="none">
-            {confettiAnims.map((anim, i) => {
-              const angle = (i / 12) * 2 * Math.PI;
-              const dist = 90;
-              return (
-                <Animated.View
-                  key={i}
-                  style={[
-                    streakModalStyles.confettiDot,
-                    {
-                      transform: [
-                        {
-                          translateX: anim.interpolate({
-                            inputRange: [0, 1],
-                            outputRange: [0, Math.cos(angle) * dist],
-                          }),
-                        },
-                        {
-                          translateY: anim.interpolate({
-                            inputRange: [0, 1],
-                            outputRange: [0, Math.sin(angle) * dist],
-                          }),
-                        },
-                      ],
-                      opacity: anim.interpolate({
-                        inputRange: [0, 0.6, 1],
-                        outputRange: [1, 0.8, 0],
-                      }),
-                    },
-                  ]}
-                />
-              );
-            })}
-          </View>
-          <Pressable style={MODAL.CLOSE_BUTTON} onPress={handleClose}>
-            <Feather name="x" size={18} color={COLORS.TEXT_SECONDARY} strokeWidth={2.5} />
-          </Pressable>
-          <Text style={streakModalStyles.title}>{title}</Text>
-          <Text style={streakModalStyles.subtitle}>{subtitle}</Text>
-          <Text style={streakModalStyles.earned}>
-            {earned} {jokerCount}
-          </Text>
-          <Text style={streakModalStyles.hint}>{hint}</Text>
-          <Pressable onPress={handleClose} style={streakModalStyles.ctaWrap}>
-            <LinearGradient
-              colors={["#A78BFA", "#8B5CF6"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={streakModalStyles.cta}
-            >
-              <Text style={streakModalStyles.ctaText}>{cta}</Text>
-            </LinearGradient>
-          </Pressable>
-        </Pressable>
-      </Animated.View>
-    </Modal>
-  );
-}
-
-const streakModalStyles = StyleSheet.create({
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 24,
-  },
-  card: {
-    ...MODAL.CARD,
-    minWidth: 300,
-  },
-  confettiWrap: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: "center",
-    alignItems: "center",
-    borderRadius: 24,
-  },
-  confettiDot: {
-    position: "absolute",
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#EAB308",
   },
   title: {
     fontSize: 22,
@@ -741,19 +572,14 @@ const streakModalStyles = StyleSheet.create({
     marginBottom: 4,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 15,
     color: COLORS.TEXT_SECONDARY,
-    marginBottom: 12,
+    marginBottom: 16,
   },
-  earned: {
+  body: {
     fontSize: 16,
-    fontWeight: "600",
-    color: JOKER.TEXT,
-    marginBottom: 4,
-  },
-  hint: {
-    fontSize: 13,
-    color: COLORS.TEXT_MUTED,
+    color: COLORS.TEXT_PRIMARY,
+    lineHeight: 24,
     marginBottom: 20,
   },
   ctaWrap: { alignSelf: "stretch" },
@@ -881,11 +707,11 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   answeredQuestionText: {
-    fontSize: 20,
+    fontSize: 23,
     fontWeight: "500",
     color: "#374151",
     textAlign: "center",
-    lineHeight: 28,
+    lineHeight: 32,
   },
   editAnswerButton: {
     paddingVertical: 12,
@@ -1021,9 +847,9 @@ const styles = StyleSheet.create({
   },
   cardInner: {
     borderRadius: 27,
-    paddingVertical: 48,
+    paddingVertical: 58,
     paddingHorizontal: 16,
-    minHeight: 140,
+    minHeight: 168,
     justifyContent: "center",
   },
   cardCornerTL: {
@@ -1052,11 +878,11 @@ const styles = StyleSheet.create({
     color: "rgba(139,92,246,0.3)",
   },
   questionText: {
-    fontSize: 20,
+    fontSize: 23,
     fontWeight: "500",
     color: "#374151",
     textAlign: "center",
-    lineHeight: 28,
+    lineHeight: 32,
     marginTop: 8,
   },
   input: {

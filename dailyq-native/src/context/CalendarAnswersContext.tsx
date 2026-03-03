@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from "react";
 import type { Lang } from "../i18n/translations";
@@ -22,6 +23,8 @@ type Cache = Record<string, Map<string, CalendarAnswerEntry>>;
 type CalendarAnswersContextValue = {
   /** Optimistic update: set an answer for a day (e.g. after saving on Today tab). */
   setAnswerForDay: (dayKey: string, entry: CalendarAnswerEntry) => void;
+  /** Clear entire cache (e.g. on account switch). */
+  clearCache: () => void;
   /** Get or populate cache for this month; returns map, loading, error, refetch, and setAnswerForDay. */
   useCalendarAnswers: (
     userId: string | null,
@@ -72,6 +75,8 @@ export function CalendarAnswersProvider({
     setCache((prev) => ({ ...prev, [yearMonth]: map }));
   }, []);
 
+  const clearCache = useCallback(() => setCache({}), []);
+
   const getCacheForMonth = useCallback((yearMonth: string) => {
     return cache[yearMonth] ?? null;
   }, [cache]);
@@ -90,6 +95,7 @@ export function CalendarAnswersProvider({
     } => {
       const [loading, setLoading] = useState(true);
       const [error, setError] = useState<string | null>(null);
+      const prevUserIdRef = useRef<string | null>(userId);
       const cached = getCacheForMonth(yearMonth);
       const [localMap, setLocalMap] = useState<Map<string, CalendarAnswerEntry>>(
         new Map()
@@ -126,10 +132,9 @@ export function CalendarAnswersProvider({
         setError(null);
         try {
           const [y, m] = yearMonth.split("-").map(Number);
-          const start = new Date(y, m - 1, 1);
-          const end = new Date(y, m, 0);
-          const startStr = start.toISOString().slice(0, 10);
-          const endStr = end.toISOString().slice(0, 10);
+          const startStr = `${yearMonth}-01`;
+          const lastDay = new Date(y, m, 0).getDate();
+          const endStr = `${yearMonth}-${String(lastDay).padStart(2, "0")}`;
 
           // 1) Answers for month: filter by user_id and question_date range
           const { data: answersData, error: answersError } = await supabase
@@ -192,6 +197,12 @@ export function CalendarAnswersProvider({
       }, [userId, yearMonth, lang, setCacheForMonth]);
 
       useEffect(() => {
+        if (prevUserIdRef.current !== userId) {
+          prevUserIdRef.current = userId;
+          clearCache();
+          fetchMonth();
+          return;
+        }
         const existing = getCacheForMonth(yearMonth);
         if (existing && existing.size > 0) {
           setLocalMap(existing);
@@ -199,7 +210,7 @@ export function CalendarAnswersProvider({
           return;
         }
         fetchMonth();
-      }, [yearMonth, userId, lang]);
+      }, [yearMonth, userId, lang, clearCache, getCacheForMonth, fetchMonth]);
 
       const refetch = useCallback(() => fetchMonth(), [fetchMonth]);
 
@@ -211,11 +222,12 @@ export function CalendarAnswersProvider({
         setAnswerForDay: setAnswerForDayInCache,
       };
     },
-    [getCacheForMonth, setCacheForMonth, setAnswerForDayInCache]
+    [getCacheForMonth, setCacheForMonth, setAnswerForDayInCache, clearCache]
   );
 
   const value: CalendarAnswersContextValue = {
     setAnswerForDay: setAnswerForDayInCache,
+    clearCache,
     useCalendarAnswers,
   };
 

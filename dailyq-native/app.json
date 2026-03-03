@@ -1,6 +1,15 @@
 {
   "expo": {
     "name": "DailyQ",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/9418d4f1-3d4b-4492-b37d-6a31b50ed5da",
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    },
     "slug": "dailyq",
     "version": "1.0.0",
     "orientation": "portrait",

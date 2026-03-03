@@ -49,7 +49,7 @@ export function JokerModal({
             <View style={styles.iconCircle}>
               <MaterialCommunityIcons
                 name="crown"
-                size={24}
+                size={28}
                 color="#FFFFFF"
               />
             </View>
@@ -71,22 +71,25 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.4)",
     justifyContent: "center",
     alignItems: "center",
-    padding: 24,
+    padding: 16,
   },
   card: {
     ...MODAL.CARD,
-    minWidth: 300,
+    width: "92%",
+    maxWidth: 480,
+    paddingVertical: 36,
+    paddingHorizontal: 32,
   },
   iconRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 16,
+    marginBottom: 20,
   },
   iconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: JOKER_GOLD_BG,
@@ -94,9 +97,9 @@ const styles = StyleSheet.create({
     borderColor: "rgba(251,191,36,0.5)",
   },
   body: {
-    fontSize: 15,
+    fontSize: 19,
     color: JOKER_BODY_TEXT,
-    lineHeight: 22,
+    lineHeight: 26,
     textAlign: "center",
   },
   bodyNumber: {

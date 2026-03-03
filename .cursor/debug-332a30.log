@@ -16,3 +16,33 @@
 {"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"AuthContext.tsx","message":"authCheckDone set","data":{"ts":1772365862397,"elapsed":7},"timestamp":1772365862397}
 {"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage done","data":{"stored":"nl","elapsed":8},"timestamp":1772365862398}
 {"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":true,"hasUser":false},"timestamp":1772365862399}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"_layout.tsx","message":"RootLayout render start","data":{"ts":1772366974358},"timestamp":1772366974358}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":false,"hasUser":false},"timestamp":1772366974377}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772366974472},"timestamp":1772366974472}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"initAuth start","data":{"ts":1772366974473},"timestamp":1772366974473}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"getUser returned","data":{"ts":1772366974485,"elapsed":12,"hasUser":false},"timestamp":1772366974485}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"AuthContext.tsx","message":"authCheckDone set","data":{"ts":1772366974485,"elapsed":12},"timestamp":1772366974485}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage done","data":{"stored":"nl","elapsed":16},"timestamp":1772366974488}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":true,"hasUser":false},"timestamp":1772366974489}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H3","location":"AuthContext.tsx","message":"syncPushSubscriptionOnAppOpen start (after interactions)","data":{"userId":"8f1e9b2e-006d-4334-8af2-14ab39b57fdb","ts":1772367012115},"timestamp":1772367012115}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H3","location":"AuthContext.tsx","message":"syncPushSubscriptionOnAppOpen done","data":{"elapsed":380},"timestamp":1772367012495}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"_layout.tsx","message":"RootLayout render start","data":{"ts":1772369922508},"timestamp":1772369922508}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":false,"hasUser":false},"timestamp":1772369922526}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772369922587},"timestamp":1772369922587}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"initAuth start","data":{"ts":1772369922588},"timestamp":1772369922588}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"getUser returned","data":{"ts":1772369922598,"elapsed":10,"hasUser":false},"timestamp":1772369922598}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"AuthContext.tsx","message":"authCheckDone set","data":{"ts":1772369922599,"elapsed":11},"timestamp":1772369922599}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage done","data":{"stored":"nl","elapsed":14},"timestamp":1772369922601}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":true,"hasUser":false},"timestamp":1772369922602}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H3","location":"AuthContext.tsx","message":"syncPushSubscriptionOnAppOpen start (after interactions)","data":{"userId":"8f1e9b2e-006d-4334-8af2-14ab39b57fdb","ts":1772369951526},"timestamp":1772369951526}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H3","location":"AuthContext.tsx","message":"syncPushSubscriptionOnAppOpen done","data":{"elapsed":559},"timestamp":1772369952085}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"_layout.tsx","message":"RootLayout render start","data":{"ts":1772371484489},"timestamp":1772371484489}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":false,"hasUser":false},"timestamp":1772371484508}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772371484553},"timestamp":1772371484554}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"initAuth start","data":{"ts":1772371484554},"timestamp":1772371484554}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"getUser returned","data":{"ts":1772371484564,"elapsed":10,"hasUser":false},"timestamp":1772371484564}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"AuthContext.tsx","message":"authCheckDone set","data":{"ts":1772371484564,"elapsed":10},"timestamp":1772371484564}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage done","data":{"stored":"nl","elapsed":12},"timestamp":1772371484565}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":true,"hasUser":false},"timestamp":1772371484565}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H3","location":"AuthContext.tsx","message":"syncPushSubscriptionOnAppOpen start (after interactions)","data":{"userId":"8f1e9b2e-006d-4334-8af2-14ab39b57fdb","ts":1772371496163},"timestamp":1772371496163}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H3","location":"AuthContext.tsx","message":"syncPushSubscriptionOnAppOpen done","data":{"elapsed":767},"timestamp":1772371496930}

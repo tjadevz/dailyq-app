@@ -85,7 +85,9 @@ The **question itself is the product**.
 The MVP includes a **light catch-up mechanic** via **jokers**.
 
 - **Jokers** let the user answer a **missed day** within the **past 7 calendar days** (one joker per missed day).
-- Each user has a **joker balance** (stored in `profiles`). A **monthly grant** (e.g. via RPC `grant_monthly_jokers`) tops up jokers once per calendar month.
+- Each user has a **joker balance** (stored in `profiles`). Jokers are earned in two ways:
+  - **Monthly grant:** RPC `grant_monthly_jokers` tops up jokers once per calendar month.
+  - **Streak milestones:** When the user’s streak **crosses** a milestone (using **≥** comparison: previous streak &lt; milestone and new streak ≥ milestone), they are awarded jokers and see a **celebration popup**. Milestones and joker amounts: **7 days → 1 joker**, **30 → 2**, **60 → 2**, **100 → 3**, **180 → 4**, **365 → 5**. A single action (e.g. using a joker that jumps the streak from 5 to 35) can cross multiple milestones; each is granted once (idempotent per user per milestone via `user_milestone_grants`). The milestone check runs **after submitting an answer (Today)** and **after using a joker (Calendar)**; the popup shows the **highest** milestone crossed.
 - **Header:** On the Today and Calendar tabs, the header shows a **joker indicator** (e.g. ⭐ plus the balance). Tapping it opens a **small informational modal** (no navigation, no RPC): title “Jokers” / “Joker” (singular when balance is 1); body explains balance and that a joker lets you answer a missed day in the last 7 days; close via X, tapping outside, or Escape. The balance number in the modal is emphasized (e.g. bold, accent color). Dutch copy uses singular “Joker” when balance is 1, plural “Jokers” otherwise.
 - **Calendar – missed day:** Tapping a missed day (within 7 days, on or after account creation) opens a modal. If the user has at least one joker: message e.g. “Je hebt deze dag gemist. Met een joker kun je de vraag alsnog beantwoorden.” with **Joker inzetten** and Cancel. Choosing “Joker inzetten” calls `use_joker` RPC and opens the full-screen answer overlay for that day. If the user has no jokers: informational “Je hebt geen jokers meer” (or similar) with OK. Days older than 7 days or before account creation show “Deze dag is gesloten” (informational only).
 - **Constraints:** Jokers are for catch-up only. No gamification beyond the balance and the informational modal. No penalties or “you lost your jokers” messaging.
@@ -211,8 +213,9 @@ Supabase Auth provides the `users` table; DailyQ adds:
 **profiles** (or equivalent)
 
 - `joker_balance` (integer), `last_joker_grant_month` (e.g. date or string) for monthly joker grants.
-- RPCs: `grant_monthly_jokers` (idempotent per month), `use_joker` (consumes one joker and allows submitting an answer for a missed day within the 7-day window).
-- On submit for today, the app upserts the answer (same-day edits). After a **new** answer, Monday recap modal may show; after an **edit**, an “Answer changed” confirmation is shown. Joker balance is shown in the header and in the joker informational modal.
+- RPCs: `grant_monthly_jokers` (idempotent per month), `use_joker` (consumes one joker and allows submitting an answer for a missed day within the 7-day window), `grant_milestone_jokers(p_milestone int)` (awards jokers for crossing a streak milestone 7/30/60/100/180/365; idempotent per user per milestone).
+- **user_milestone_grants:** Table `(user_id, milestone, granted_at)` records which streak milestones have already granted jokers so each milestone is only rewarded once.
+- On submit for today, the app upserts the answer (same-day edits). After a **new** answer, Monday recap modal may show; after an **edit**, an “Answer changed” confirmation is shown. When the new streak crosses a milestone, jokers are granted and the streak celebration modal is shown. Joker balance is shown in the header and in the joker informational modal.
 
 **push_subscriptions** (Web Push)
 
@@ -323,7 +326,7 @@ The following are **deliberately out of scope** to keep the experiment clean and
   - No charts, trends, or insights.
   - No AI interpretation of answers.
 - **Engagement mechanics**
-  - **Optional opt-in only:** Users may enable a single daily push notification (e.g. reminder) via Settings; no other notifications or reminders. No badges, levels, or advanced streak visualizations.
+  - **Optional opt-in only:** Users may enable a single daily push notification (e.g. reminder) via Settings; no other notifications or reminders. No badges or levels; streak is shown (e.g. “X dagen streak”) and **milestone-based joker rewards** (7/30/60/100/180/365 days) with a single celebration popup per crossing are included as part of the light catch-up mechanic (see Section 6).
   - **Limited catch-up:** answering a missed day is supported only within the **rolling 7-day window** and only via the **Calendar overlay** (no navigation to Today); see Section 10a.
 - **Social and sharing**
   - No comments, likes, or feeds.
@@ -426,7 +429,7 @@ Any future feature must be evaluated against a single criterion:
 - **Auth:** Sign up / sign in use email + password. Session is restored on load via Supabase auth state; no hash-based redirect.
 - **UI:** Single theme (e.g. background #F4F6F9, accent #14316A). Header and nav use the same background.
 - **Header:** On Today and Calendar tabs, top-right shows **joker indicator** (e.g. ⭐ + balance). Tapping opens informational joker modal (close: X, outside tap, Escape). Dutch: "Joker" when balance 1, "Jokers" otherwise.
-- **Jokers:** Balance and monthly grant in profiles; RPCs grant_monthly_jokers, use_joker. Calendar missed-day: has joker → "Joker inzetten" and answer overlay; no jokers → "Je hebt geen jokers meer".
+- **Jokers:** Balance and monthly grant in profiles; RPCs grant_monthly_jokers, use_joker, grant_milestone_jokers. Table user_milestone_grants for idempotent milestone rewards. Streak milestones (7, 30, 60, 100, 180, 365) award jokers when crossed (≥); check after Today submit and after Calendar joker use; celebration popup shows highest milestone crossed. Calendar missed-day: has joker → "Joker inzetten" and answer overlay; no jokers → "Je hebt geen jokers meer".
 - **Calendar:** After saving an answer, calendar updates optimistically. Month change: no full-screen loading; new month grid shows immediately, data loads in background (full-screen loading only on initial load).
 - **PWA:** Service worker uses aggressive update (skipWaiting, clear caches on activate, reload on new worker) to avoid stale cache after deploys.
 - **Settings:** Log Out and language selection (e.g. Dutch/English) visible. Calendar and Settings receive user from Home so dev mock user is respected.
@@ -472,13 +475,13 @@ The **Expo / React Native** client (`dailyq-native`) mirrors the PWA flow and sh
 - **Answered layout:** When the user has already submitted, a centered card shows the question, a **gold check** (JOKER-style circle + Check icon), and an **"Edit answer"** button. The answer input is hidden until they tap **"Edit answer"** or (when no answer yet) **"Answer"**. State: `isEditMode`, `showAnswerInput`.
 - **Submit-success:** After submit, a **SubmitSuccessOverlay** shows an animated gold circle + check (scale/opacity), then hides after ~1.2s. Edit state is reset after submit.
 - **Cancel in edit mode:** Button to leave edit mode and restore the existing answer without saving.
-- **Modals:** EditConfirmModal (enter only, 200 ms); MondayRecapModal and StreakModal with full enter/exit (200 ms).
+- **Modals:** EditConfirmModal (enter only, 200 ms); MondayRecapModal with full enter/exit (200 ms). **Streak celebration:** StreakCelebrationModal (in `src/components/StreakCelebrationModal.tsx`) is rendered once by StreakMilestoneProvider (app layout); Today and Calendar trigger it via `useStreakMilestone().showMilestone(milestone)` when a streak milestone is crossed after submit or joker use (full enter/exit 200 ms).
 
 **Completed – Calendar tab**
 
 - **Streak in stats:** `get_user_streaks` RPC; **real streak** shown as “X dagen streak” under the grid.
 - **“X van Y dagen beantwoord”:** Stats use `capturedThisMonth` and `answerableDaysThisMonth` (only days in the shown month with `dayKey <= todayKey`).
-- **Next Reward block:** Award icon, next milestone (7 / 30 / 100), progress bar `realStreak / nextMilestone`, “X more days to go”. `STREAK_MILESTONES = [7, 30, 100]`.
+- **Next Reward block:** Award icon, next milestone (7 / 30 / 60 / 100 / 180 / 365), progress bar `realStreak / nextMilestone`, “X more days to go”. `STREAK_MILESTONES = [7, 30, 60, 100, 180, 365]`. Crossing a milestone awards jokers (RPC grant_milestone_jokers) and shows **StreakCelebrationModal** (shared via StreakMilestoneContext) from both Today (after submit) and Calendar (after joker save); logic uses "crossed" (previous < m and new ≥ m).
 - **Today button:** Under month nav; jumps to current month; accent when already on current month.
 - **Year picker:** Tapping the month label opens a modal with a scrollable list of years (2020 → current+1); choosing a year updates the view and closes the modal. Uses same enter/exit animation pattern as other modals.
 
@@ -496,14 +499,14 @@ The **Expo / React Native** client (`dailyq-native`) mirrors the PWA flow and sh
 
 - **Constants:** `MODAL_ENTER_MS = 200`, `MODAL_CLOSE_MS = 200` in `src/config/constants.ts`.
 - **Pattern:** All overlay modals use **`animationType="none"`** and an **Animated.View** backdrop: **enter** opacity 0→1 in 200 ms; **exit** opacity 1→0 in 200 ms, then `onClose()` so the exit animation runs before unmount.
-- **Applied to:** JokerModal, Settings (LanguageModal, DeleteAccountModal), Calendar (ViewAnswerModal, MissedDayModal, MissedDayAnswerModal), Today (EditConfirmModal enter only; MondayRecapModal, StreakModal full enter/exit), Calendar YearPickerModal.
+- **Applied to:** JokerModal, Settings (LanguageModal, DeleteAccountModal), Calendar (ViewAnswerModal, MissedDayModal, MissedDayAnswerModal), Today (EditConfirmModal enter only; MondayRecapModal full enter/exit), StreakCelebrationModal (via StreakMilestoneProvider), Calendar YearPickerModal.
 - EditConfirmModal auto-dismisses after 2.5 s; it uses the same enter animation for consistency and does not require a custom exit.
 
 **Reference**
 
 - **PWA:** `src/app/page.tsx` and tab content as design reference.
 - **Native screens:** `dailyq-native/app/(tabs)/today.tsx`, `calendar.tsx`, `settings.tsx`; `dailyq-native/app/index.tsx`; `dailyq-native/app/(auth)/onboarding.tsx`.
-- **Shared:** `dailyq-native/src/config/constants.ts` (COLORS, MODAL, MODAL_ENTER_MS, MODAL_CLOSE_MS, JOKER); `dailyq-native/src/components/JokerModal.tsx`; `dailyq-native/src/i18n/translations.ts`.
+- **Shared:** `dailyq-native/src/config/constants.ts` (COLORS, MODAL, MODAL_ENTER_MS, MODAL_CLOSE_MS, JOKER); `dailyq-native/src/components/JokerModal.tsx`, `StreakCelebrationModal.tsx`; `dailyq-native/src/context/StreakMilestoneContext.tsx` (showMilestone, getHighestMilestoneCrossed, getMilestonesCrossed); `dailyq-native/src/i18n/translations.ts`.
 
 ---
 

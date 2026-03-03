@@ -79,11 +79,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         logAuth("H2", "getSession returned", { ts: Date.now(), elapsed: Date.now() - t0, hasUser: !!session?.user });
         // #endregion
         if (!cancelled) {
+          console.log("setUser called with:", session?.user?.id ?? null);
           setUser(session?.user ?? null);
           setAuthCheckDone(true);
         }
       } catch (e) {
-        if (!cancelled) setUser(null);
+        if (!cancelled) {
+          console.log("setUser called with:", null);
+          setUser(null);
+        }
         console.error("Auth init error:", e);
       } finally {
         if (!cancelled) {
@@ -102,6 +106,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       if (cancelled) return;
+      console.log("setUser called with:", session?.user?.id ?? null);
       setUser(session?.user ?? null);
     });
 
@@ -160,6 +165,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
+    console.log("setUser called with:", null);
     setUser(null);
   }, []);
 
@@ -168,6 +174,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { error } = await supabase.rpc("delete_user");
       if (error) return { error };
       await supabase.auth.signOut();
+      console.log("setUser called with:", null);
       setUser(null);
       return { error: null };
     } catch (e) {

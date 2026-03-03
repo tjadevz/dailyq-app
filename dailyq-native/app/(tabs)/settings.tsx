@@ -496,18 +496,17 @@ cardIconWrap: {
   },
   modalCard: {
     ...MODAL.CARD,
-    minWidth: 300,
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "600",
     color: COLORS.TEXT_PRIMARY,
-    marginBottom: 16,
+    marginBottom: 18,
   },
   modalBody: {
-    fontSize: 15,
+    fontSize: 16,
     color: COLORS.TEXT_SECONDARY,
-    lineHeight: 22,
+    lineHeight: 24,
     marginBottom: 20,
   },
   optionRow: {
@@ -523,7 +522,7 @@ cardIconWrap: {
     backgroundColor: "rgba(139,92,246,0.1)",
   },
   optionText: {
-    fontSize: 16,
+    fontSize: 17,
     color: COLORS.TEXT_PRIMARY,
   },
   optionSubtext: {

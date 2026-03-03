@@ -7,13 +7,14 @@ import {
   useEffect,
   useState,
 } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { Lang } from "../i18n/translations";
 import {
   getStoredLanguage,
   setStoredLanguage,
   t as translate,
 } from "../i18n/translations";
+import { supabase } from "../config/supabase";
+import { useAuth } from "./AuthContext";
 
 // #region agent log
 function logLang(id: string, message: string, data: Record<string, unknown>) {
@@ -66,24 +67,51 @@ export function LanguageProvider({
   children: React.ReactNode;
   initialLang?: Lang;
 }) {
+  const { effectiveUser } = useAuth();
+  const userId = effectiveUser?.id ?? null;
   const [lang, setLangState] = useState<Lang>(initialLang);
 
   useEffect(() => {
+    let cancelled = false;
     const t0 = Date.now();
     // #region agent log
     logLang("H4", "getStoredLanguage start", { ts: t0 });
     // #endregion
-    getStoredLanguage().then((stored) => {
-      // #region agent log
-      logLang("H4", "getStoredLanguage done", { stored, elapsed: Date.now() - t0 });
-      // #endregion
+    (async () => {
+      const stored = await getStoredLanguage();
+      if (cancelled) return;
+      if (userId) {
+        const { data } = await supabase
+          .from("profiles")
+          .select("language")
+          .eq("id", userId)
+          .maybeSingle();
+        if (cancelled) return;
+        const profileLang = data?.language;
+        if (profileLang === "en" || profileLang === "nl") {
+          setLangState(profileLang);
+          return;
+        }
+      }
       setLangState(stored);
-    });
-  }, []);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
 
   useEffect(() => {
     setStoredLanguage(lang);
-  }, [lang]);
+    if (userId && userId !== "dev-user") {
+      supabase
+        .from("profiles")
+        .update({ language: lang })
+        .eq("id", userId)
+        .then(({ error }) => {
+          if (error) console.error("Profile language update error:", error);
+        });
+    }
+  }, [lang, userId]);
 
   const setLang = useCallback((newLang: Lang) => {
     setLangState(newLang);

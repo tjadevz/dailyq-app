@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { getNow } from "../lib/date";
 import { supabase } from "../config/supabase";
+import { useAuth } from "./AuthContext";
 
 export type Profile = {
   id: string;
@@ -9,10 +10,16 @@ export type Profile = {
   language: string;
 };
 
-export function useProfile(userId: string | null): {
+type ProfileContextValue = {
   profile: Profile | null;
   refetch: () => Promise<Profile | null>;
-} {
+};
+
+const ProfileContext = createContext<ProfileContextValue | null>(null);
+
+export function ProfileProvider({ children }: { children: React.ReactNode }) {
+  const { effectiveUser } = useAuth();
+  const userId = effectiveUser?.id ?? null;
   const [profile, setProfile] = useState<Profile | null>(null);
 
   const refetch = useCallback(async (): Promise<Profile | null> => {
@@ -68,5 +75,15 @@ export function useProfile(userId: string | null): {
     refetch();
   }, [refetch]);
 
-  return { profile, refetch };
+  return (
+    <ProfileContext.Provider value={{ profile, refetch }}>
+      {children}
+    </ProfileContext.Provider>
+  );
+}
+
+export function useProfileContext(): ProfileContextValue {
+  const ctx = useContext(ProfileContext);
+  if (!ctx) throw new Error("useProfileContext must be used within ProfileProvider");
+  return ctx;
 }

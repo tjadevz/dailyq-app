@@ -25,10 +25,10 @@ import {
   MODAL_CLOSE_MS,
 } from "@/src/config/constants";
 
-const STREAK_MILESTONES = [7, 30, 100];
+const STREAK_MILESTONES = [7, 30, 60, 100, 180, 365];
 import { useLanguage } from "@/src/context/LanguageContext";
 import { useAuth } from "@/src/context/AuthContext";
-import { useProfile } from "@/src/hooks/useProfile";
+import { useProfileContext } from "@/src/context/ProfileContext";
 import { useCalendarAnswersContext } from "@/src/context/CalendarAnswersContext";
 import type { CalendarAnswerEntry } from "@/src/context/CalendarAnswersContext";
 import { getNow, getLocalDayKey } from "@/src/lib/date";
@@ -36,6 +36,7 @@ import { supabase } from "@/src/config/supabase";
 import { JokerModal } from "@/src/components/JokerModal";
 import { JokerBadge } from "@/src/components/JokerBadge";
 import { GlassCardContainer } from "@/src/components/GlassCardContainer";
+import { useStreakMilestone, getHighestMilestoneCrossed, getMilestonesCrossed } from "@/src/context/StreakMilestoneContext";
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const GRID_ROWS = 6;
@@ -258,7 +259,7 @@ function MissedDayAnswerModal({
   visible: boolean;
   dayKey: string | null;
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (previousStreak: number) => void;
   userId: string;
   lang: string;
 }) {
@@ -297,6 +298,17 @@ function MissedDayAnswerModal({
     setError(null);
     setSubmitting(true);
     try {
+      let previousStreak = 0;
+      try {
+        const { data: streaks } = await supabase.rpc("get_user_streaks", { p_user_id: userId });
+        const row = Array.isArray(streaks) && streaks.length > 0 ? streaks[0] : null;
+        const r = row?.real_streak ?? 0;
+        const v = row?.visual_streak ?? 0;
+        previousStreak = Math.max(Number(r), Number(v));
+      } catch {
+        // ignore
+      }
+
       const { error: rpcErr } = await supabase.rpc("use_joker");
       if (rpcErr) throw rpcErr;
 
@@ -307,7 +319,7 @@ function MissedDayAnswerModal({
         is_joker: true,
       });
       if (insertErr) throw insertErr;
-      onSaved();
+      onSaved(previousStreak);
       onClose();
     } catch (e: unknown) {
       setError((e as { message?: string })?.message ?? t("missed_answer_error_save"));
@@ -336,6 +348,7 @@ function MissedDayAnswerModal({
             multiline
             maxLength={280}
             editable={!submitting}
+            autoCapitalize="sentences"
           />
           {error && <Text style={styles.modalError}>{error}</Text>}
           <Pressable
@@ -443,7 +456,8 @@ export default function CalendarScreen() {
   const { lang, t } = useLanguage();
   const { effectiveUser } = useAuth();
   const userId = effectiveUser?.id ?? null;
-  const { profile } = useProfile(userId);
+  const { profile, refetch: refetchProfile } = useProfileContext();
+  const { showMilestone } = useStreakMilestone();
   const { useCalendarAnswers } = useCalendarAnswersContext();
 
   const todayKey = getLocalDayKey(getNow());
@@ -462,23 +476,23 @@ export default function CalendarScreen() {
   const [realStreak, setRealStreak] = useState(0);
   const [showYearPicker, setShowYearPicker] = useState(false);
 
-  useEffect(() => {
+  const fetchStreak = useCallback(async (): Promise<number> => {
     if (!userId || userId === "dev-user") {
       setRealStreak(0);
-      return;
+      return 0;
     }
-    let cancelled = false;
-    supabase.rpc("get_user_streaks", { p_user_id: userId }).then(({ data }) => {
-      if (cancelled) return;
-      const row = Array.isArray(data) && data.length > 0 ? data[0] : null;
-      const r = row?.real_streak ?? 0;
-      const v = row?.visual_streak ?? 0;
-      setRealStreak(Math.max(Number(r), Number(v)));
-    });
-    return () => {
-      cancelled = true;
-    };
+    const { data } = await supabase.rpc("get_user_streaks", { p_user_id: userId });
+    const row = Array.isArray(data) && data.length > 0 ? data[0] : null;
+    const r = row?.real_streak ?? 0;
+    const v = row?.visual_streak ?? 0;
+    const value = Math.max(Number(r), Number(v));
+    setRealStreak(value);
+    return value;
   }, [userId]);
+
+  useEffect(() => {
+    fetchStreak();
+  }, [fetchStreak]);
 
   const goPrev = useCallback(() => {
     const [y, m] = yearMonth.split("-").map(Number);
@@ -535,11 +549,23 @@ export default function CalendarScreen() {
     setMissedDay(null);
   }, []);
 
-  const handleMissedSaved = useCallback(() => {
-    if (missedAnswerDay) {
+  const handleMissedSaved = useCallback(
+    async (previousStreak: number) => {
+      if (!missedAnswerDay) return;
       refetch();
-    }
-  }, [missedAnswerDay, refetch]);
+      const newStreak = await fetchStreak();
+      const crossed = getMilestonesCrossed(previousStreak, newStreak);
+      for (const m of crossed) {
+        await supabase.rpc("grant_milestone_jokers", { p_user_id: userId, p_milestone: m });
+      }
+      if (crossed.length > 0) {
+        await refetchProfile();
+        const highest = getHighestMilestoneCrossed(previousStreak, newStreak);
+        if (highest) showMilestone(highest);
+      }
+    },
+    [missedAnswerDay, refetch, fetchStreak, refetchProfile, showMilestone]
+  );
 
   const viewEntry = viewAnswerDay ? answersMap.get(viewAnswerDay) ?? null : null;
   const missedWithinWindow = !!(
@@ -1052,16 +1078,16 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.4)",
     justifyContent: "center",
     alignItems: "center",
-    padding: 24,
+    padding: 28,
   },
   yearPickerCard: {
     ...MODAL.CARD,
     maxHeight: "70%",
     width: "100%",
-    maxWidth: 320,
+    maxWidth: 400,
   },
   yearPickerTitle: {
-    fontSize: 18,
+    fontSize: 19,
     fontWeight: "600",
     color: COLORS.TEXT_PRIMARY,
     marginBottom: 16,
@@ -1079,7 +1105,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: COLORS.ACCENT,
   },
-  yearPickerOptionText: { fontSize: 16, fontWeight: "500", color: COLORS.TEXT_PRIMARY },
+  yearPickerOptionText: { fontSize: 17, fontWeight: "500", color: COLORS.TEXT_PRIMARY },
   yearPickerOptionTextSelected: { fontWeight: "600", color: COLORS.ACCENT },
   modalBackdrop: {
     ...MODAL.WRAPPER,
@@ -1087,18 +1113,16 @@ const styles = StyleSheet.create({
   },
   modalCard: {
     ...MODAL.CARD,
-    minWidth: 320,
   },
   modalCardViewAnswer: {
     maxHeight: "78%",
     minHeight: 320,
     paddingTop: 52,
-    paddingHorizontal: 28,
+    paddingHorizontal: 32,
     paddingBottom: 28,
   },
   modalCardWide: {
     ...MODAL.CARD_WIDE,
-    minWidth: 320,
   },
   viewAnswerDateWrap: {
     alignItems: "center",
@@ -1145,14 +1169,14 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   modalAnswerTextViewAnswer: {
-    fontSize: 16,
+    fontSize: 17,
     color: COLORS.TEXT_PRIMARY,
-    lineHeight: 26,
+    lineHeight: 28,
   },
-  modalTitle: { fontSize: 18, fontWeight: "600", color: COLORS.TEXT_PRIMARY, marginBottom: 12 },
+  modalTitle: { fontSize: 20, fontWeight: "600", color: COLORS.TEXT_PRIMARY, marginBottom: 12 },
   modalSubtitle: { fontSize: 14, color: COLORS.TEXT_SECONDARY, marginBottom: 8 },
-  modalQuestion: { fontSize: 16, fontWeight: "500", color: COLORS.TEXT_PRIMARY, marginBottom: 16 },
-  modalBody: { fontSize: 15, color: COLORS.TEXT_SECONDARY, marginBottom: 16, lineHeight: 22 },
+  modalQuestion: { fontSize: 17, fontWeight: "500", color: COLORS.TEXT_PRIMARY, marginBottom: 16 },
+  modalBody: { fontSize: 16, color: COLORS.TEXT_SECONDARY, marginBottom: 16, lineHeight: 24 },
   modalAnswerLabel: { fontSize: 13, fontWeight: "600", color: COLORS.TEXT_SECONDARY, marginBottom: 6 },
   modalAnswerText: { fontSize: 15, color: COLORS.TEXT_PRIMARY, lineHeight: 22 },
   modalInput: {

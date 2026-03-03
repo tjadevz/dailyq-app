@@ -12,7 +12,7 @@ import {
   Animated,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import Feather from "@expo/vector-icons/Feather";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -97,6 +97,7 @@ function OnboardingPrimaryButton({
 
 export default function OnboardingScreen() {
   const { t } = useLanguage();
+  const insets = useSafeAreaInsets();
   useAuth();
   const router = useRouter();
 
@@ -186,41 +187,69 @@ export default function OnboardingScreen() {
   // #endregion
 
   return (
-    <SafeAreaView style={styles.safe} edges={["top"]}>
+    <SafeAreaView
+      style={styles.safe}
+      edges={step === "intro" ? ["bottom"] : ["top", "bottom"]}
+    >
       <KeyboardAvoidingView
         style={styles.keyboard}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         keyboardVerticalOffset={Platform.OS === "ios" ? 60 : 0}
       >
-        <View style={[styles.card, { backgroundColor: "transparent" }]}>
+        <View
+          style={[
+            styles.card,
+            { backgroundColor: "transparent" },
+            styles.cardNoFrame,
+          ]}
+        >
+          {step === "intro" && (
+            <View style={styles.introBgOverlay} pointerEvents="none">
+              <LinearGradient
+                colors={[
+                  "rgba(221,214,254,0.22)",
+                  "rgba(196,181,253,0.12)",
+                  "transparent",
+                ]}
+                locations={[0, 0.4, 1]}
+                start={{ x: 0.5, y: 0 }}
+                end={{ x: 0.5, y: 1 }}
+                style={StyleSheet.absoluteFill}
+              />
+            </View>
+          )}
           <ScrollView
-            style={{ backgroundColor: "transparent" }}
-            contentContainerStyle={styles.scrollContent}
+            style={[styles.scrollView, styles.scrollViewFullBleed]}
+            contentContainerStyle={[
+              styles.scrollContent,
+              styles.scrollContentFullBleed,
+              step === "intro" && { paddingTop: insets.top },
+            ]}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-            <View style={styles.column}>
+            <View style={[styles.column, styles.columnFullBleed]}>
               {step === "intro" && (
-                <FadeInView style={styles.step}>
-                  <View style={styles.contentWrapper}>
-                      <View style={styles.introHeader}>
-                        <View style={styles.logoCircle}>
+                <FadeInView style={[styles.step, styles.introStepWrap]}>
+                  <View style={[styles.contentWrapper, styles.contentWrapperIntro]}>
+                      <View style={[styles.introHeader, styles.introHeaderIntro]}>
+                        <View style={styles.logoCircleIntro}>
                           <Feather
                             name="sun"
-                            size={40}
+                            size={48}
                             color={COLORS.ACCENT}
                             strokeWidth={2}
                           />
                         </View>
-                        <Text style={styles.introTitle}>
+                        <Text style={[styles.introTitle, styles.introTitleIntro]}>
                           {t("onboarding_intro_title")}
                         </Text>
-                        <Text style={styles.introTagline}>
+                        <Text style={[styles.introTagline, styles.introTaglineIntro]}>
                           {t("onboarding_intro_tagline")}
                         </Text>
                       </View>
-                      <View style={styles.pastAnswersCard}>
-                        <View style={styles.pastAnswersHeader}>
+                      <View style={[styles.pastAnswersCard, styles.pastAnswersCardIntro]}>
+                        <View style={[styles.pastAnswersHeader, styles.pastAnswersHeaderIntro]}>
                           <Feather
                             name="book-open"
                             size={16}
@@ -231,29 +260,31 @@ export default function OnboardingScreen() {
                             {t("onboarding_intro_past_answers")}
                           </Text>
                         </View>
-                        <Text style={styles.exampleQuestion}>
-                          {t("onboarding_intro_example_question")}
-                        </Text>
-                        <View style={styles.exampleAnswers}>
-                          <View style={styles.exampleRow}>
-                            <Text style={styles.exampleMonth}>
-                              {t("onboarding_intro_example_month_1")}
-                            </Text>
-                            <Text style={styles.exampleAnswer}>
-                              {t("onboarding_intro_example_answer_1")}
-                            </Text>
-                          </View>
-                          <View style={styles.exampleRow}>
-                            <Text style={styles.exampleMonth}>
+                        <View style={styles.exampleQuestionWrap}>
+                          <Text style={[styles.exampleQuestion, styles.exampleQuestionIntro]}>
+                            {t("onboarding_intro_example_question")}
+                          </Text>
+                        </View>
+                        <View style={[styles.exampleAnswers, styles.exampleAnswersIntro]}>
+                          <View style={[styles.exampleRow, styles.exampleRowIntro]}>
+                            <Text style={styles.exampleMonthPill}>
                               {t("onboarding_intro_example_month_2")}
                             </Text>
                             <Text style={styles.exampleAnswer}>
                               {t("onboarding_intro_example_answer_2")}
                             </Text>
                           </View>
+                          <View style={[styles.exampleRow, styles.exampleRowIntro]}>
+                            <Text style={styles.exampleMonthPill}>
+                              {t("onboarding_intro_example_month_1")}
+                            </Text>
+                            <Text style={styles.exampleAnswer}>
+                              {t("onboarding_intro_example_answer_1")}
+                            </Text>
+                          </View>
                         </View>
                       </View>
-                      <View style={styles.ctaWrap}>
+                      <View style={styles.ctaWrapIntro}>
                         <OnboardingPrimaryButton onPress={() => goNext("jokers")}>
                           <Text style={styles.primaryButtonText}>
                             {t("onboarding_continue")}
@@ -268,13 +299,18 @@ export default function OnboardingScreen() {
                 <FadeInView style={styles.step}>
                   <View style={styles.contentWrapper}>
                       <View style={styles.jokersHeader}>
-                        <View style={[styles.logoCircle, styles.jokerCircle]}>
+                        <LinearGradient
+                          colors={["#FEF3C7", "#FDE68A", "#FBBF24"]}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                          style={[styles.logoCircle, styles.jokerCircleGradient]}
+                        >
                           <MaterialCommunityIcons
                             name="crown"
                             size={40}
                             color="#FFFFFF"
                           />
-                        </View>
+                        </LinearGradient>
                         <Text style={styles.introTitle}>
                           {t("onboarding_jokers_title")}
                         </Text>
@@ -316,24 +352,6 @@ export default function OnboardingScreen() {
                             </Text>
                             <Text style={styles.bulletDesc}>
                               {t("onboarding_jokers_earn_streaks_desc")}
-                            </Text>
-                          </View>
-                        </View>
-                        <View style={styles.bulletRow}>
-                          <View style={[styles.bulletIcon, styles.bulletPurple]}>
-                            <Feather
-                              name="users"
-                              size={18}
-                              color={COLORS.ACCENT}
-                              strokeWidth={2}
-                            />
-                          </View>
-                          <View style={styles.bulletText}>
-                            <Text style={styles.bulletTitle}>
-                              {t("onboarding_jokers_refer")}
-                            </Text>
-                            <Text style={styles.bulletDesc}>
-                              {t("onboarding_jokers_refer_desc")}
                             </Text>
                           </View>
                         </View>
@@ -474,6 +492,7 @@ export default function OnboardingScreen() {
                           editable={!submitting}
                           secureTextEntry
                           autoComplete={isLoginMode ? "password" : "new-password"}
+                          autoCapitalize="none"
                         />
                         <OnboardingPrimaryButton
                           fullWidth
@@ -548,29 +567,76 @@ const styles = StyleSheet.create({
     shadowRadius: 40,
     elevation: 8,
   },
+  cardNoFrame: {
+    margin: 0,
+    marginTop: 0,
+    borderRadius: 0,
+    borderWidth: 0,
+    borderColor: "transparent",
+    backgroundColor: "transparent",
+    shadowColor: "transparent",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
+    overflow: "visible",
+  },
+  scrollView: {
+    backgroundColor: "transparent",
+    flex: 1,
+  },
+  scrollViewFullBleed: {
+    zIndex: 1,
+  },
   scrollContent: {
     flexGrow: 1,
     justifyContent: "center",
     padding: 24,
     paddingBottom: 48,
+    backgroundColor: "transparent",
+  },
+  scrollContentFullBleed: {
+    paddingHorizontal: 0,
+    paddingBottom: 48,
+    backgroundColor: "transparent",
   },
   column: {
-    maxWidth: 380,
+    maxWidth: 440,
     width: "100%",
     alignSelf: "center",
     paddingHorizontal: 24,
   },
+  columnFullBleed: {
+    maxWidth: "100%",
+    paddingHorizontal: 20,
+    backgroundColor: "transparent",
+  },
   step: {
     width: "100%",
+  },
+  introStepWrap: {
+    position: "relative",
+    backgroundColor: "transparent",
+  },
+  introBgOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 0,
   },
   contentWrapper: {
     paddingTop: 24,
     paddingBottom: 32,
     paddingHorizontal: 0,
   },
+  contentWrapperIntro: {
+    paddingTop: 20,
+    paddingBottom: 24,
+  },
   introHeader: {
     alignItems: "center",
     marginBottom: 32,
+  },
+  introHeaderIntro: {
+    marginBottom: 20,
   },
   logoCircle: {
     width: 80,
@@ -581,8 +647,26 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 24,
   },
+  logoCircleIntro: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: "rgba(139,92,246,0.14)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 18,
+    shadowColor: "#8B5CF6",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 24,
+    elevation: 6,
+  },
   jokerCircle: {
     backgroundColor: "#FDE68A",
+  },
+  jokerCircleGradient: {
+    borderWidth: 1,
+    borderColor: "rgba(251,191,36,0.4)",
   },
   notifCircle: {
     backgroundColor: "rgba(139,92,246,0.15)",
@@ -594,11 +678,18 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 8,
   },
+  introTitleIntro: {
+    fontSize: 32,
+    fontWeight: "700",
+  },
   introTagline: {
     fontSize: 16,
     color: COLORS.TEXT_SECONDARY,
     textAlign: "center",
     lineHeight: 24,
+  },
+  introTaglineIntro: {
+    color: "#444",
   },
   pastAnswersCard: {
     backgroundColor: "rgba(255,255,255,0.75)",
@@ -614,48 +705,111 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 2,
   },
+  pastAnswersCardIntro: {
+    backgroundColor: "transparent",
+    borderWidth: 0,
+    borderColor: "transparent",
+    shadowColor: "transparent",
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
+    paddingVertical: 20,
+    paddingHorizontal: 18,
+    marginBottom: 20,
+  },
   pastAnswersHeader: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
     marginBottom: 12,
   },
+  pastAnswersHeaderIntro: {
+    marginBottom: 12,
+    justifyContent: "center",
+  },
   pastAnswersLabel: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: "600",
     color: COLORS.ACCENT,
   },
+  exampleQuestionWrap: {
+    backgroundColor: "rgba(255,255,255,0.55)",
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    marginBottom: 14,
+    alignSelf: "stretch",
+  },
   exampleQuestion: {
-    fontSize: 12,
+    fontSize: 15,
     color: COLORS.TEXT_SECONDARY,
-    lineHeight: 20,
-    marginBottom: 16,
+    lineHeight: 22,
+    marginBottom: 0,
+    textAlign: "center",
+  },
+  exampleQuestionIntro: {
+    marginBottom: 0,
   },
   exampleAnswers: {
     gap: 12,
+  },
+  exampleAnswersIntro: {
+    gap: 14,
   },
   exampleRow: {
     backgroundColor: "rgba(243,232,255,0.5)",
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "rgba(139,92,246,0.15)",
-    paddingVertical: 10,
+    paddingVertical: 12,
     paddingHorizontal: 24,
   },
+  exampleRowIntro: {
+    backgroundColor: "rgba(255,255,255,0.9)",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(139,92,246,0.2)",
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    shadowColor: "#8B5CF6",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 2,
+    width: "100%",
+    alignSelf: "stretch",
+  },
   exampleMonth: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: "700",
     color: COLORS.ACCENT,
     marginBottom: 4,
   },
+  exampleMonthPill: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: COLORS.ACCENT,
+    alignSelf: "center",
+    backgroundColor: "rgba(139,92,246,0.12)",
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 9999,
+    marginBottom: 8,
+    overflow: "hidden",
+  },
   exampleAnswer: {
-    fontSize: 12,
+    fontSize: 15,
     color: COLORS.TEXT_SECONDARY,
-    lineHeight: 20,
+    lineHeight: 22,
+    textAlign: "center",
   },
   ctaWrap: {
     alignItems: "center",
     marginTop: 8,
+  },
+  ctaWrapIntro: {
+    alignItems: "center",
+    marginTop: 12,
   },
   primaryButtonWrap: {
     minWidth: 160,
@@ -667,11 +821,11 @@ const styles = StyleSheet.create({
     borderRadius: 9999,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "rgba(139,92,246,0.35)",
-    shadowOffset: { width: 0, height: 18 },
+    shadowColor: "rgba(139,92,246,0.4)",
+    shadowOffset: { width: 0, height: 20 },
     shadowOpacity: 1,
-    shadowRadius: 50,
-    elevation: 6,
+    shadowRadius: 56,
+    elevation: 8,
   },
   primaryButtonFull: {
     width: "100%",

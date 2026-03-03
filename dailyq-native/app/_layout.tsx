@@ -2,8 +2,10 @@ import { View } from "react-native";
 import { Slot } from "expo-router";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider } from "@/src/context/AuthContext";
+import { ProfileProvider } from "@/src/context/ProfileContext";
 import { LanguageProvider } from "@/src/context/LanguageContext";
 import { CalendarAnswersProvider } from "@/src/context/CalendarAnswersContext";
+import { StreakMilestoneProvider } from "@/src/context/StreakMilestoneContext";
 import { BackgroundLayer } from "@/src/components/BackgroundLayer";
 
 // #region agent log
@@ -31,16 +33,20 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <LanguageProvider>
-          <CalendarAnswersProvider>
-            <View style={{ flex: 1, backgroundColor: "#FAF9FF" }}>
-              <BackgroundLayer />
-              <View style={{ flex: 1, backgroundColor: "transparent" }}>
-                <Slot />
-              </View>
-            </View>
-          </CalendarAnswersProvider>
-        </LanguageProvider>
+        <ProfileProvider>
+          <LanguageProvider>
+            <StreakMilestoneProvider>
+              <CalendarAnswersProvider>
+                <View style={{ flex: 1, backgroundColor: "#FAF9FF" }}>
+                  <BackgroundLayer />
+                  <View style={{ flex: 1, backgroundColor: "transparent" }}>
+                    <Slot />
+                  </View>
+                </View>
+              </CalendarAnswersProvider>
+            </StreakMilestoneProvider>
+          </LanguageProvider>
+        </ProfileProvider>
       </AuthProvider>
     </SafeAreaProvider>
   );

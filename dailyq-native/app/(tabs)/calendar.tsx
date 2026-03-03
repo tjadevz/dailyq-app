@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   Animated,
   Modal,
   ScrollView,
+  PanResponder,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Feather from "@expo/vector-icons/Feather";
@@ -506,6 +507,20 @@ export default function CalendarScreen() {
     else setYearMonth(`${y}-${String(m + 1).padStart(2, "0")}`);
   }, [yearMonth]);
 
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_, gestureState) =>
+          Math.abs(gestureState.dx) > 28,
+        onPanResponderRelease: (_, gestureState) => {
+          const { dx, vx } = gestureState;
+          if (dx > 50 || (dx > 20 && vx > 0.3)) goPrev();
+          else if (dx < -50 || (dx < -20 && vx < -0.3)) goNext();
+        },
+      }),
+    [goPrev, goNext]
+  );
+
   const grid = getDaysInMonthGrid(yearMonth);
   const [y, m] = yearMonth.split("-").map(Number);
   const totalDaysInMonth = new Date(y, m, 0).getDate();
@@ -631,7 +646,7 @@ export default function CalendarScreen() {
       </Pressable>
 
       {/* Card: weekdays + grid + divider + stats + Next Reward */}
-      <View style={styles.card}>
+      <View style={styles.card} {...panResponder.panHandlers}>
         <View style={styles.weekdayRow}>
           {WEEKDAYS.map((wd) => (
             <View key={wd} style={styles.weekdayCell}>

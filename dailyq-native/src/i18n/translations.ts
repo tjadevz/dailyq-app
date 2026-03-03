@@ -54,7 +54,7 @@ export const translations: Record<Lang, Record<string, string>> = {
     onboarding_jokers_answer_missed_desc:
       "Use jokers to catch up and maintain your streak",
     onboarding_jokers_earn_streaks: "Earn by completing streaks",
-    onboarding_jokers_earn_streaks_desc: "Get jokers at 7 and 30 day milestones",
+    onboarding_jokers_earn_streaks_desc: "Get jokers at 7, 30, 60, 100, 180 and 365 day milestones",
     onboarding_jokers_refer: "Refer a friend",
     onboarding_jokers_refer_desc: "Each friend who joins earns you a joker",
     onboarding_notif_title: "DailyQ works best if it becomes a habit",
@@ -222,7 +222,7 @@ export const translations: Record<Lang, Record<string, string>> = {
       "Gebruik jokers om bij te blijven en je streak te behouden",
     onboarding_jokers_earn_streaks: "Verdien met streaks",
     onboarding_jokers_earn_streaks_desc:
-      "Krijg jokers bij 7- en 30-dagen mijlpalen",
+      "Krijg jokers bij 7-, 30-, 60-, 100-, 180- en 365-dagen mijlpalen",
     onboarding_jokers_refer: "Verwijs een vriend",
     onboarding_jokers_refer_desc: "Elke vriend die meedoet levert je een joker op",
     onboarding_notif_title: "DailyQ werkt het best als het een gewoonte wordt",

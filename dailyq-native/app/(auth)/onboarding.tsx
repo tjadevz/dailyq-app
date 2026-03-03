@@ -228,7 +228,13 @@ export default function OnboardingScreen() {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-            <View style={[styles.column, styles.columnFullBleed]}>
+            <View
+              style={[
+                styles.column,
+                styles.columnFullBleed,
+                (step === "jokers" || step === "notifications") && styles.columnNarrow,
+              ]}
+            >
               {step === "intro" && (
                 <FadeInView style={[styles.step, styles.introStepWrap]}>
                   <View style={[styles.contentWrapper, styles.contentWrapperIntro]}>
@@ -611,6 +617,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     backgroundColor: "transparent",
   },
+  columnNarrow: {
+    paddingHorizontal: 36,
+  },
   step: {
     width: "100%",
   },
@@ -749,6 +758,7 @@ const styles = StyleSheet.create({
   },
   exampleQuestionIntro: {
     marginBottom: 0,
+    fontWeight: "700",
   },
   exampleAnswers: {
     gap: 12,

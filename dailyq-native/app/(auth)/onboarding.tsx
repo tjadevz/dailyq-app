@@ -257,7 +257,7 @@ export default function OnboardingScreen() {
                       <View style={[styles.pastAnswersCard, styles.pastAnswersCardIntro]}>
                         <View style={[styles.pastAnswersHeader, styles.pastAnswersHeaderIntro]}>
                           <Feather
-                            name="book-open"
+                            name="star"
                             size={16}
                             color={COLORS.ACCENT}
                             strokeWidth={2}
@@ -266,25 +266,25 @@ export default function OnboardingScreen() {
                             {t("onboarding_intro_past_answers")}
                           </Text>
                         </View>
-                        <View style={styles.exampleQuestionWrap}>
+                        <View style={[styles.exampleQuestionWrap, styles.exampleQuestionWrapIntro]}>
                           <Text style={[styles.exampleQuestion, styles.exampleQuestionIntro]}>
                             {t("onboarding_intro_example_question")}
                           </Text>
                         </View>
                         <View style={[styles.exampleAnswers, styles.exampleAnswersIntro]}>
                           <View style={[styles.exampleRow, styles.exampleRowIntro]}>
-                            <Text style={styles.exampleMonthPill}>
+                            <Text style={[styles.exampleMonthPill, styles.exampleMonthPillIntro]}>
                               {t("onboarding_intro_example_month_2")}
                             </Text>
-                            <Text style={styles.exampleAnswer}>
+                            <Text style={[styles.exampleAnswer, styles.exampleAnswerIntro]}>
                               {t("onboarding_intro_example_answer_2")}
                             </Text>
                           </View>
                           <View style={[styles.exampleRow, styles.exampleRowIntro]}>
-                            <Text style={styles.exampleMonthPill}>
+                            <Text style={[styles.exampleMonthPill, styles.exampleMonthPillIntro]}>
                               {t("onboarding_intro_example_month_1")}
                             </Text>
-                            <Text style={styles.exampleAnswer}>
+                            <Text style={[styles.exampleAnswer, styles.exampleAnswerIntro]}>
                               {t("onboarding_intro_example_answer_1")}
                             </Text>
                           </View>
@@ -614,7 +614,7 @@ const styles = StyleSheet.create({
   },
   columnFullBleed: {
     maxWidth: "100%",
-    paddingHorizontal: 20,
+    paddingHorizontal: 28,
     backgroundColor: "transparent",
   },
   columnNarrow: {
@@ -637,15 +637,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 0,
   },
   contentWrapperIntro: {
-    paddingTop: 20,
-    paddingBottom: 24,
+    paddingTop: 24,
+    paddingBottom: 28,
   },
   introHeader: {
     alignItems: "center",
     marginBottom: 32,
   },
   introHeaderIntro: {
-    marginBottom: 20,
+    marginBottom: 36,
   },
   logoCircle: {
     width: 80,
@@ -715,16 +715,17 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   pastAnswersCardIntro: {
-    backgroundColor: "transparent",
-    borderWidth: 0,
-    borderColor: "transparent",
-    shadowColor: "transparent",
-    shadowOpacity: 0,
-    shadowRadius: 0,
-    elevation: 0,
+    backgroundColor: "rgba(255,255,255,0.98)",
+    borderWidth: 1,
+    borderColor: "rgba(139,92,246,0.12)",
+    shadowColor: "#8B5CF6",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 2,
     paddingVertical: 20,
-    paddingHorizontal: 18,
-    marginBottom: 20,
+    paddingHorizontal: 20,
+    marginBottom: 24,
   },
   pastAnswersHeader: {
     flexDirection: "row",
@@ -734,7 +735,7 @@ const styles = StyleSheet.create({
   },
   pastAnswersHeaderIntro: {
     marginBottom: 12,
-    justifyContent: "center",
+    justifyContent: "flex-start",
   },
   pastAnswersLabel: {
     fontSize: 14,
@@ -749,6 +750,13 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     alignSelf: "stretch",
   },
+  exampleQuestionWrapIntro: {
+    backgroundColor: "transparent",
+    borderRadius: 0,
+    paddingVertical: 12,
+    paddingHorizontal: 0,
+    marginBottom: 14,
+  },
   exampleQuestion: {
     fontSize: 15,
     color: COLORS.TEXT_SECONDARY,
@@ -759,6 +767,7 @@ const styles = StyleSheet.create({
   exampleQuestionIntro: {
     marginBottom: 0,
     fontWeight: "700",
+    textAlign: "left",
   },
   exampleAnswers: {
     gap: 12,
@@ -775,10 +784,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   exampleRowIntro: {
-    backgroundColor: "rgba(255,255,255,0.9)",
+    backgroundColor: "rgba(243,232,255,0.6)",
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "rgba(139,92,246,0.2)",
+    borderColor: "rgba(139,92,246,0.15)",
     paddingVertical: 14,
     paddingHorizontal: 18,
     shadowColor: "#8B5CF6",
@@ -788,6 +797,17 @@ const styles = StyleSheet.create({
     elevation: 2,
     width: "100%",
     alignSelf: "stretch",
+  },
+  exampleMonthPillIntro: {
+    alignSelf: "flex-start",
+    backgroundColor: "transparent",
+    paddingVertical: 0,
+    paddingHorizontal: 0,
+    borderRadius: 0,
+    marginBottom: 6,
+  },
+  exampleAnswerIntro: {
+    textAlign: "left",
   },
   exampleMonth: {
     fontSize: 14,
@@ -819,7 +839,7 @@ const styles = StyleSheet.create({
   },
   ctaWrapIntro: {
     alignItems: "center",
-    marginTop: 12,
+    marginTop: 20,
   },
   primaryButtonWrap: {
     minWidth: 160,

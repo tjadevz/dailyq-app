@@ -30,8 +30,10 @@ const STREAK_MILESTONES = [7, 30, 60, 100, 180, 365];
 import { useLanguage } from "@/src/context/LanguageContext";
 import { useAuth } from "@/src/context/AuthContext";
 import { useProfileContext } from "@/src/context/ProfileContext";
-import { useCalendarAnswersContext } from "@/src/context/CalendarAnswersContext";
-import type { CalendarAnswerEntry } from "@/src/context/CalendarAnswersContext";
+import {
+  useCalendarAnswers,
+  type CalendarAnswerEntry,
+} from "@/src/context/CalendarAnswersContext";
 import { getNow, getLocalDayKey } from "@/src/lib/date";
 import { supabase } from "@/src/config/supabase";
 import { JokerModal } from "@/src/components/JokerModal";
@@ -459,7 +461,6 @@ export default function CalendarScreen() {
   const userId = effectiveUser?.id ?? null;
   const { profile, refetch: refetchProfile } = useProfileContext();
   const { showMilestone } = useStreakMilestone();
-  const { useCalendarAnswers } = useCalendarAnswersContext();
 
   const todayKey = getLocalDayKey(getNow());
   const [yearMonth, setYearMonth] = useState(() => todayKey.slice(0, 7));
@@ -640,9 +641,16 @@ export default function CalendarScreen() {
         </Pressable>
       </View>
 
-      {/* Vandaag: 28px */}
+      {/* Vandaag: paars in huidige maand, lichtgrijs in andere maanden */}
       <Pressable style={styles.todayWrap} onPress={goToToday}>
-        <Text style={styles.todayText}>{t("calendar_today")}</Text>
+        <Text
+          style={[
+            styles.todayText,
+            !isViewingCurrentMonth && styles.todayTextOtherMonth,
+          ]}
+        >
+          {t("calendar_today")}
+        </Text>
       </Pressable>
 
       {/* Card: weekdays + grid + divider + stats + Next Reward */}
@@ -892,6 +900,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: COLORS.ACCENT,
+  },
+  todayTextOtherMonth: {
+    color: COLORS.TEXT_MUTED,
   },
   card: {
     marginTop: 14,

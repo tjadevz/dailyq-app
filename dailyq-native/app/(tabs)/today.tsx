@@ -486,19 +486,6 @@ export default function TodayScreen() {
                     {hasAnswer ? t("today_update") : t("today_submit")}
                   </PrimaryButton>
                 </View>
-                <View style={styles.bottomBarMeta}>
-                  {hasAnswer && (
-                    <Pressable
-                      style={({ pressed }) => [styles.cancelEditButton, pressed && { opacity: 0.8 }]}
-                      onPress={() => {
-                        setIsAnswering(false);
-                        setAnswerText(existingAnswer ?? "");
-                      }}
-                    >
-                      <Text style={styles.cancelEditButtonText}>{t("common_cancel")}</Text>
-                    </Pressable>
-                  )}
-                </View>
                 {submitError && (
                   <Text style={styles.submitError}>{submitError}</Text>
                 )}

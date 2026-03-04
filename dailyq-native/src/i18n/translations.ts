@@ -39,7 +39,7 @@ export const translations: Record<Lang, Record<string, string>> = {
     onboarding_toggle_sign_in: "Already have an account? Sign in",
     onboarding_toggle_sign_up: "No account yet? Sign up",
     onboarding_intro_title: "Welcome to DailyQ",
-    onboarding_intro_tagline: "Where your answers grow up.",
+    onboarding_intro_tagline: "Where your answers grow up",
     onboarding_intro_past_answers: "Your Past Answers",
     onboarding_intro_example_question:
       "Do you have vacation plans for this year?",
@@ -206,7 +206,7 @@ export const translations: Record<Lang, Record<string, string>> = {
     onboarding_toggle_sign_in: "Heb je al een account? Log in",
     onboarding_toggle_sign_up: "Nog geen account? Registreer",
     onboarding_intro_title: "Welkom bij DailyQ",
-    onboarding_intro_tagline: "Where your answers grow up.",
+    onboarding_intro_tagline: "Where your answers grow up",
     onboarding_intro_past_answers: "Je eerdere antwoorden",
     onboarding_intro_example_question:
       "Heb je al vakantieplannen voor dit jaar?",
@@ -221,8 +221,7 @@ export const translations: Record<Lang, Record<string, string>> = {
     onboarding_jokers_answer_missed_desc:
       "Gebruik jokers om bij te blijven en je streak te behouden",
     onboarding_jokers_earn_streaks: "Verdien met streaks",
-    onboarding_jokers_earn_streaks_desc:
-      "Krijg jokers bij 7-, 30-, 60-, 100-, 180- en 365-dagen mijlpalen",
+    onboarding_jokers_earn_streaks_desc: "Krijg jokers bij het behalen van mijlpalen",
     onboarding_jokers_refer: "Verwijs een vriend",
     onboarding_jokers_refer_desc: "Elke vriend die meedoet levert je een joker op",
     onboarding_notif_title: "DailyQ werkt het best als het een gewoonte wordt",

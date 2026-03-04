@@ -693,18 +693,19 @@ export default function CalendarScreen() {
         scrollEnabled={false}
         showsVerticalScrollIndicator={false}
       >
-        {/* Year centred (aligned with month); joker badge right */}
-        <View style={styles.yearRow}>
+        <View style={styles.calendarContentWrap}>
+          <View style={styles.calendarJokerAbsolute}>
+            <JokerBadge count={jokerCount} onPress={() => setJokerModalVisible(true)} />
+          </View>
+          <View style={styles.yearRow}>
           <View style={styles.yearRowSpacer} />
           <Pressable style={styles.yearPressable} onPress={() => setShowYearPicker(true)}>
             <Text style={styles.yearText}>{y}</Text>
           </Pressable>
-          <View style={styles.yearRowRight}>
-            <JokerBadge count={jokerCount} onPress={() => setJokerModalVisible(true)} />
-          </View>
+          <View style={styles.yearRowSpacer} />
         </View>
 
-      {/* Month nav: ‹ › 36x36 round buttons */}
+        {/* Month nav: ‹ › 36x36 round buttons */}
       <View style={styles.monthNav}>
         <Pressable style={styles.navBtn} onPress={goPrev}>
           <Text style={styles.navBtnText}>‹</Text>
@@ -854,6 +855,7 @@ export default function CalendarScreen() {
           </View>
         )}
       </View>
+      </View>
 
       {/* Year picker modal */}
       <YearPickerModal
@@ -912,7 +914,7 @@ const styles = StyleSheet.create({
   },
   calendarScrollContent: {
     flexGrow: 1,
-    paddingTop: 24,
+    paddingTop: 0,
     paddingBottom: 92,
   },
   centered: {
@@ -924,6 +926,15 @@ const styles = StyleSheet.create({
   },
   loadingText: { fontSize: 14, color: COLORS.TEXT_SECONDARY, marginTop: 12 },
   errorText: { fontSize: 16, color: COLORS.TEXT_PRIMARY, textAlign: "center" },
+  calendarContentWrap: {
+    position: "relative",
+  },
+  calendarJokerAbsolute: {
+    position: "absolute",
+    top: 4,
+    right: 16,
+    zIndex: 10,
+  },
   yearRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -934,12 +945,6 @@ const styles = StyleSheet.create({
   },
   yearRowSpacer: {
     flex: 1,
-  },
-  yearRowRight: {
-    flex: 1,
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    alignItems: "center",
   },
   yearPressable: {
     paddingVertical: 4,

@@ -8,11 +8,13 @@ import { JOKER } from "@/src/config/constants";
 export function JokerBadge({
   count,
   onPress,
+  scale = 1,
 }: {
   count: number;
   onPress: () => void;
+  scale?: number;
 }) {
-  return (
+  const content = (
     <Pressable onPress={onPress} style={({ pressed }) => [pressed && { opacity: 0.9 }]}>
       <LinearGradient
         colors={["#FEF3C7", "#FDE68A", "#FBBF24"]}
@@ -23,7 +25,7 @@ export function JokerBadge({
         <View style={styles.crownCircle}>
           <MaterialCommunityIcons
             name="crown"
-            size={12}
+            size={15}
             color="#FBBF24"
             style={styles.crownIcon}
           />
@@ -32,6 +34,10 @@ export function JokerBadge({
       </LinearGradient>
     </Pressable>
   );
+  if (scale !== 1) {
+    return <View style={{ transform: [{ scale }] }}>{content}</View>;
+  }
+  return content;
 }
 
 const styles = StyleSheet.create({

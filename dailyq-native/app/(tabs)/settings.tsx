@@ -312,90 +312,90 @@ export default function SettingsScreen() {
         >
           <Text style={styles.title}>{t("settings_title")}</Text>
 
-        {/* Reminder */}
-        <Pressable style={styles.card} onPress={() => setReminderModalVisible(true)}>
-          <View style={styles.cardIconWrap}>
-            <View style={[styles.cardIcon, styles.cardIconPurple]}>
-              <Feather name="bell" size={16} strokeWidth={2} color={COLORS.ACCENT} />
+          {/* Notifications */}
+          <Pressable style={styles.card} onPress={() => setReminderModalVisible(true)}>
+            <View style={styles.cardIconWrap}>
+              <View style={[styles.cardIcon, styles.cardIconPurple]}>
+                <Feather name="bell" size={16} strokeWidth={2} color={COLORS.ACCENT} />
+              </View>
+              <View style={styles.cardTextWrap}>
+                <Text style={styles.cardTitle}>{t("settings_reminder")}</Text>
+                <Text style={styles.cardSubtitle}>
+                  {getReminderSubtitle(t, reminderTime)}
+                </Text>
+              </View>
+              <Feather name="chevron-right" size={20} color={COLORS.TEXT_MUTED} />
             </View>
-            <View style={styles.cardTextWrap}>
-              <Text style={styles.cardTitle}>{t("settings_reminder")}</Text>
-              <Text style={styles.cardSubtitle}>
-                {getReminderSubtitle(t, reminderTime)}
-              </Text>
-            </View>
-            <Feather name="chevron-right" size={20} color={COLORS.TEXT_MUTED} />
-          </View>
-        </Pressable>
+          </Pressable>
 
-        {/* Language */}
-        <Pressable style={styles.card} onPress={() => setLanguageModalVisible(true)}>
-          <View style={styles.cardIconWrap}>
-            <View style={[styles.cardIcon, styles.cardIconBlue]}>
-              <Feather name="globe" size={16} strokeWidth={2} color="#3B82F6" />
+          {/* Taal */}
+          <Pressable style={styles.card} onPress={() => setLanguageModalVisible(true)}>
+            <View style={styles.cardIconWrap}>
+              <View style={[styles.cardIcon, styles.cardIconBlue]}>
+                <Feather name="globe" size={16} strokeWidth={2} color="#3B82F6" />
+              </View>
+              <View style={styles.cardTextWrap}>
+                <Text style={styles.cardTitle}>{t("settings_language")}</Text>
+                <Text style={styles.cardSubtitle}>{currentLangLabel}</Text>
+              </View>
+              <Feather name="chevron-right" size={20} color={COLORS.TEXT_MUTED} />
             </View>
-            <View style={styles.cardTextWrap}>
-              <Text style={styles.cardTitle}>{t("settings_language")}</Text>
-              <Text style={styles.cardSubtitle}>{currentLangLabel}</Text>
-            </View>
-            <Feather name="chevron-right" size={20} color={COLORS.TEXT_MUTED} />
-          </View>
-        </Pressable>
+          </Pressable>
 
-        {/* Signed in as */}
-        <View style={styles.card}>
-          <View style={styles.cardIconWrap}>
-            <View style={[styles.cardIcon, styles.cardIconIndigo]}>
-              <Feather name="mail" size={16} strokeWidth={2} color="#6366F1" />
-            </View>
-            <View style={[styles.cardTextWrap, styles.cardTextWrapFlex]}>
-              <Text style={styles.cardTitle}>{t("settings_signed_in_as")}</Text>
-              <Text style={styles.cardSubtitle} numberOfLines={1}>
-                {email}
-              </Text>
+          {/* Ingelogd als */}
+          <View style={styles.card}>
+            <View style={styles.cardIconWrap}>
+              <View style={[styles.cardIcon, styles.cardIconIndigo]}>
+                <Feather name="mail" size={16} strokeWidth={2} color="#6366F1" />
+              </View>
+              <View style={[styles.cardTextWrap, styles.cardTextWrapFlex]}>
+                <Text style={styles.cardTitle}>{t("settings_signed_in_as")}</Text>
+                <Text style={styles.cardSubtitle} numberOfLines={1}>
+                  {email}
+                </Text>
+              </View>
             </View>
           </View>
-        </View>
 
-        {/* Sign out: neutral card, TEXT_PRIMARY, no purple CTA */}
-        <Pressable style={styles.card} onPress={handleSignOut}>
-          <View style={styles.cardIconWrap}>
-            <View style={[styles.cardIcon, styles.cardIconRed]}>
-              <Feather name="log-out" size={16} strokeWidth={2} color="#DC2626" />
+          {/* Uitloggen */}
+          <Pressable style={styles.card} onPress={handleSignOut}>
+            <View style={styles.cardIconWrap}>
+              <View style={[styles.cardIcon, styles.cardIconRed]}>
+                <Feather name="log-out" size={16} strokeWidth={2} color="#DC2626" />
+              </View>
+              <View style={styles.cardTextWrap}>
+                <Text style={styles.cardTitle}>{t("settings_sign_out")}</Text>
+              </View>
             </View>
-            <View style={styles.cardTextWrap}>
-              <Text style={styles.cardTitle}>{t("settings_sign_out")}</Text>
-            </View>
-          </View>
-        </Pressable>
+          </Pressable>
 
-        {/* Delete account: card with red icon + red text, no full red button in list */}
-        <Pressable style={styles.card} onPress={() => setDeleteModalVisible(true)}>
-          <View style={styles.cardIconWrap}>
-            <View style={[styles.cardIcon, styles.cardIconRedDark]}>
-              <Feather name="trash-2" size={16} strokeWidth={2} color="#B91C1C" />
+          {/* Account verwijderen */}
+          <Pressable style={styles.card} onPress={() => setDeleteModalVisible(true)}>
+            <View style={styles.cardIconWrap}>
+              <View style={[styles.cardIcon, styles.cardIconRedDark]}>
+                <Feather name="trash-2" size={16} strokeWidth={2} color="#B91C1C" />
+              </View>
+              <View style={styles.cardTextWrap}>
+                <Text style={styles.cardTitleDanger}>{t("settings_delete_account")}</Text>
+              </View>
             </View>
-            <View style={styles.cardTextWrap}>
-              <Text style={styles.cardTitleDanger}>{t("settings_delete_account")}</Text>
-            </View>
-          </View>
-        </Pressable>
+          </Pressable>
 
-        {/* About / Version */}
-        <View style={styles.card}>
-          <View style={styles.cardIconWrap}>
-            <View style={[styles.cardIcon, styles.cardIconIndigo]}>
-              <Feather name="info" size={16} strokeWidth={2} color="#6366F1" />
-            </View>
-            <View style={styles.cardTextWrap}>
-              <Text style={styles.cardTitle}>{t("settings_about")}</Text>
-              <Text style={styles.cardSubtitle}>
-                {t("settings_version")} {appVersion}
-              </Text>
+          {/* Over DailyQ */}
+          <View style={styles.card}>
+            <View style={styles.cardIconWrap}>
+              <View style={[styles.cardIcon, styles.cardIconIndigo]}>
+                <Feather name="info" size={16} strokeWidth={2} color="#6366F1" />
+              </View>
+              <View style={styles.cardTextWrap}>
+                <Text style={styles.cardTitle}>{t("settings_about")}</Text>
+                <Text style={styles.cardSubtitle}>
+                  {t("settings_version")} {appVersion}
+                </Text>
+              </View>
             </View>
           </View>
-        </View>
-      </ScrollView>
+        </ScrollView>
 
       <ReminderModal
         visible={reminderModalVisible}
@@ -431,6 +431,8 @@ const styles = StyleSheet.create({
     maxWidth: 480,
     width: "100%",
     alignSelf: "center",
+    flexGrow: 1,
+    justifyContent: "center",
   },
   title: {
     fontSize: 28,

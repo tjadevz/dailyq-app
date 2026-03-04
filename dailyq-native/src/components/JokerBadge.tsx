@@ -23,7 +23,7 @@ export function JokerBadge({
         <View style={styles.crownCircle}>
           <MaterialCommunityIcons
             name="crown"
-            size={10}
+            size={12}
             color="#FBBF24"
             style={styles.crownIcon}
           />
@@ -38,17 +38,17 @@ const styles = StyleSheet.create({
   badge: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
+    gap: 7,
+    paddingVertical: 7,
+    paddingHorizontal: 14,
     borderRadius: 9999,
     borderWidth: 1,
     borderColor: "rgba(251,191,36,0.4)",
   },
   crownCircle: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     backgroundColor: "rgba(255,255,255,0.9)",
     alignItems: "center",
     justifyContent: "center",
@@ -62,7 +62,7 @@ const styles = StyleSheet.create({
     // MaterialCommunityIcons crown: use color for stroke; fill may need to be set via icon theme if supported
   },
   count: {
-    fontSize: 14,
+    fontSize: 17,
     fontWeight: "700",
     color: JOKER.TEXT,
   },

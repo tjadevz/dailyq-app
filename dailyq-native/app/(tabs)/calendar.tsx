@@ -10,6 +10,7 @@ import {
   Modal,
   ScrollView,
   PanResponder,
+  Dimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Feather from "@expo/vector-icons/Feather";
@@ -41,9 +42,19 @@ import { JokerBadge } from "@/src/components/JokerBadge";
 import { GlassCardContainer } from "@/src/components/GlassCardContainer";
 import { useStreakMilestone, getHighestMilestoneCrossed, getMilestonesCrossed } from "@/src/context/StreakMilestoneContext";
 
-const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const GRID_ROWS = 6;
 const GRID_COLS = 7;
+
+/** Short weekday labels (Mon–Sun) in the given locale. */
+function getWeekdayLabels(lang: string): string[] {
+  const locale = lang === "nl" ? "nl-NL" : "en-US";
+  const labels: string[] = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(2024, 11, 2 + i);
+    labels.push(d.toLocaleDateString(locale, { weekday: "short" }));
+  }
+  return labels;
+}
 
 type CellState = "today" | "answered" | "joker" | "missed" | "future" | "before";
 
@@ -122,7 +133,9 @@ function isWithin7Days(dayKey: string, todayKey: string): boolean {
   return diff >= 0 && diff <= 6;
 }
 
-// ----- ViewAnswerModal -----
+const SHEET_HEIGHT = Dimensions.get("window").height * 0.72;
+
+// ----- ViewAnswerModal (bottom sheet) -----
 function ViewAnswerModal({
   visible,
   dayKey,
@@ -135,49 +148,112 @@ function ViewAnswerModal({
   onClose: () => void;
 }) {
   const { t, lang } = useLanguage();
-  const opacity = React.useRef(new Animated.Value(0)).current;
+  const backdropOpacity = React.useRef(new Animated.Value(0)).current;
+  const slideY = React.useRef(new Animated.Value(SHEET_HEIGHT)).current;
 
   useEffect(() => {
     if (visible) {
-      Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: true }).start();
-    } else {
-      Animated.timing(opacity, { toValue: 0, duration: MODAL_CLOSE_MS, useNativeDriver: true }).start();
+      slideY.setValue(SHEET_HEIGHT);
+      backdropOpacity.setValue(0);
+      Animated.parallel([
+        Animated.timing(backdropOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+        Animated.spring(slideY, {
+          toValue: 0,
+          useNativeDriver: true,
+          tension: 65,
+          friction: 11,
+        }),
+      ]).start();
     }
-  }, [visible, opacity]);
+  }, [visible, slideY, backdropOpacity]);
 
-  const dateLabel = dayKey ? getDayKeyDisplayLabel(dayKey, lang) : "";
+  const handleClose = useCallback(() => {
+    Animated.parallel([
+      Animated.timing(backdropOpacity, {
+        toValue: 0,
+        duration: MODAL_CLOSE_MS,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideY, {
+        toValue: SHEET_HEIGHT,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+    ]).start(() => onClose());
+  }, [onClose, backdropOpacity, slideY]);
+
+  const dateLabel =
+    dayKey && entry
+      ? (() => {
+          const [y, m, d] = dayKey.split("-").map(Number);
+          return new Date(y, m - 1, d).toLocaleDateString(lang === "nl" ? "nl-NL" : "en-US", {
+            month: "long",
+            day: "numeric",
+            year: "numeric",
+          });
+        })()
+      : "";
+
+  const sheetData =
+    dayKey && entry
+      ? {
+          question: entry.questionText,
+          answers: [{ year: dayKey.slice(0, 4), answer: entry.answerText }] as { year: string; answer: string }[],
+        }
+      : null;
 
   if (!visible) return null;
   return (
     <Modal transparent visible={visible} animationType="none">
-      <Animated.View style={[styles.modalBackdrop, { opacity }]}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-        <View style={[styles.modalCard, styles.modalCardViewAnswer]}>
-          <Pressable style={MODAL.CLOSE_BUTTON} onPress={onClose}>
-            <Feather name="x" size={18} color={COLORS.TEXT_SECONDARY} strokeWidth={2.5} />
-          </Pressable>
-          {dateLabel ? (
-            <View style={styles.viewAnswerDateWrap}>
-              <View style={styles.viewAnswerDateButton}>
-                <Text style={styles.viewAnswerDateText}>{dateLabel}</Text>
+      <Animated.View style={[styles.modalBackdrop, { opacity: backdropOpacity }]}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
+        <Animated.View
+          style={[
+            styles.bottomSheet,
+            {
+              transform: [{ translateY: slideY }],
+            },
+          ]}
+          pointerEvents="box-none"
+        >
+          {/* Soft atmospheric background blobs */}
+          <View style={[StyleSheet.absoluteFillObject, styles.bottomSheetBlobWrap]}>
+            <View style={[styles.bottomSheetBlob, styles.bottomSheetBlobPurple]} />
+            <View style={[styles.bottomSheetBlob, styles.bottomSheetBlobAmber]} />
+            <View style={[styles.bottomSheetBlob, styles.bottomSheetBlobBlue]} />
+          </View>
+
+          {/* Drag handle */}
+          <View style={styles.bottomSheetHandleWrap}>
+            <View style={styles.bottomSheetHandle} />
+          </View>
+
+          {/* Fixed header */}
+          <View style={styles.bottomSheetHeader}>
+            <Pressable onPress={handleClose} style={styles.bottomSheetCloseBtn}>
+              <Feather name="x" size={18} color="#7C3AED" strokeWidth={2.5} />
+            </Pressable>
+            {sheetData ? (
+              <Text style={styles.bottomSheetQuestion} numberOfLines={3}>
+                {sheetData.question}
+              </Text>
+            ) : null}
+          </View>
+
+          {/* Scrollable year cards */}
+          <ScrollView
+            style={styles.bottomSheetScroll}
+            contentContainerStyle={styles.bottomSheetScrollContent}
+            showsVerticalScrollIndicator={true}
+          >
+            {sheetData?.answers.map((item) => (
+              <View key={item.year} style={styles.bottomSheetYearCard}>
+                <Text style={styles.bottomSheetYearLabel}>{dateLabel || item.year}</Text>
+                <Text style={styles.bottomSheetYearAnswer}>{item.answer}</Text>
               </View>
-            </View>
-          ) : null}
-          {entry && (
-            <View style={styles.viewAnswerContent}>
-              <ScrollView
-                style={styles.viewAnswerScroll}
-                contentContainerStyle={styles.viewAnswerScrollContent}
-                showsVerticalScrollIndicator={true}
-                keyboardShouldPersistTaps="handled"
-              >
-                <Text style={styles.modalQuestionViewAnswer}>{entry.questionText}</Text>
-                <Text style={styles.modalAnswerLabelViewAnswer}>{t("calendar_your_answer")}</Text>
-                <Text style={styles.modalAnswerTextViewAnswer}>{entry.answerText}</Text>
-              </ScrollView>
-            </View>
-          )}
-        </View>
+            ))}
+          </ScrollView>
+        </Animated.View>
       </Animated.View>
     </Modal>
   );
@@ -619,14 +695,14 @@ export default function CalendarScreen() {
       >
         {/* Year centred (aligned with month); joker badge right */}
         <View style={styles.yearRow}>
-        <View style={styles.yearRowSpacer} />
-        <Pressable style={styles.yearPressable} onPress={() => setShowYearPicker(true)}>
-          <Text style={styles.yearText}>{y}</Text>
-        </Pressable>
-        <View style={styles.yearRowRight}>
-          <JokerBadge count={jokerCount} onPress={() => setJokerModalVisible(true)} />
+          <View style={styles.yearRowSpacer} />
+          <Pressable style={styles.yearPressable} onPress={() => setShowYearPicker(true)}>
+            <Text style={styles.yearText}>{y}</Text>
+          </Pressable>
+          <View style={styles.yearRowRight}>
+            <JokerBadge count={jokerCount} onPress={() => setJokerModalVisible(true)} />
+          </View>
         </View>
-      </View>
 
       {/* Month nav: ‹ › 36x36 round buttons */}
       <View style={styles.monthNav}>
@@ -656,7 +732,7 @@ export default function CalendarScreen() {
       {/* Card: weekdays + grid + divider + stats + Next Reward */}
       <View style={styles.card} {...panResponder.panHandlers}>
         <View style={styles.weekdayRow}>
-          {WEEKDAYS.map((wd) => (
+          {getWeekdayLabels(lang).map((wd) => (
             <View key={wd} style={styles.weekdayCell}>
               <Text style={styles.weekdayText}>{wd}</Text>
             </View>
@@ -724,7 +800,9 @@ export default function CalendarScreen() {
             <View style={styles.nextRewardStatsBanner}>
               <View style={styles.nextRewardStatsItem}>
                 <Feather name="check-circle" size={14} color="#F59E0B" strokeWidth={2.5} />
-                <Text style={styles.nextRewardStatsNum}>{capturedThisMonth}</Text>
+                <Text style={styles.nextRewardStatsNum}>
+                  {capturedThisMonth}/{answerableDaysThisMonth}
+                </Text>
                 <Text style={styles.nextRewardStatsLabel}>{t("calendar_stats_days_answered")}</Text>
               </View>
               <View style={styles.nextRewardStatsDot} />
@@ -834,6 +912,7 @@ const styles = StyleSheet.create({
   },
   calendarScrollContent: {
     flexGrow: 1,
+    paddingTop: 24,
     paddingBottom: 92,
   },
   centered: {
@@ -850,7 +929,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    marginTop: 4,
+    marginTop: 24,
     minHeight: 32,
   },
   yearRowSpacer: {
@@ -876,7 +955,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    marginTop: 4,
+    marginTop: -8,
   },
   navBtn: {
     width: 36,
@@ -894,7 +973,7 @@ const styles = StyleSheet.create({
     height: 28,
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 6,
+    marginTop: 2,
   },
   todayText: {
     fontSize: 14,
@@ -1198,6 +1277,129 @@ const styles = StyleSheet.create({
     fontSize: 17,
     color: COLORS.TEXT_PRIMARY,
     lineHeight: 28,
+  },
+  bottomSheet: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: SHEET_HEIGHT,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    backgroundColor: "rgba(254, 254, 254, 0.92)",
+    shadowColor: "#7C3AED",
+    shadowOffset: { width: 0, height: -8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 32,
+    elevation: 16,
+    overflow: "hidden",
+  },
+  bottomSheetBlobWrap: {
+    pointerEvents: "none",
+    opacity: 0.6,
+  },
+  bottomSheetBlob: {
+    position: "absolute",
+    borderRadius: 9999,
+    opacity: 1,
+  },
+  bottomSheetBlobPurple: {
+    top: 0,
+    left: 0,
+    width: 320,
+    height: 320,
+    backgroundColor: "rgba(221, 214, 254, 0.5)",
+  },
+  bottomSheetBlobAmber: {
+    bottom: 0,
+    right: 0,
+    width: 384,
+    height: 384,
+    backgroundColor: "rgba(254, 243, 199, 0.5)",
+  },
+  bottomSheetBlobBlue: {
+    top: "33%",
+    right: "25%",
+    width: 288,
+    height: 288,
+    backgroundColor: "rgba(219, 234, 254, 0.4)",
+  },
+  bottomSheetHandleWrap: {
+    paddingTop: 32,
+    paddingBottom: 8,
+    alignItems: "center",
+    zIndex: 10,
+  },
+  bottomSheetHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "rgba(224, 231, 255, 0.6)",
+  },
+  bottomSheetHeader: {
+    paddingHorizontal: 24,
+    paddingTop: 56,
+    paddingBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(124, 58, 237, 0.08)",
+    zIndex: 10,
+  },
+  bottomSheetCloseBtn: {
+    position: "absolute",
+    top: 12,
+    right: 16,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.6)",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 11,
+  },
+  bottomSheetDateLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "rgba(124, 58, 237, 0.6)",
+    letterSpacing: 0.5,
+    marginBottom: 12,
+  },
+  bottomSheetQuestion: {
+    fontSize: 17,
+    fontWeight: "500",
+    color: "#374151",
+    lineHeight: 24,
+    paddingRight: 32,
+  },
+  bottomSheetScroll: {
+    flex: 1,
+    zIndex: 10,
+  },
+  bottomSheetScrollContent: {
+    paddingHorizontal: 24,
+    paddingVertical: 20,
+    gap: 12,
+  },
+  bottomSheetYearCard: {
+    borderRadius: 20,
+    padding: 20,
+    backgroundColor: "rgba(255,255,255,0.85)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 2,
+  },
+  bottomSheetYearLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "rgba(124, 58, 237, 0.7)",
+    letterSpacing: 0.5,
+    marginBottom: 12,
+  },
+  bottomSheetYearAnswer: {
+    fontSize: 15,
+    color: "#374151",
+    lineHeight: 24,
   },
   modalTitle: { fontSize: 20, fontWeight: "600", color: COLORS.TEXT_PRIMARY, marginBottom: 12 },
   modalSubtitle: { fontSize: 14, color: COLORS.TEXT_SECONDARY, marginBottom: 8 },

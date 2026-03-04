@@ -6,8 +6,9 @@ import {
   TextInput,
   Pressable,
   ActivityIndicator,
-  ScrollView,
   KeyboardAvoidingView,
+  TouchableWithoutFeedback,
+  Keyboard,
   Platform,
   Modal,
   Animated,
@@ -50,12 +51,94 @@ export default function TodayScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [showAnswerInput, setShowAnswerInput] = useState(false);
+  const [isAnswering, setIsAnswering] = useState(false);
   const [showSubmitSuccess, setShowSubmitSuccess] = useState(false);
   const [jokerModalVisible, setJokerModalVisible] = useState(false);
   const [editConfirmVisible, setEditConfirmVisible] = useState(false);
   const [recapModal, setRecapModal] = useState<{ open: boolean; count: number; total: number }>({ open: false, count: 0, total: 0 });
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const inputRef = useRef<TextInput>(null);
+  const questionBlockOffset = useRef(new Animated.Value(0)).current;
+  const buttonOpacity = useRef(new Animated.Value(1)).current;
+  const buttonScale = useRef(new Animated.Value(1)).current;
+
+  console.log("isAnswering:", isAnswering);
+
+  useEffect(() => {
+    Animated.timing(questionBlockOffset, {
+      toValue: isAnswering ? -200 : 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+  }, [isAnswering]);
+
+  useEffect(() => {
+    if (isAnswering) {
+      Animated.parallel([
+        Animated.timing(buttonOpacity, {
+          toValue: 0,
+          duration: 150,
+          useNativeDriver: true,
+        }),
+        Animated.timing(buttonScale, {
+          toValue: 0.85,
+          duration: 150,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      Animated.parallel([
+        Animated.timing(buttonOpacity, {
+          toValue: 1,
+          duration: 250,
+          delay: 150,
+          useNativeDriver: true,
+        }),
+        Animated.timing(buttonScale, {
+          toValue: 1,
+          duration: 250,
+          delay: 150,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [isAnswering, buttonOpacity, buttonScale]);
+
+  useEffect(() => {
+    if (isAnswering) {
+      const t = setTimeout(() => inputRef.current?.focus(), 100);
+      return () => clearTimeout(t);
+    }
+  }, [isAnswering]);
+
+  useEffect(() => {
+    const show = Keyboard.addListener(
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
+      () => setKeyboardVisible(true)
+    );
+    const hide = Keyboard.addListener(
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide",
+      () => setKeyboardVisible(false)
+    );
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    const show = Keyboard.addListener("keyboardWillShow", (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
+    });
+    const hide = Keyboard.addListener("keyboardWillHide", () => {
+      setKeyboardHeight(0);
+    });
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
 
   // Load existing answer when question is available
   useEffect(() => {
@@ -143,8 +226,7 @@ export default function TodayScreen() {
 
       const wasUpdate = existingAnswer != null && existingAnswer.length > 0;
       setExistingAnswer(text);
-      setIsEditMode(false);
-      setShowAnswerInput(false);
+      setIsAnswering(false);
 
       // Submit-success overlay (short visual feedback)
       setShowSubmitSuccess(true);
@@ -233,187 +315,213 @@ export default function TodayScreen() {
 
   return (
     <GlassCardContainer>
-      <KeyboardAvoidingView
-        style={[styles.container, { paddingTop: insets.top }]}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+      <TouchableWithoutFeedback
+        onPress={() => {
+          Keyboard.dismiss();
+          if (isAnswering) {
+            setIsAnswering(false);
+            setAnswerText("");
+          }
+        }}
+        accessible={false}
       >
-        {/* Joker badge top-right (same position as Calendar: yearRow + yearRowRight) */}
-        <View style={styles.header}>
-          <View style={styles.headerSpacer} />
-          <View style={styles.headerRight}>
-            <JokerBadge
-              count={profile?.joker_balance ?? 0}
-              onPress={() => setJokerModalVisible(true)}
-            />
-          </View>
-        </View>
-
-      <ScrollView
-        contentContainerStyle={[
-          styles.scrollContent,
-          styles.scrollContentCentered,
-        ]}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Submit-success overlay */}
-        {showSubmitSuccess && (
-          <SubmitSuccessOverlay />
-        )}
-
-        {hasAnswer && !isEditMode ? (
-          /* Answered layout: centered card with question + gold check + Edit answer */
-          <View style={styles.answeredWrap}>
-            <View style={styles.answeredCardOuter}>
-              <View style={styles.answeredCardInnerWrap}>
-                <LinearGradient
-                  colors={["rgba(255,255,255,0.8)", "rgba(255,255,255,0.6)"]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.answeredCardInner}
-                >
-                  <LinearGradient
-                    colors={["rgba(139,92,246,0.08)", "rgba(139,92,246,0)"]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.cardCornerTL}
-                  />
-                  <LinearGradient
-                    colors={["rgba(139,92,246,0)", "rgba(139,92,246,0.08)"]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.cardCornerBR}
-                  />
-                  <Text style={styles.answeredDayLabel}>{dayLabel}</Text>
-                  <View style={styles.answeredCheckCircleWrap}>
-                    <LinearGradient
-                      colors={["#FEF3C7", "#FDE68A", "#FCD34D"]}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={styles.answeredCheckCircle}
-                    >
-                      <Feather name="check" size={24} color="#fff" strokeWidth={2.5} />
-                    </LinearGradient>
-                  </View>
-                  <Text style={styles.answeredQuestionText}>{question.text}</Text>
-                </LinearGradient>
-              </View>
+        <View style={[styles.container, { paddingTop: insets.top }]}>
+          <View style={styles.header}>
+            <View style={styles.headerSpacer} />
+            <View style={styles.headerRight}>
+              <JokerBadge
+                count={profile?.joker_balance ?? 0}
+                onPress={() => setJokerModalVisible(true)}
+              />
             </View>
-            <PrimaryButton
-              onPress={() => {
-                setIsEditMode(true);
-                setAnswerText(existingAnswer ?? "");
+          </View>
+
+          <View style={styles.mainContent}>
+            {showSubmitSuccess && <SubmitSuccessOverlay />}
+            <Animated.View
+              style={[styles.centerBlock, { transform: [{ translateY: questionBlockOffset }] }]}
+            >
+              {hasAnswer && !isAnswering ? (
+                <View style={styles.answeredWrap}>
+                  <View style={styles.answeredCardOuter}>
+                    <View style={styles.answeredCardInnerWrap}>
+                      <LinearGradient
+                        colors={["rgba(255,255,255,0.8)", "rgba(255,255,255,0.6)"]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.answeredCardInner}
+                      >
+                        <LinearGradient
+                          colors={["rgba(139,92,246,0.08)", "rgba(139,92,246,0)"]}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                          style={styles.cardCornerTL}
+                        />
+                        <LinearGradient
+                          colors={["rgba(139,92,246,0)", "rgba(139,92,246,0.08)"]}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                          style={styles.cardCornerBR}
+                        />
+                        <Text style={styles.answeredDayLabel}>{dayLabel}</Text>
+                        <View style={styles.answeredCheckCircleWrap}>
+                          <LinearGradient
+                            colors={["#FEF3C7", "#FDE68A", "#FCD34D"]}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                            style={styles.answeredCheckCircle}
+                          >
+                            <Feather name="check" size={24} color="#fff" strokeWidth={2.5} />
+                          </LinearGradient>
+                        </View>
+                        <Text style={styles.answeredQuestionText}>{question.text}</Text>
+                      </LinearGradient>
+                    </View>
+                  </View>
+                </View>
+              ) : (
+                <View style={styles.cardOuterWrap}>
+                  <View style={styles.cardOuter}>
+                    <View style={styles.cardInnerWrap}>
+                      <LinearGradient
+                        colors={["rgba(255,255,255,0.8)", "rgba(255,255,255,0.6)"]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.cardInner}
+                      >
+                        <LinearGradient
+                          colors={["rgba(139,92,246,0.08)", "rgba(139,92,246,0)"]}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                          style={styles.cardCornerTL}
+                        />
+                        <LinearGradient
+                          colors={["rgba(139,92,246,0)", "rgba(139,92,246,0.08)"]}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                          style={styles.cardCornerBR}
+                        />
+                        <Text style={styles.cardDayLabel}>{dayLabel}</Text>
+                        <Text style={styles.questionText}>{question.text}</Text>
+                      </LinearGradient>
+                    </View>
+                  </View>
+                </View>
+              )}
+              {!isAnswering && (
+                <Animated.View
+                style={[
+                  styles.buttonArea,
+                  { opacity: buttonOpacity, transform: [{ scale: buttonScale }] },
+                ]}
+              >
+                  {hasAnswer ? (
+                    <PrimaryButton
+                      onPress={() => {
+                        console.log("setIsAnswering(true) from: Bewerken button onPress");
+                        setIsAnswering(true);
+                        setAnswerText(existingAnswer ?? "");
+                        requestAnimationFrame(() => {
+                          setTimeout(() => inputRef.current?.focus(), 50);
+                        });
+                      }}
+                    >
+                      {t("today_edit_answer")}
+                    </PrimaryButton>
+                  ) : (
+                    <PrimaryButton
+                      fullWidth
+                      onPress={() => {
+                        console.log("setIsAnswering(true) from: Beantwoorden button onPress");
+                        setIsAnswering(true);
+                        setAnswerText("");
+                        requestAnimationFrame(() => {
+                          setTimeout(() => inputRef.current?.focus(), 50);
+                        });
+                      }}
+                    >
+                      {t("today_answer_question")}
+                    </PrimaryButton>
+                  )}
+                </Animated.View>
+              )}
+            </Animated.View>
+          </View>
+
+          {!isAnswering && <View style={styles.tabBarSpacer} />}
+
+          {isAnswering === true && (
+            <View
+              style={{
+                position: "absolute",
+                left: 0,
+                right: 0,
+                bottom: keyboardHeight === 0 ? 83 : keyboardHeight - 20,
               }}
             >
-              {t("today_edit_answer")}
-            </PrimaryButton>
-          </View>
-        ) : (
-          <>
-            {/* Question card (when no answer or editing): glass outer + gradient inner + corners */}
-            <View style={styles.cardOuterWrap}>
-              <View style={styles.cardOuter}>
-                <View style={styles.cardInnerWrap}>
-                  <LinearGradient
-                    colors={["rgba(255,255,255,0.8)", "rgba(255,255,255,0.6)"]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.cardInner}
+              <View style={styles.bottomBarKAV}>
+                <View style={styles.bottomBarRow}>
+                  <TextInput
+                    ref={inputRef}
+                    autoFocus={true}
+                    style={styles.barInput}
+                    placeholder={t("today_placeholder")}
+                    placeholderTextColor={COLORS.TEXT_MUTED}
+                    value={answerText}
+                    onChangeText={(text) => {
+                      if (text.length <= MAX_ANSWER_LENGTH) setAnswerText(text);
+                    }}
+                    maxLength={MAX_ANSWER_LENGTH}
+                    multiline={true}
+                    editable={!submitting}
+                    autoCapitalize="sentences"
+                  />
+                  <PrimaryButton
+                    onPress={handleSubmit}
+                    disabled={!canSubmit}
+                    loading={submitting}
+                    style={styles.barSubmitButton}
+                    textStyle={styles.barSubmitButtonText}
                   >
-                    <LinearGradient
-                      colors={["rgba(139,92,246,0.08)", "rgba(139,92,246,0)"]}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={styles.cardCornerTL}
-                    />
-                    <LinearGradient
-                      colors={["rgba(139,92,246,0)", "rgba(139,92,246,0.08)"]}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={styles.cardCornerBR}
-                    />
-                    <Text style={styles.cardDayLabel}>{dayLabel}</Text>
-                    <Text style={styles.questionText}>{question.text}</Text>
-                  </LinearGradient>
+                    {hasAnswer ? t("today_update") : t("today_submit")}
+                  </PrimaryButton>
                 </View>
+                <View style={styles.bottomBarMeta}>
+                  {hasAnswer && (
+                    <Pressable
+                      style={({ pressed }) => [styles.cancelEditButton, pressed && { opacity: 0.8 }]}
+                      onPress={() => {
+                        setIsAnswering(false);
+                        setAnswerText(existingAnswer ?? "");
+                      }}
+                    >
+                      <Text style={styles.cancelEditButtonText}>{t("common_cancel")}</Text>
+                    </Pressable>
+                  )}
+                </View>
+                {submitError && (
+                  <Text style={styles.submitError}>{submitError}</Text>
+                )}
               </View>
             </View>
+          )}
 
-            {!showAnswerInput && !hasAnswer ? (
-              <PrimaryButton
-                fullWidth
-                onPress={() => setShowAnswerInput(true)}
-              >
-                {t("today_answer_question")}
-              </PrimaryButton>
-            ) : (
-              <>
-                <TextInput
-                  style={styles.input}
-                  placeholder={t("today_placeholder")}
-                  placeholderTextColor={COLORS.TEXT_MUTED}
-                  value={answerText}
-                  onChangeText={(text) => {
-                    if (text.length <= MAX_ANSWER_LENGTH) setAnswerText(text);
-                  }}
-                  maxLength={MAX_ANSWER_LENGTH}
-                  multiline
-                  numberOfLines={3}
-                  editable={!submitting}
-                  textAlignVertical="top"
-                  autoCapitalize="sentences"
-                />
-                <Text style={styles.charCount}>
-                  {answerText.length}/{MAX_ANSWER_LENGTH}
-                </Text>
-                <PrimaryButton
-                  fullWidth
-                  onPress={handleSubmit}
-                  disabled={!canSubmit}
-                  loading={submitting}
-                >
-                  {hasAnswer ? t("today_update") : t("today_submit")}
-                </PrimaryButton>
-                {hasAnswer && (
-                  <Pressable
-                    style={({ pressed }) => [styles.cancelEditButton, pressed && { opacity: 0.8 }]}
-                    onPress={() => {
-                      setIsEditMode(false);
-                      setAnswerText(existingAnswer ?? "");
-                    }}
-                  >
-                    <Text style={styles.cancelEditButtonText}>{t("common_cancel")}</Text>
-                  </Pressable>
-                )}
-              </>
-            )}
-
-            {submitError && (
-              <Text style={styles.submitError}>{submitError}</Text>
-            )}
-          </>
-        )}
-      </ScrollView>
-
-      <JokerModal
-        visible={jokerModalVisible}
-        onClose={() => setJokerModalVisible(false)}
-        jokerBalance={profile?.joker_balance ?? 0}
-        t={t}
-      />
-
-      <EditConfirmModal visible={editConfirmVisible} message={t("today_answer_changed")} />
-
-      <MondayRecapModal
-        visible={recapModal.open}
-        count={recapModal.count}
-        total={recapModal.total}
-        onClose={() => setRecapModal((p) => ({ ...p, open: false }))}
-        t={t}
-      />
-
-      </KeyboardAvoidingView>
+          <JokerModal
+            visible={jokerModalVisible}
+            onClose={() => setJokerModalVisible(false)}
+            jokerBalance={profile?.joker_balance ?? 0}
+            t={t}
+          />
+          <EditConfirmModal visible={editConfirmVisible} message={t("today_answer_changed")} />
+          <MondayRecapModal
+            visible={recapModal.open}
+            count={recapModal.count}
+            total={recapModal.total}
+            onClose={() => setRecapModal((p) => ({ ...p, open: false }))}
+            t={t}
+          />
+        </View>
+      </TouchableWithoutFeedback>
     </GlassCardContainer>
   );
 }
@@ -605,19 +713,69 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "transparent",
-    paddingBottom: 92,
   },
-  scrollContent: {
-    padding: 20,
-    paddingTop: 16,
-    paddingBottom: 40,
+  buttonArea: {
+    paddingHorizontal: 20,
+    paddingBottom: 8,
     maxWidth: 480,
     width: "100%",
     alignSelf: "center",
-    flexGrow: 1,
+    marginTop: 16,
   },
-  scrollContentCentered: {
+  tabBarSpacer: {
+    height: 92,
+  },
+  mainContent: {
+    flex: 1,
     justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 20,
+  },
+  centerBlock: {
+    width: "100%",
+    maxWidth: 480,
+    alignItems: "center",
+  },
+  bottomBarKAV: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 24,
+    backgroundColor: "transparent",
+  },
+  bottomBarRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  barInput: {
+    flex: 1,
+    minHeight: 40,
+    maxHeight: 120,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.6)",
+    backgroundColor: "rgba(255,255,255,0.85)",
+    fontSize: 16,
+    color: COLORS.TEXT_PRIMARY,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  barSubmitButton: {
+    minWidth: 88,
+    width: 108,
+  },
+  barSubmitButtonText: {
+    fontSize: 12,
+  },
+  bottomBarMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 8,
   },
   submitSuccessOverlay: {
     position: "absolute",
@@ -651,7 +809,6 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   answeredWrap: {
-    flex: 1,
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 24,
@@ -829,6 +986,9 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     paddingHorizontal: 4,
   },
+  cardOuterWrapCompact: {
+    marginBottom: 0,
+  },
   cardOuter: {
     borderRadius: 28,
     padding: 1.5,
@@ -851,6 +1011,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     minHeight: 168,
     justifyContent: "center",
+  },
+  cardInnerCompact: {
+    paddingVertical: 24,
+    minHeight: undefined,
   },
   cardCornerTL: {
     position: "absolute",
@@ -884,23 +1048,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 32,
     marginTop: 8,
-  },
-  input: {
-    width: "100%",
-    minHeight: 120,
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.6)",
-    backgroundColor: "rgba(255,255,255,0.85)",
-    fontSize: 16,
-    color: COLORS.TEXT_PRIMARY,
-    marginBottom: 6,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
   },
   charCount: {
     fontSize: 12,

@@ -461,6 +461,7 @@ function YearPickerModal({
   selectedYear,
   month,
   setYearMonth,
+  accountStartYearMonth,
   t,
   styles: modalStyles,
 }: {
@@ -470,6 +471,7 @@ function YearPickerModal({
   selectedYear: number;
   month: number;
   setYearMonth: (ym: string) => void;
+  accountStartYearMonth: string | null;
   t: (key: string) => string;
   styles: Record<string, object>;
 }) {
@@ -510,7 +512,11 @@ function YearPickerModal({
                   selectedYear === year && modalStyles.yearPickerOptionSelected,
                 ]}
                 onPress={() => {
-                  setYearMonth(`${year}-${String(month).padStart(2, "0")}`);
+                  let ym = `${year}-${String(month).padStart(2, "0")}`;
+                  if (accountStartYearMonth && ym < accountStartYearMonth) {
+                    ym = accountStartYearMonth;
+                  }
+                  setYearMonth(ym);
                   handleClose();
                 }}
               >
@@ -539,7 +545,17 @@ export default function CalendarScreen() {
   const { showMilestone } = useStreakMilestone();
 
   const todayKey = getLocalDayKey(getNow());
+  const accountStartYearMonth = effectiveUser?.created_at
+    ? getLocalDayKey(new Date(effectiveUser.created_at)).slice(0, 7)
+    : null;
   const [yearMonth, setYearMonth] = useState(() => todayKey.slice(0, 7));
+
+  useEffect(() => {
+    if (!accountStartYearMonth) return;
+    if (yearMonth < accountStartYearMonth) {
+      setYearMonth(accountStartYearMonth);
+    }
+  }, [accountStartYearMonth, yearMonth]);
 
   const { answersMap, loading, error, refetch, setAnswerForDay } = useCalendarAnswers(
     userId,
@@ -573,10 +589,12 @@ export default function CalendarScreen() {
   }, [fetchStreak]);
 
   const goPrev = useCallback(() => {
+    if (accountStartYearMonth && yearMonth <= accountStartYearMonth) return;
     const [y, m] = yearMonth.split("-").map(Number);
-    if (m === 1) setYearMonth(`${y - 1}-12`);
-    else setYearMonth(`${y}-${String(m - 1).padStart(2, "0")}`);
-  }, [yearMonth]);
+    const nextYm = m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, "0")}`;
+    if (accountStartYearMonth && nextYm < accountStartYearMonth) return;
+    setYearMonth(nextYm);
+  }, [yearMonth, accountStartYearMonth]);
 
   const goNext = useCallback(() => {
     const [y, m] = yearMonth.split("-").map(Number);
@@ -616,10 +634,15 @@ export default function CalendarScreen() {
   const isViewingCurrentMonth =
     y === getNow().getFullYear() && m === getNow().getMonth() + 1;
   const now = getNow();
+  const yearStart = accountStartYearMonth
+    ? parseInt(accountStartYearMonth.slice(0, 4), 10)
+    : 2020;
   const yearOptions = Array.from(
-    { length: now.getFullYear() + 2 - 2020 },
-    (_, i) => 2020 + i
+    { length: now.getFullYear() + 2 - yearStart },
+    (_, i) => yearStart + i
   );
+  const isAtAccountStartMonth =
+    accountStartYearMonth !== null && yearMonth === accountStartYearMonth;
   const goToToday = useCallback(() => {
     setYearMonth(todayKey.slice(0, 7));
   }, [todayKey]);
@@ -722,8 +745,12 @@ export default function CalendarScreen() {
 
         {/* Month nav: ‹ › 36x36 round buttons */}
       <View style={styles.monthNav}>
-        <Pressable style={styles.navBtn} onPress={goPrev}>
-          <Text style={styles.navBtnText}>‹</Text>
+        <Pressable
+          style={[styles.navBtn, isAtAccountStartMonth && styles.navBtnDisabled]}
+          onPress={isAtAccountStartMonth ? undefined : goPrev}
+          disabled={isAtAccountStartMonth}
+        >
+          <Text style={[styles.navBtnText, isAtAccountStartMonth && styles.navBtnTextDisabled]}>‹</Text>
         </Pressable>
         <Pressable onPress={() => setShowYearPicker(true)} style={styles.monthLabelWrap}>
           <Text style={styles.monthLabel}>{getMonthNameOnly(yearMonth, lang)}</Text>
@@ -880,6 +907,7 @@ export default function CalendarScreen() {
         selectedYear={y}
         month={m}
         setYearMonth={setYearMonth}
+        accountStartYearMonth={accountStartYearMonth}
         t={t}
         styles={styles}
       />
@@ -987,6 +1015,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   navBtnText: { fontSize: 22, fontWeight: "700", color: COLORS.TEXT_PRIMARY },
+  navBtnDisabled: { opacity: 0.4 },
+  navBtnTextDisabled: { color: COLORS.TEXT_MUTED },
   monthLabelWrap: { paddingVertical: 4, paddingHorizontal: 8 },
   monthLabel: { fontSize: 22, fontWeight: "700", color: COLORS.TEXT_PRIMARY },
   todayWrap: {

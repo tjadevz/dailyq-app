@@ -24,7 +24,7 @@ import { useStreakMilestone, getHighestMilestoneCrossed, getMilestonesCrossed } 
 import { useCalendarAnswersContext } from "@/src/context/CalendarAnswersContext";
 import { useTodayQuestion } from "@/src/hooks/useTodayQuestion";
 import { useProfileContext } from "@/src/context/ProfileContext";
-import { getDayOfYear, getNow, getLocalDayKey, isMonday, getPreviousWeekRange, getAnswerableDaysInRange } from "@/src/lib/date";
+import { getDayOfYear } from "@/src/lib/date";
 import { supabase } from "@/src/config/supabase";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { JokerModal } from "@/src/components/JokerModal";
@@ -33,7 +33,6 @@ import { PrimaryButton } from "@/src/components/PrimaryButton";
 import { GlassCardContainer } from "@/src/components/GlassCardContainer";
 
 const MAX_ANSWER_LENGTH = 280;
-const RECAP_STORAGE_PREFIX = "dailyq_recap_";
 
 export default function TodayScreen() {
   const insets = useSafeAreaInsets();
@@ -55,7 +54,6 @@ export default function TodayScreen() {
   const [showSubmitSuccess, setShowSubmitSuccess] = useState(false);
   const [jokerModalVisible, setJokerModalVisible] = useState(false);
   const [editConfirmVisible, setEditConfirmVisible] = useState(false);
-  const [recapModal, setRecapModal] = useState<{ open: boolean; count: number; total: number }>({ open: false, count: 0, total: 0 });
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const inputRef = useRef<TextInput>(null);
@@ -63,15 +61,28 @@ export default function TodayScreen() {
   const buttonOpacity = useRef(new Animated.Value(1)).current;
   const buttonScale = useRef(new Animated.Value(1)).current;
 
-  console.log("isAnswering:", isAnswering);
+  // Force reset translateY on mount so it can't be stuck after modal/recap.
+  useEffect(() => {
+    questionBlockOffset.setValue(0);
+  }, [questionBlockOffset]);
 
   useEffect(() => {
-    Animated.timing(questionBlockOffset, {
-      toValue: isAnswering ? -200 : 0,
-      duration: 200,
-      useNativeDriver: true,
-    }).start();
-  }, [isAnswering]);
+    if (isAnswering) {
+      Animated.timing(questionBlockOffset, {
+        toValue: -200,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      Animated.timing(questionBlockOffset, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }).start(({ finished }) => {
+        questionBlockOffset.setValue(0);
+      });
+    }
+  }, [isAnswering, questionBlockOffset]);
 
   useEffect(() => {
     if (isAnswering) {
@@ -140,6 +151,16 @@ export default function TodayScreen() {
     };
   }, []);
 
+  // Clear leftover Monday recap keys (feature removed); they are not read anywhere.
+  useEffect(() => {
+    AsyncStorage.getAllKeys().then((keys) => {
+      const recapKeys = keys.filter((k) => k.startsWith("dailyq_recap_"));
+      if (recapKeys.length > 0) {
+        AsyncStorage.multiRemove(recapKeys).catch(() => {});
+      }
+    });
+  }, []);
+
   // Load existing answer when question is available
   useEffect(() => {
     if (!userId || !question || userId === "dev-user") {
@@ -175,7 +196,6 @@ export default function TodayScreen() {
   }, [userId, question?.day]);
 
   const handleSubmit = useCallback(async () => {
-    console.log("Submitting with userId:", userId);
     if (!userId || !question || userId === "dev-user") return;
     const text = answerText.trim();
     if (!text) return;
@@ -202,21 +222,6 @@ export default function TodayScreen() {
         question_date: dayKey,
         answer_text: text,
       };
-      // #region agent log
-      fetch("http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "e1a8f0" },
-        body: JSON.stringify({
-          sessionId: "e1a8f0",
-          location: "today.tsx:handleSubmit-upsert",
-          message: "Upsert payload",
-          data: { payload: upsertPayload, onConflict: "user_id,question_date" },
-          timestamp: Date.now(),
-          hypothesisId: "A",
-        }),
-      }).catch(() => {});
-      // #endregion
-
       const { error } = await supabase
         .from("answers")
         .upsert(upsertPayload, { onConflict: "user_id,question_date" });
@@ -238,27 +243,6 @@ export default function TodayScreen() {
         setTimeout(() => setEditConfirmVisible(false), 2500);
       }
 
-      // Monday recap: first submit on Monday → show last week X of Y
-      const now = getNow();
-      if (userId !== "dev-user" && isMonday(now)) {
-        const dayKey = getLocalDayKey(now);
-        const recapKey = RECAP_STORAGE_PREFIX + dayKey;
-        const alreadyShown = await AsyncStorage.getItem(recapKey);
-        if (!alreadyShown) {
-          const { start, end } = getPreviousWeekRange(now);
-          const { data: answers } = await supabase
-            .from("answers")
-            .select("question_date")
-            .eq("user_id", userId)
-            .gte("question_date", start)
-            .lte("question_date", end);
-          const count = answers?.length ?? 0;
-          const total = getAnswerableDaysInRange(start, end, effectiveUser?.created_at ?? undefined);
-          setRecapModal({ open: true, count, total });
-          await AsyncStorage.setItem(recapKey, "1");
-        }
-      }
-
       // Streak milestone: check if we crossed any (previousStreak < m <= newStreak), grant jokers, show modal
       const { data: streaks } = await supabase.rpc("get_user_streaks", { p_user_id: userId });
       const row = Array.isArray(streaks) && streaks.length > 0 ? streaks[0] : null;
@@ -270,10 +254,11 @@ export default function TodayScreen() {
         await supabase.rpc("grant_milestone_jokers", { p_user_id: userId, p_milestone: m });
       }
       if (crossed.length > 0) {
-        await refetchProfile();
         const highest = getHighestMilestoneCrossed(previousStreak, newStreak);
         if (highest) showMilestone(highest);
       }
+      // Always refetch profile so joker_balance and any profile-driven UI stay in sync.
+      await refetchProfile();
     } catch (e: unknown) {
       const err = e as { message?: string; code?: string; details?: string };
       console.error("[Today submit] Supabase error:", {
@@ -418,7 +403,6 @@ export default function TodayScreen() {
                   {hasAnswer ? (
                     <PrimaryButton
                       onPress={() => {
-                        console.log("setIsAnswering(true) from: Bewerken button onPress");
                         setIsAnswering(true);
                         setAnswerText(existingAnswer ?? "");
                         requestAnimationFrame(() => {
@@ -432,7 +416,6 @@ export default function TodayScreen() {
                     <PrimaryButton
                       fullWidth
                       onPress={() => {
-                        console.log("setIsAnswering(true) from: Beantwoorden button onPress");
                         setIsAnswering(true);
                         setAnswerText("");
                         requestAnimationFrame(() => {
@@ -500,13 +483,6 @@ export default function TodayScreen() {
             t={t}
           />
           <EditConfirmModal visible={editConfirmVisible} message={t("today_answer_changed")} />
-          <MondayRecapModal
-            visible={recapModal.open}
-            count={recapModal.count}
-            total={recapModal.total}
-            onClose={() => setRecapModal((p) => ({ ...p, open: false }))}
-            t={t}
-          />
         </View>
       </TouchableWithoutFeedback>
     </GlassCardContainer>
@@ -585,114 +561,6 @@ const editConfirmStyles = StyleSheet.create({
     fontSize: 17,
     color: COLORS.TEXT_PRIMARY,
     fontWeight: "500",
-  },
-});
-
-function MondayRecapModal({
-  visible,
-  count,
-  total,
-  onClose,
-  t,
-}: {
-  visible: boolean;
-  count: number;
-  total: number;
-  onClose: () => void;
-  t: (key: string, params?: Record<string, string | number>) => string;
-}) {
-  const opacity = React.useRef(new Animated.Value(0)).current;
-  const handleClose = React.useCallback(() => {
-    Animated.timing(opacity, {
-      toValue: 0,
-      duration: MODAL_CLOSE_MS,
-      useNativeDriver: true,
-    }).start(() => onClose());
-  }, [opacity, onClose]);
-  React.useEffect(() => {
-    if (visible) {
-      opacity.setValue(0);
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: MODAL_ENTER_MS,
-        useNativeDriver: true,
-      }).start();
-    }
-  }, [visible, opacity]);
-  if (!visible) return null;
-  return (
-    <Modal transparent visible animationType="none">
-      <Animated.View style={[recapModalStyles.backdrop, { opacity }]}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
-        <Pressable style={recapModalStyles.card} onPress={(e) => e.stopPropagation()}>
-          <Pressable style={MODAL.CLOSE_BUTTON} onPress={handleClose}>
-            <Feather name="x" size={18} color={COLORS.TEXT_SECONDARY} strokeWidth={2.5} />
-          </Pressable>
-          <Text style={recapModalStyles.title}>{t("recap_title")}</Text>
-          <Text style={recapModalStyles.subtitle}>{t("recap_subtitle")}</Text>
-          <Text style={recapModalStyles.body}>
-            {t("recap_body", { count: String(count), total: String(total) })}
-          </Text>
-          <Pressable onPress={handleClose} style={recapModalStyles.ctaWrap}>
-            <LinearGradient
-              colors={["#A78BFA", "#8B5CF6"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={recapModalStyles.cta}
-            >
-              <Text style={recapModalStyles.ctaText}>{t("streak_popup_cta")}</Text>
-            </LinearGradient>
-          </Pressable>
-        </Pressable>
-      </Animated.View>
-    </Modal>
-  );
-}
-
-const recapModalStyles = StyleSheet.create({
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 28,
-  },
-  card: {
-    ...MODAL.CARD,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: COLORS.TEXT_PRIMARY,
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 15,
-    color: COLORS.TEXT_SECONDARY,
-    marginBottom: 16,
-  },
-  body: {
-    fontSize: 16,
-    color: COLORS.TEXT_PRIMARY,
-    lineHeight: 24,
-    marginBottom: 20,
-  },
-  ctaWrap: { alignSelf: "stretch" },
-  cta: {
-    paddingVertical: 14,
-    borderRadius: 9999,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "rgba(139,92,246,0.3)",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 1,
-    shadowRadius: 24,
-    elevation: 4,
-  },
-  ctaText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#fff",
   },
 });
 
@@ -796,9 +664,11 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   answeredWrap: {
+    width: "100%",
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 24,
+    paddingHorizontal: 4,
   },
   answeredCardOuter: {
     width: "100%",
@@ -973,9 +843,6 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     paddingHorizontal: 4,
   },
-  cardOuterWrapCompact: {
-    marginBottom: 0,
-  },
   cardOuter: {
     borderRadius: 28,
     padding: 1.5,
@@ -998,10 +865,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     minHeight: 168,
     justifyContent: "center",
-  },
-  cardInnerCompact: {
-    paddingVertical: 24,
-    minHeight: undefined,
   },
   cardCornerTL: {
     position: "absolute",

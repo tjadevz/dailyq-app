@@ -213,7 +213,10 @@ export function useCalendarAnswers(
   }, [userId, yearMonth, lang, setCacheForMonth]);
 
   useEffect(() => {
-    if (prevUserIdRef.current !== userId) {
+    // Guarantee fresh fetch when userId becomes available after mount (was null/undefined).
+    const prevUserId = prevUserIdRef.current;
+    const userIdJustAvailable = Boolean(userId) && !prevUserId;
+    if (userIdJustAvailable || prevUserId !== userId) {
       prevUserIdRef.current = userId;
       clearCache();
       fetchMonth();

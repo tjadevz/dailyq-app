@@ -35,13 +35,13 @@ export async function upsertPushSubscription(
       .upsert(payload, { onConflict: "user_id" });
 
     if (error) {
-      console.warn("push_subscriptions upsert error", error.message, error.details, error.code);
+      console.error("[pushSubscription] push_subscriptions upsert error:", error.message, error.details, error.code);
       return { error };
     }
     return { error: null };
   } catch (e) {
     const err = e instanceof Error ? e : new Error(String(e));
-    console.warn("push_subscriptions upsert exception", err);
+    console.error("[pushSubscription] push_subscriptions upsert exception:", err);
     return { error: err };
   }
 }
@@ -60,9 +60,12 @@ export async function syncPushSubscriptionOnAppOpen(userId: string): Promise<voi
       ? reminderTime
       : null;
 
-    await upsertPushSubscription(userId, token, validReminder);
+    const { error: upsertErr } = await upsertPushSubscription(userId, token, validReminder);
+    if (upsertErr) {
+      console.error("[pushSubscription] syncPushSubscriptionOnAppOpen upsert failed:", upsertErr);
+    }
   } catch (e) {
-    if (__DEV__) console.warn("Push subscription sync error:", e);
+    console.error("[pushSubscription] syncPushSubscriptionOnAppOpen error:", e);
   }
 }
 

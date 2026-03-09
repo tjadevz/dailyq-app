@@ -52,11 +52,12 @@ export function useStreakMilestone(): StreakMilestoneContextValue {
 }
 
 /** Milestones we check for (order: ascending). */
-export const STREAK_MILESTONES = [7, 30, 60, 100, 180, 365] as const;
+export const STREAK_MILESTONES = [7, 14, 30, 60, 100, 180, 365] as const;
 
-/** Joker count per milestone (7→1, 30→2, 60→2, 100→3, 180→4, 365→5). */
+/** Joker count per milestone (7→1, 14→1, 30→2, 60→2, 100→3, 180→4, 365→5). */
 export const JOKER_COUNT_BY_MILESTONE: Record<number, number> = {
   7: 1,
+  14: 1,
   30: 2,
   60: 2,
   100: 3,

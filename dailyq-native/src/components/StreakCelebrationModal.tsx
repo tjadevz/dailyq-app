@@ -12,11 +12,12 @@ import { LinearGradient } from "expo-linear-gradient";
 
 import { COLORS, JOKER, MODAL, MODAL_CLOSE_MS, MODAL_ENTER_MS } from "@/src/config/constants";
 
-const STREAK_MILESTONE_TYPE = [7, 30, 60, 100, 180, 365] as const;
+const STREAK_MILESTONE_TYPE = [7, 14, 30, 60, 100, 180, 365] as const;
 export type StreakMilestone = (typeof STREAK_MILESTONE_TYPE)[number];
 
 const JOKER_COUNT_BY_MILESTONE: Record<StreakMilestone, number> = {
   7: 1,
+  14: 1,
   30: 2,
   60: 2,
   100: 3,

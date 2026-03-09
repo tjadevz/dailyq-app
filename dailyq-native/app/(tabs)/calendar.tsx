@@ -27,7 +27,7 @@ import {
   MODAL_CLOSE_MS,
 } from "@/src/config/constants";
 
-const STREAK_MILESTONES = [7, 30, 60, 100, 180, 365];
+const STREAK_MILESTONES = [7, 14, 30, 60, 100, 180, 365];
 import { useLanguage } from "@/src/context/LanguageContext";
 import { useAuth } from "@/src/context/AuthContext";
 import { useProfileContext } from "@/src/context/ProfileContext";
@@ -651,12 +651,27 @@ export default function CalendarScreen() {
         await supabase.rpc("grant_milestone_jokers", { p_user_id: userId, p_milestone: m });
       }
       if (crossed.length > 0) {
-        await refetchProfile();
         const highest = getHighestMilestoneCrossed(previousStreak, newStreak);
         if (highest) showMilestone(highest);
+      } else {
+        // #region agent log
+        fetch("http://127.0.0.1:7243/ingest/db237dc3-2932-4821-b603-b2959e85e2e1", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "7bd1af" },
+          body: JSON.stringify({
+            sessionId: "7bd1af",
+            location: "calendar.tsx:handleMissedSaved:noMilestone",
+            message: "joker used, no milestone crossed — refetchProfile was not called (before fix)",
+            data: { crossedLength: crossed.length, hypothesisId: "H2" },
+            timestamp: Date.now(),
+          }),
+        }).catch(() => {});
+        // #endregion
       }
+      // Always refetch profile so joker_balance updates after use_joker (RPC deducts in DB).
+      await refetchProfile();
     },
-    [missedAnswerDay, refetch, fetchStreak, refetchProfile, showMilestone]
+    [missedAnswerDay, refetch, fetchStreak, refetchProfile, showMilestone, userId]
   );
 
   const viewEntry = viewAnswerDay ? answersMap.get(viewAnswerDay) ?? null : null;

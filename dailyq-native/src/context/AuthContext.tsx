@@ -116,22 +116,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // Temporarily disabled — push sync on app open
-  // useEffect(() => {
-  //   if (!user?.id || user.id === "dev-user") return;
-  //   const handle = InteractionManager.runAfterInteractions(() => {
-  //     // #region agent log
-  //     const t0 = Date.now();
-  //     logAuth("H3", "syncPushSubscriptionOnAppOpen start (after interactions)", { userId: user.id, ts: t0 });
-  //     // #endregion
-  //     syncPushSubscriptionOnAppOpen(user.id).then(() => {
-  //       // #region agent log
-  //       logAuth("H3", "syncPushSubscriptionOnAppOpen done", { elapsed: Date.now() - t0 });
-  //       // #endregion
-  //     });
-  //   });
-  //   return () => handle.cancel();
-  // }, [user?.id]);
+  // Re-sync push token on every app open so NULL expo_push_token in DB gets filled.
+  useEffect(() => {
+    if (!user?.id || user.id === "dev-user") return;
+    const handle = InteractionManager.runAfterInteractions(() => {
+      syncPushSubscriptionOnAppOpen(user.id).catch((e) => {
+        console.error("[AuthContext] syncPushSubscriptionOnAppOpen failed:", e);
+      });
+    });
+    return () => handle.cancel();
+  }, [user?.id]);
 
   const signUp = useCallback(
     async (email: string, password: string) => {

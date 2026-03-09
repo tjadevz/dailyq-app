@@ -19,7 +19,12 @@
     "plugins": [
       "expo-font",
       "expo-router",
-      "expo-build-properties",
+      [
+        "expo-build-properties",
+        {
+          "buildReactNativeFromSource": false
+        }
+      ],
       [
         "expo-notifications",
         {

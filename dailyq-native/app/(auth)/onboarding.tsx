@@ -117,8 +117,17 @@ export default function OnboardingScreen() {
   const handleNotificationsContinue = useCallback(async () => {
     if (!notificationTime) return;
     await saveReminderTime(notificationTime);
-    // Request permission and store token; non-blocking — auth step proceeds regardless.
-    registerForPushNotificationsAsync().then((token) => setStoredExpoPushToken(token));
+    // Await token before proceeding so auth step can do a single upsert with token + reminder_time.
+    let token: string | null = null;
+    try {
+      token = await registerForPushNotificationsAsync();
+      await setStoredExpoPushToken(token);
+    } catch (e) {
+      console.error("[onboarding] Push token registration failed:", e);
+    }
+    if (token === null && !__DEV__) {
+      console.error("[onboarding] Push token is null (permission denied or unavailable)");
+    }
     goNext("auth");
   }, [notificationTime, goNext]);
 
@@ -156,7 +165,7 @@ export default function OnboardingScreen() {
           reminderTime,
         });
         const { error: upsertErr } = await upsertPushSubscription(user.id, token, reminderTime);
-        if (upsertErr) console.warn("Push subscription upsert failed:", upsertErr);
+        if (upsertErr) console.error("[onboarding] Push subscription upsert failed:", upsertErr);
       }
       router.replace("/(tabs)/today");
     } finally {

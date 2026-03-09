@@ -28,7 +28,7 @@ export async function getExpoPushTokenAsync(): Promise<string | null> {
     const { data } = await Notifications.getExpoPushTokenAsync({ projectId });
     return data;
   } catch (e) {
-    if (__DEV__) console.warn("[notifications] getExpoPushTokenAsync:", e);
+    console.error("[notifications] getExpoPushTokenAsync failed:", e);
     return null;
   }
 }
@@ -51,7 +51,7 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
 
     return await getExpoPushTokenAsync();
   } catch (e) {
-    if (__DEV__) console.warn("[notifications] registerForPushNotificationsAsync:", e);
+    console.error("[notifications] registerForPushNotificationsAsync failed:", e);
     return null;
   }
 }

@@ -46,3 +46,259 @@
 {"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":true,"hasUser":false},"timestamp":1772371484565}
 {"sessionId":"332a30","runId":"run1","hypothesisId":"H3","location":"AuthContext.tsx","message":"syncPushSubscriptionOnAppOpen start (after interactions)","data":{"userId":"8f1e9b2e-006d-4334-8af2-14ab39b57fdb","ts":1772371496163},"timestamp":1772371496163}
 {"sessionId":"332a30","runId":"run1","hypothesisId":"H3","location":"AuthContext.tsx","message":"syncPushSubscriptionOnAppOpen done","data":{"elapsed":767},"timestamp":1772371496930}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"_layout.tsx","message":"RootLayout render start","data":{"ts":1772569263738},"timestamp":1772569263738}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":false,"hasUser":false},"timestamp":1772569263748}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"getSession returned","data":{"ts":1772569264127,"elapsed":56,"hasUser":true},"timestamp":1772569264127}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"AuthContext.tsx","message":"authCheckDone set","data":{"ts":1772569264128,"elapsed":57},"timestamp":1772569264128}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772569264071},"timestamp":1772569264071}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"initAuth start","data":{"ts":1772569264071},"timestamp":1772569264071}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":true,"hasUser":true},"timestamp":1772569264129}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772569264130},"timestamp":1772569264130}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"_layout.tsx","message":"RootLayout render start","data":{"ts":1772569360172},"timestamp":1772569360172}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":false,"hasUser":false},"timestamp":1772569360205}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772569360320},"timestamp":1772569360321}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"initAuth start","data":{"ts":1772569360323},"timestamp":1772569360324}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"getSession returned","data":{"ts":1772569360344,"elapsed":21,"hasUser":true},"timestamp":1772569360345}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"AuthContext.tsx","message":"authCheckDone set","data":{"ts":1772569360345,"elapsed":22},"timestamp":1772569360345}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":true,"hasUser":true},"timestamp":1772569360360}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772569360377},"timestamp":1772569360377}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772569366590},"timestamp":1772569366590}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"_layout.tsx","message":"RootLayout render start","data":{"ts":1772569434109},"timestamp":1772569434109}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"_layout.tsx","message":"RootLayout render start","data":{"ts":1772569434149},"timestamp":1772569434149}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"_layout.tsx","message":"RootLayout render start","data":{"ts":1772569434153},"timestamp":1772569434153}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"_layout.tsx","message":"RootLayout render start","data":{"ts":1772569453019},"timestamp":1772569453019}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":false,"hasUser":false},"timestamp":1772569453029}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772569453091},"timestamp":1772569453091}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"initAuth start","data":{"ts":1772569453092},"timestamp":1772569453092}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"getSession returned","data":{"ts":1772569453108,"elapsed":16,"hasUser":false},"timestamp":1772569453108}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"AuthContext.tsx","message":"authCheckDone set","data":{"ts":1772569453108,"elapsed":16},"timestamp":1772569453108}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":true,"hasUser":false},"timestamp":1772569453109}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"_layout.tsx","message":"RootLayout render start","data":{"ts":1772569474805},"timestamp":1772569474805}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"_layout.tsx","message":"RootLayout render start","data":{"ts":1772569474820},"timestamp":1772569474820}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"_layout.tsx","message":"RootLayout render start","data":{"ts":1772569474822},"timestamp":1772569474822}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"_layout.tsx","message":"RootLayout render start","data":{"ts":1772569479102},"timestamp":1772569479102}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":false,"hasUser":false},"timestamp":1772569479115}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772569479132},"timestamp":1772569479132}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"initAuth start","data":{"ts":1772569479133},"timestamp":1772569479133}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"getSession returned","data":{"ts":1772569479140,"elapsed":7,"hasUser":false},"timestamp":1772569479140}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"AuthContext.tsx","message":"authCheckDone set","data":{"ts":1772569479141,"elapsed":8},"timestamp":1772569479141}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":true,"hasUser":false},"timestamp":1772569479142}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"_layout.tsx","message":"RootLayout render start","data":{"ts":1772569503920},"timestamp":1772569503920}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":false,"hasUser":false},"timestamp":1772569503942}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772569504014},"timestamp":1772569504014}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"initAuth start","data":{"ts":1772569504015},"timestamp":1772569504015}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"getSession returned","data":{"ts":1772569504033,"elapsed":18,"hasUser":false},"timestamp":1772569504033}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"AuthContext.tsx","message":"authCheckDone set","data":{"ts":1772569504034,"elapsed":19},"timestamp":1772569504034}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":true,"hasUser":false},"timestamp":1772569504039}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772569528797},"timestamp":1772569528797}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772569570512},"timestamp":1772569570512}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772569714333},"timestamp":1772569714333}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"_layout.tsx","message":"RootLayout render start","data":{"ts":1772572424551},"timestamp":1772572424551}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":false,"hasUser":false},"timestamp":1772572424577}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772572424677},"timestamp":1772572424677}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"initAuth start","data":{"ts":1772572424678},"timestamp":1772572424678}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772572424725},"timestamp":1772572424725}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"getSession returned","data":{"ts":1772572424709,"elapsed":31,"hasUser":true},"timestamp":1772572424709}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":true,"hasUser":true},"timestamp":1772572424712}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"AuthContext.tsx","message":"authCheckDone set","data":{"ts":1772572424710,"elapsed":32},"timestamp":1772572424710}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"_layout.tsx","message":"RootLayout render start","data":{"ts":1772572878390},"timestamp":1772572878390}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"_layout.tsx","message":"RootLayout render start","data":{"ts":1772572882083},"timestamp":1772572882083}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772572882123},"timestamp":1772572882123}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"initAuth start","data":{"ts":1772572882124},"timestamp":1772572882124}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"getSession returned","data":{"ts":1772572882198,"elapsed":74,"hasUser":true},"timestamp":1772572882198}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"AuthContext.tsx","message":"authCheckDone set","data":{"ts":1772572882198,"elapsed":74},"timestamp":1772572882198}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772572882210},"timestamp":1772572882210}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"_layout.tsx","message":"RootLayout render start","data":{"ts":1772572888271},"timestamp":1772572888271}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772572888311},"timestamp":1772572888311}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"initAuth start","data":{"ts":1772572888312},"timestamp":1772572888312}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"getSession returned","data":{"ts":1772572888358,"elapsed":46,"hasUser":true},"timestamp":1772572888358}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"_layout.tsx","message":"RootLayout render start","data":{"ts":1772572899077},"timestamp":1772572899077}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":false,"hasUser":false},"timestamp":1772572899099}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772572899189},"timestamp":1772572899189}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"initAuth start","data":{"ts":1772572899190},"timestamp":1772572899190}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"getSession returned","data":{"ts":1772572899210,"elapsed":20,"hasUser":true},"timestamp":1772572899210}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"AuthContext.tsx","message":"authCheckDone set","data":{"ts":1772572899211,"elapsed":21},"timestamp":1772572899211}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":true,"hasUser":true},"timestamp":1772572899214}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772572899227},"timestamp":1772572899227}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"_layout.tsx","message":"RootLayout render start","data":{"ts":1772617532897},"timestamp":1772617532897}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":false,"hasUser":false},"timestamp":1772617532921}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772617533083},"timestamp":1772617533083}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"initAuth start","data":{"ts":1772617533085},"timestamp":1772617533085}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"getSession returned","data":{"ts":1772617533111,"elapsed":26,"hasUser":true},"timestamp":1772617533111}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"AuthContext.tsx","message":"authCheckDone set","data":{"ts":1772617533111,"elapsed":26},"timestamp":1772617533111}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":true,"hasUser":true},"timestamp":1772617533115}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772617533129},"timestamp":1772617533129}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"_layout.tsx","message":"RootLayout render start","data":{"ts":1772617684049},"timestamp":1772617684049}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":false,"hasUser":false},"timestamp":1772617684071}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772617684121},"timestamp":1772617684121}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"initAuth start","data":{"ts":1772617684122},"timestamp":1772617684122}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"getSession returned","data":{"ts":1772617684138,"elapsed":16,"hasUser":true},"timestamp":1772617684138}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"AuthContext.tsx","message":"authCheckDone set","data":{"ts":1772617684138,"elapsed":16},"timestamp":1772617684138}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":true,"hasUser":true},"timestamp":1772617684141}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772617684153},"timestamp":1772617684153}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"_layout.tsx","message":"RootLayout render start","data":{"ts":1772617782922},"timestamp":1772617782922}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":false,"hasUser":false},"timestamp":1772617782948}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772617783052},"timestamp":1772617783052}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"initAuth start","data":{"ts":1772617783053},"timestamp":1772617783053}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"getSession returned","data":{"ts":1772617783071,"elapsed":18,"hasUser":true},"timestamp":1772617783071}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"AuthContext.tsx","message":"authCheckDone set","data":{"ts":1772617783071,"elapsed":18},"timestamp":1772617783071}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772617783101},"timestamp":1772617783101}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":true,"hasUser":true},"timestamp":1772617783077}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"_layout.tsx","message":"RootLayout render start","data":{"ts":1772617802710},"timestamp":1772617802710}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":false,"hasUser":false},"timestamp":1772617802733}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772617802816},"timestamp":1772617802816}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"initAuth start","data":{"ts":1772617802817},"timestamp":1772617802817}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"getSession returned","data":{"ts":1772617802838,"elapsed":21,"hasUser":true},"timestamp":1772617802838}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"AuthContext.tsx","message":"authCheckDone set","data":{"ts":1772617802839,"elapsed":22},"timestamp":1772617802839}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":true,"hasUser":true},"timestamp":1772617802842}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772617802855},"timestamp":1772617802855}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772617833016},"timestamp":1772617833016}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"_layout.tsx","message":"RootLayout render start","data":{"ts":1772618013640},"timestamp":1772618013640}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":false,"hasUser":false},"timestamp":1772618013681}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772618013797},"timestamp":1772618013798}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"initAuth start","data":{"ts":1772618013799},"timestamp":1772618013799}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"getSession returned","data":{"ts":1772618013822,"elapsed":23,"hasUser":false},"timestamp":1772618013822}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"AuthContext.tsx","message":"authCheckDone set","data":{"ts":1772618013822,"elapsed":23},"timestamp":1772618013822}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":true,"hasUser":false},"timestamp":1772618013830}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772618118453},"timestamp":1772618118453}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"_layout.tsx","message":"RootLayout render start","data":{"ts":1772619079432},"timestamp":1772619079433}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":false,"hasUser":false},"timestamp":1772619079476}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772619079608},"timestamp":1772619079608}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"initAuth start","data":{"ts":1772619079610},"timestamp":1772619079610}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"getSession returned","data":{"ts":1772619079654,"elapsed":44,"hasUser":true},"timestamp":1772619079654}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"AuthContext.tsx","message":"authCheckDone set","data":{"ts":1772619079656,"elapsed":46},"timestamp":1772619079656}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":true,"hasUser":true},"timestamp":1772619079663}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772619079682},"timestamp":1772619079682}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"_layout.tsx","message":"RootLayout render start","data":{"ts":1772619457711},"timestamp":1772619457712}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":false,"hasUser":false},"timestamp":1772619457731}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772619457836},"timestamp":1772619457837}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"initAuth start","data":{"ts":1772619457838},"timestamp":1772619457838}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"getSession returned","data":{"ts":1772619457853,"elapsed":15,"hasUser":true},"timestamp":1772619457853}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"AuthContext.tsx","message":"authCheckDone set","data":{"ts":1772619457853,"elapsed":15},"timestamp":1772619457853}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":true,"hasUser":true},"timestamp":1772619457856}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772619457867},"timestamp":1772619457867}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"_layout.tsx","message":"RootLayout render start","data":{"ts":1772619548295},"timestamp":1772619548295}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":false,"hasUser":false},"timestamp":1772619548321}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772619548434},"timestamp":1772619548434}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"initAuth start","data":{"ts":1772619548437},"timestamp":1772619548437}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772619548499},"timestamp":1772619548499}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"getSession returned","data":{"ts":1772619548469,"elapsed":32,"hasUser":true},"timestamp":1772619548469}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":true,"hasUser":true},"timestamp":1772619548474}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"AuthContext.tsx","message":"authCheckDone set","data":{"ts":1772619548470,"elapsed":33},"timestamp":1772619548470}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"_layout.tsx","message":"RootLayout render start","data":{"ts":1772619630523},"timestamp":1772619630524}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":false,"hasUser":false},"timestamp":1772619630562}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772619630711},"timestamp":1772619630712}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":false,"hasUser":true},"timestamp":1772619630749}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"initAuth start","data":{"ts":1772619630714},"timestamp":1772619630714}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"getSession returned","data":{"ts":1772619630762,"elapsed":48,"hasUser":true},"timestamp":1772619630762}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"AuthContext.tsx","message":"authCheckDone set","data":{"ts":1772619630775,"elapsed":61},"timestamp":1772619630775}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772619630780},"timestamp":1772619630780}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":true,"hasUser":true},"timestamp":1772619630785}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772619911152},"timestamp":1772619911152}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"_layout.tsx","message":"RootLayout render start","data":{"ts":1772619910933},"timestamp":1772619910933}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":false,"hasUser":false},"timestamp":1772619910986}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"initAuth start","data":{"ts":1772619911155},"timestamp":1772619911156}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":true,"hasUser":true},"timestamp":1772619911212}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"AuthContext.tsx","message":"authCheckDone set","data":{"ts":1772619911207,"elapsed":52},"timestamp":1772619911207}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"getSession returned","data":{"ts":1772619911202,"elapsed":47,"hasUser":true},"timestamp":1772619911202}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772619911240},"timestamp":1772619911240}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"_layout.tsx","message":"RootLayout render start","data":{"ts":1772620336863},"timestamp":1772620336863}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":false,"hasUser":false},"timestamp":1772620336976}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"getSession returned","data":{"ts":1772620337138,"elapsed":23,"hasUser":false},"timestamp":1772620337138}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772620337113},"timestamp":1772620337114}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"initAuth start","data":{"ts":1772620337115},"timestamp":1772620337115}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"AuthContext.tsx","message":"authCheckDone set","data":{"ts":1772620337139,"elapsed":24},"timestamp":1772620337139}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":true,"hasUser":false},"timestamp":1772620337142}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772620370801},"timestamp":1772620370801}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"_layout.tsx","message":"RootLayout render start","data":{"ts":1772620953152},"timestamp":1772620953152}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":false,"hasUser":false},"timestamp":1772620953176}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772620953253},"timestamp":1772620953253}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"initAuth start","data":{"ts":1772620953254},"timestamp":1772620953254}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"getSession returned","data":{"ts":1772620953271,"elapsed":17,"hasUser":true},"timestamp":1772620953271}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"AuthContext.tsx","message":"authCheckDone set","data":{"ts":1772620953271,"elapsed":17},"timestamp":1772620953271}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":true,"hasUser":true},"timestamp":1772620953274}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772620953287},"timestamp":1772620953287}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"_layout.tsx","message":"RootLayout render start","data":{"ts":1772621005132},"timestamp":1772621005133}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":false,"hasUser":false},"timestamp":1772621005186}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772621005357},"timestamp":1772621005358}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"initAuth start","data":{"ts":1772621005360},"timestamp":1772621005360}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"getSession returned","data":{"ts":1772621005400,"elapsed":40,"hasUser":true},"timestamp":1772621005400}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":true,"hasUser":true},"timestamp":1772621005406}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772621005436},"timestamp":1772621005436}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"AuthContext.tsx","message":"authCheckDone set","data":{"ts":1772621005400,"elapsed":40},"timestamp":1772621005400}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"_layout.tsx","message":"RootLayout render start","data":{"ts":1772621069357},"timestamp":1772621069357}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":false,"hasUser":false},"timestamp":1772621069380}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772621069456},"timestamp":1772621069456}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"initAuth start","data":{"ts":1772621069457},"timestamp":1772621069457}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"getSession returned","data":{"ts":1772621069473,"elapsed":16,"hasUser":true},"timestamp":1772621069473}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"AuthContext.tsx","message":"authCheckDone set","data":{"ts":1772621069473,"elapsed":16},"timestamp":1772621069473}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":true,"hasUser":true},"timestamp":1772621069476}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772621069486},"timestamp":1772621069486}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"_layout.tsx","message":"RootLayout render start","data":{"ts":1772621348757},"timestamp":1772621348757}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":false,"hasUser":false},"timestamp":1772621348779}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772621348853},"timestamp":1772621348853}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"initAuth start","data":{"ts":1772621348854},"timestamp":1772621348854}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"getSession returned","data":{"ts":1772621348877,"elapsed":23,"hasUser":true},"timestamp":1772621348877}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"AuthContext.tsx","message":"authCheckDone set","data":{"ts":1772621348877,"elapsed":23},"timestamp":1772621348877}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":true,"hasUser":true},"timestamp":1772621348881}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772621348891},"timestamp":1772621348891}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"_layout.tsx","message":"RootLayout render start","data":{"ts":1772621386726},"timestamp":1772621386726}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":false,"hasUser":false},"timestamp":1772621386749}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772621386832},"timestamp":1772621386832}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"initAuth start","data":{"ts":1772621386833},"timestamp":1772621386833}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"getSession returned","data":{"ts":1772621386851,"elapsed":18,"hasUser":true},"timestamp":1772621386851}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"AuthContext.tsx","message":"authCheckDone set","data":{"ts":1772621386851,"elapsed":18},"timestamp":1772621386851}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":true,"hasUser":true},"timestamp":1772621386854}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772621386866},"timestamp":1772621386866}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"_layout.tsx","message":"RootLayout render start","data":{"ts":1772621513098},"timestamp":1772621513098}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":false,"hasUser":false},"timestamp":1772621513124}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772621513191},"timestamp":1772621513191}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"initAuth start","data":{"ts":1772621513192},"timestamp":1772621513192}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"getSession returned","data":{"ts":1772621513210,"elapsed":18,"hasUser":true},"timestamp":1772621513210}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"AuthContext.tsx","message":"authCheckDone set","data":{"ts":1772621513210,"elapsed":18},"timestamp":1772621513210}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":true,"hasUser":true},"timestamp":1772621513214}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772621513235},"timestamp":1772621513235}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"_layout.tsx","message":"RootLayout render start","data":{"ts":1772621536447},"timestamp":1772621536447}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":false,"hasUser":false},"timestamp":1772621536468}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772621536517},"timestamp":1772621536517}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"initAuth start","data":{"ts":1772621536518},"timestamp":1772621536518}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"AuthContext.tsx","message":"authCheckDone set","data":{"ts":1772621536533,"elapsed":15},"timestamp":1772621536533}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"getSession returned","data":{"ts":1772621536533,"elapsed":15,"hasUser":true},"timestamp":1772621536533}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":true,"hasUser":true},"timestamp":1772621536536}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772621536547},"timestamp":1772621536547}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"_layout.tsx","message":"RootLayout render start","data":{"ts":1772621985938},"timestamp":1772621985938}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":false,"hasUser":false},"timestamp":1772621985963}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772621986021},"timestamp":1772621986021}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"initAuth start","data":{"ts":1772621986022},"timestamp":1772621986022}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"AuthContext.tsx","message":"authCheckDone set","data":{"ts":1772621986044,"elapsed":22},"timestamp":1772621986044}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"getSession returned","data":{"ts":1772621986043,"elapsed":21,"hasUser":true},"timestamp":1772621986043}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":true,"hasUser":true},"timestamp":1772621986046}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772621986059},"timestamp":1772621986059}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"_layout.tsx","message":"RootLayout render start","data":{"ts":1772623187049},"timestamp":1772623187049}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":false,"hasUser":false},"timestamp":1772623187054}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772623187083},"timestamp":1772623187083}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"AuthContext.tsx","message":"authCheckDone set","data":{"ts":1772623187087,"elapsed":4},"timestamp":1772623187087}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"initAuth start","data":{"ts":1772623187083},"timestamp":1772623187083}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"getSession returned","data":{"ts":1772623187087,"elapsed":4,"hasUser":false},"timestamp":1772623187087}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":true,"hasUser":false},"timestamp":1772623187088}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772623367069},"timestamp":1772623367069}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772623383221},"timestamp":1772623383221}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772623395797},"timestamp":1772623395797}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"_layout.tsx","message":"RootLayout render start","data":{"ts":1772623493714},"timestamp":1772623493714}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":false,"hasUser":false},"timestamp":1772623493739}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772623493847},"timestamp":1772623493847}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"initAuth start","data":{"ts":1772623493848},"timestamp":1772623493848}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"getSession returned","data":{"ts":1772623493883,"elapsed":35,"hasUser":true},"timestamp":1772623493883}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"AuthContext.tsx","message":"authCheckDone set","data":{"ts":1772623493883,"elapsed":35},"timestamp":1772623493883}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772623493896},"timestamp":1772623493896}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":true,"hasUser":true},"timestamp":1772623493885}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772623503487},"timestamp":1772623503487}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772623542435},"timestamp":1772623542435}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"_layout.tsx","message":"RootLayout render start","data":{"ts":1772624026144},"timestamp":1772624026144}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":false,"hasUser":false},"timestamp":1772624026165}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772624026215},"timestamp":1772624026215}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"initAuth start","data":{"ts":1772624026216},"timestamp":1772624026216}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"AuthContext.tsx","message":"authCheckDone set","data":{"ts":1772624026232,"elapsed":16},"timestamp":1772624026232}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H2","location":"AuthContext.tsx","message":"getSession returned","data":{"ts":1772624026232,"elapsed":16,"hasUser":true},"timestamp":1772624026232}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H1","location":"index.tsx","message":"Index render","data":{"authCheckDone":true,"hasUser":true},"timestamp":1772624026234}
+{"sessionId":"332a30","runId":"run1","hypothesisId":"H4","location":"LanguageContext.tsx","message":"getStoredLanguage start","data":{"ts":1772624026245},"timestamp":1772624026245}

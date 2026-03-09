@@ -1,6 +1,5 @@
 /**
  * Design tokens – single source of truth (plan sectie 4 / Figma alignment).
- * Values aligned with Next.js src/app/page.tsx (COLORS, GLASS, CALENDAR, JOKER, MODAL).
  * Used across Today, Calendar, modals, onboarding.
  */
 import type { ViewStyle } from "react-native";

@@ -10,6 +10,7 @@ import {
   Platform,
   ActivityIndicator,
   Animated,
+  Keyboard,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
@@ -34,8 +35,8 @@ const REMINDER_TIME_KEY = "dailyq-reminder-time";
 type Step = "intro" | "jokers" | "notifications" | "auth";
 type NotificationTime = "morning" | "afternoon" | "evening" | null;
 
-/** Simple fade-in on mount using React Native Animated (Expo Go compatible). */
-function FadeInView({
+/** Slide + fade in on mount (mirrors Figma motion: x 40 → 0, opacity 0 → 1). */
+function StepTransitionView({
   children,
   style,
 }: {
@@ -43,15 +44,37 @@ function FadeInView({
   style?: object;
 }) {
   const opacity = useRef(new Animated.Value(0)).current;
+  const translateX = useRef(new Animated.Value(40)).current;
   useEffect(() => {
-    Animated.timing(opacity, {
-      toValue: 1,
-      duration: 300,
-      useNativeDriver: true,
-    }).start();
-  }, [opacity]);
+    // Defer start so the initial frame (opacity 0, translateX 40) is painted first
+    const id = requestAnimationFrame(() => {
+      Animated.parallel([
+        Animated.timing(opacity, {
+          toValue: 1,
+          duration: 320,
+          useNativeDriver: true,
+        }),
+        Animated.timing(translateX, {
+          toValue: 0,
+          duration: 320,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    });
+    return () => cancelAnimationFrame(id);
+  }, [opacity, translateX]);
   return (
-    <Animated.View style={[style, { opacity }]}>{children}</Animated.View>
+    <Animated.View
+      style={[
+        style,
+        {
+          opacity,
+          transform: [{ translateX }],
+        },
+      ]}
+    >
+      {children}
+    </Animated.View>
   );
 }
 
@@ -65,13 +88,20 @@ function OnboardingPrimaryButton({
   fullWidth,
   children,
   style,
+  variant = "purple",
 }: {
   onPress: () => void;
   disabled?: boolean;
   fullWidth?: boolean;
   children: React.ReactNode;
   style?: object;
+  variant?: "purple" | "amber";
 }) {
+  const gradientColors =
+    disabled ? ["#9CA3AF", "#9CA3AF"] : variant === "amber"
+      ? ["#FCD34D", "#F59E0B"]
+      : ["#7C3AED", "#6D28D9"];
+  const shadowColor = variant === "amber" ? "rgba(245,158,11,0.35)" : "rgba(124,58,237,0.35)";
   return (
     <Pressable
       onPress={onPress}
@@ -84,10 +114,14 @@ function OnboardingPrimaryButton({
       ]}
     >
       <LinearGradient
-        colors={disabled ? ["#9CA3AF", "#9CA3AF"] : ["#8B5CF6", "#7C3AED"]}
+        colors={gradientColors}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
-        style={[styles.primaryButtonGradient, disabled && styles.primaryButtonDisabled]}
+        style={[
+          styles.primaryButtonGradient,
+          disabled && styles.primaryButtonDisabled,
+          !disabled && { shadowColor },
+        ]}
       >
         {children}
       </LinearGradient>
@@ -105,10 +139,12 @@ export default function OnboardingScreen() {
   const [notificationTime, setNotificationTime] =
     useState<NotificationTime>(null);
   const [isLoginMode, setIsLoginMode] = useState(true);
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [authError, setAuthError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
 
   const goNext = useCallback((next: Step) => {
     setStep(next);
@@ -173,6 +209,18 @@ export default function OnboardingScreen() {
     }
   }, [email, password, isLoginMode, notificationTime, router]);
 
+  // When keyboard opens on auth step, nudge scroll so the login button stays visible (not full scrollToEnd)
+  useEffect(() => {
+    if (step !== "auth") return;
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const sub = Keyboard.addListener(showEvent, () => {
+      setTimeout(() => {
+        scrollRef.current?.scrollTo({ y: 100, animated: true });
+      }, 100);
+    });
+    return () => sub.remove();
+  }, [step]);
+
   // #region agent log
   useEffect(() => {
     fetch("http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809", {
@@ -197,12 +245,15 @@ export default function OnboardingScreen() {
 
   return (
     <SafeAreaView
-      style={styles.safe}
+      style={[styles.safe, { backgroundColor: "#FAFAFA" }]}
       edges={step === "intro" ? ["bottom"] : ["top", "bottom"]}
     >
+      {/* Pastel orbs (Figma-style background) */}
+      <View style={styles.orbAmber} pointerEvents="none" />
+      <View style={styles.orbPurple} pointerEvents="none" />
       <KeyboardAvoidingView
         style={styles.keyboard}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "padding"}
         keyboardVerticalOffset={Platform.OS === "ios" ? 60 : 0}
       >
         <View
@@ -212,40 +263,32 @@ export default function OnboardingScreen() {
             styles.cardNoFrame,
           ]}
         >
-          {step === "intro" && (
-            <View style={styles.introBgOverlay} pointerEvents="none">
-              <LinearGradient
-                colors={[
-                  "rgba(221,214,254,0.22)",
-                  "rgba(196,181,253,0.12)",
-                  "transparent",
-                ]}
-                locations={[0, 0.4, 1]}
-                start={{ x: 0.5, y: 0 }}
-                end={{ x: 0.5, y: 1 }}
-                style={StyleSheet.absoluteFill}
-              />
-            </View>
-          )}
           <ScrollView
+            ref={scrollRef}
             style={[styles.scrollView, styles.scrollViewFullBleed]}
             contentContainerStyle={[
               styles.scrollContent,
               styles.scrollContentFullBleed,
-              step === "intro" && { paddingTop: insets.top },
+              { paddingTop: Math.max(insets.top, 64), paddingHorizontal: 32, paddingBottom: 48 },
+              step === "auth" && {
+                justifyContent: "flex-start",
+                paddingBottom: 400,
+                flexGrow: 1,
+              },
             ]}
             keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
             showsVerticalScrollIndicator={false}
           >
             <View
               style={[
                 styles.column,
                 styles.columnFullBleed,
-                (step === "jokers" || step === "notifications") && styles.columnNarrow,
+                step === "jokers" && styles.columnNarrow,
               ]}
             >
               {step === "intro" && (
-                <FadeInView style={[styles.step, styles.introStepWrap]}>
+                <StepTransitionView style={[styles.step, styles.introStepWrap]}>
                   <View style={[styles.contentWrapper, styles.contentWrapperIntro]}>
                       <View style={[styles.introHeader, styles.introHeaderIntro]}>
                         <View style={styles.logoCircleIntro}>
@@ -268,8 +311,8 @@ export default function OnboardingScreen() {
                           <Feather
                             name="star"
                             size={16}
-                            color={COLORS.ACCENT}
-                            strokeWidth={2}
+                            color="#7C3AED"
+                            strokeWidth={2.5}
                           />
                           <Text style={styles.pastAnswersLabel}>
                             {t("onboarding_intro_past_answers")}
@@ -300,18 +343,18 @@ export default function OnboardingScreen() {
                         </View>
                       </View>
                       <View style={styles.ctaWrapIntro}>
-                        <OnboardingPrimaryButton onPress={() => goNext("jokers")}>
+                        <OnboardingPrimaryButton fullWidth onPress={() => goNext("jokers")}>
                           <Text style={styles.primaryButtonText}>
-                            {t("onboarding_continue")}
+                            {t("onboarding_get_started")}
                           </Text>
                         </OnboardingPrimaryButton>
                       </View>
                     </View>
-                </FadeInView>
+                </StepTransitionView>
               )}
 
               {step === "jokers" && (
-                <FadeInView style={styles.step}>
+                <StepTransitionView style={styles.step}>
                   <View style={styles.contentWrapper}>
                       <View style={styles.jokersHeader}>
                         <LinearGradient
@@ -340,7 +383,7 @@ export default function OnboardingScreen() {
                               name="calendar"
                               size={18}
                               color="#F59E0B"
-                              strokeWidth={2}
+                              strokeWidth={2.5}
                             />
                           </View>
                           <View style={styles.bulletText}>
@@ -358,7 +401,7 @@ export default function OnboardingScreen() {
                               name="trending-up"
                               size={18}
                               color="#3B82F6"
-                              strokeWidth={2}
+                              strokeWidth={2.5}
                             />
                           </View>
                           <View style={styles.bulletText}>
@@ -373,6 +416,7 @@ export default function OnboardingScreen() {
                       </View>
                       <OnboardingPrimaryButton
                         fullWidth
+                        variant="amber"
                         onPress={() => goNext("notifications")}
                       >
                         <Text style={styles.primaryButtonText}>
@@ -380,18 +424,18 @@ export default function OnboardingScreen() {
                         </Text>
                       </OnboardingPrimaryButton>
                     </View>
-                </FadeInView>
+                </StepTransitionView>
               )}
 
               {step === "notifications" && (
-                <FadeInView style={styles.step}>
+                <StepTransitionView style={styles.step}>
                   <View style={styles.contentWrapper}>
                       <View style={styles.notifHeader}>
                         <View style={[styles.logoCircle, styles.notifCircle]}>
                           <Feather
                             name="bell"
                             size={40}
-                            color={COLORS.ACCENT}
+                            color="#3B82F6"
                             strokeWidth={2}
                           />
                         </View>
@@ -402,76 +446,78 @@ export default function OnboardingScreen() {
                           {t("onboarding_notif_subtitle")}
                         </Text>
                       </View>
-                      <View style={styles.optionList}>
-                        {(
-                          [
-                            "morning",
-                            "afternoon",
-                            "evening",
-                          ] as const
-                        ).map((opt) => (
-                          <Pressable
-                            key={opt}
-                            style={({ pressed }) => [
-                              styles.optionCard,
-                              notificationTime === opt && styles.optionCardSelected,
-                              pressed && styles.optionCardPressed,
-                            ]}
-                            onPress={() => setNotificationTime(opt)}
-                          >
-                            <View style={styles.optionCardInner}>
-                              <View>
-                                <Text style={styles.optionLabel}>
-                                  {t(
-                                    opt === "morning"
-                                      ? "onboarding_notif_morning"
-                                      : opt === "afternoon"
-                                        ? "onboarding_notif_afternoon"
-                                        : "onboarding_notif_evening"
+                      <View style={styles.notifActionsWrap}>
+                        <View style={styles.optionList}>
+                          {(
+                            [
+                              "morning",
+                              "afternoon",
+                              "evening",
+                            ] as const
+                          ).map((opt) => (
+                            <Pressable
+                              key={opt}
+                              style={({ pressed }) => [
+                                styles.optionCard,
+                                notificationTime === opt && styles.optionCardSelected,
+                                pressed && styles.optionCardPressed,
+                              ]}
+                              onPress={() => setNotificationTime(opt)}
+                            >
+                              <View style={styles.optionCardInner}>
+                                <View>
+                                  <Text style={styles.optionLabel}>
+                                    {t(
+                                      opt === "morning"
+                                        ? "onboarding_notif_morning"
+                                        : opt === "afternoon"
+                                          ? "onboarding_notif_afternoon"
+                                          : "onboarding_notif_evening"
+                                    )}
+                                  </Text>
+                                  <Text style={styles.optionTime}>
+                                    {t(
+                                      opt === "morning"
+                                        ? "onboarding_notif_morning_time"
+                                        : opt === "afternoon"
+                                          ? "onboarding_notif_afternoon_time"
+                                          : "onboarding_notif_evening_time"
+                                    )}
+                                  </Text>
+                                </View>
+                                <View
+                                  style={[
+                                    styles.radioOuter,
+                                    notificationTime === opt && styles.radioOuterSelected,
+                                  ]}
+                                >
+                                  {notificationTime === opt && (
+                                    <View style={styles.radioInner} />
                                   )}
-                                </Text>
-                                <Text style={styles.optionTime}>
-                                  {t(
-                                    opt === "morning"
-                                      ? "onboarding_notif_morning_time"
-                                      : opt === "afternoon"
-                                        ? "onboarding_notif_afternoon_time"
-                                        : "onboarding_notif_evening_time"
-                                  )}
-                                </Text>
+                                </View>
                               </View>
-                              <View
-                                style={[
-                                  styles.radioOuter,
-                                  notificationTime === opt && styles.radioOuterSelected,
-                                ]}
-                              >
-                                {notificationTime === opt && (
-                                  <View style={styles.radioInner} />
-                                )}
-                              </View>
-                            </View>
-                          </Pressable>
-                        ))}
+                            </Pressable>
+                          ))}
+                        </View>
+                        <OnboardingPrimaryButton
+                          fullWidth
+                          onPress={handleNotificationsContinue}
+                          disabled={!notificationTime}
+                        >
+                          <Text style={styles.primaryButtonText}>
+                            {t("onboarding_continue")}
+                          </Text>
+                        </OnboardingPrimaryButton>
                       </View>
-                      <OnboardingPrimaryButton
-                        fullWidth
-                        onPress={handleNotificationsContinue}
-                        disabled={!notificationTime}
-                      >
-                        <Text style={styles.primaryButtonText}>
-                          {t("onboarding_continue")}
-                        </Text>
-                      </OnboardingPrimaryButton>
                     </View>
-                </FadeInView>
+                </StepTransitionView>
               )}
 
               {step === "auth" && (
-                <FadeInView style={styles.step}>
+                <StepTransitionView style={styles.step}>
                   <View style={styles.contentWrapper}>
                       <View style={styles.authHeader}>
-                        <View style={styles.logoCircle}>
+                        <View style={[styles.logoCircle, styles.authLogoCircle]}>
                           <Feather
                             name="mail"
                             size={40}
@@ -486,6 +532,19 @@ export default function OnboardingScreen() {
                         </Text>
                       </View>
                       <View style={styles.form}>
+                        {!isLoginMode && (
+                          <TextInput
+                            style={styles.input}
+                            placeholder={t("onboarding_name")}
+                            placeholderTextColor={COLORS.TEXT_MUTED}
+                            value={name}
+                            onChangeText={setName}
+                            editable={!submitting}
+                            autoCapitalize="words"
+                            autoCorrect={false}
+                            autoComplete="name"
+                          />
+                        )}
                         <TextInput
                           style={styles.input}
                           placeholder={t("onboarding_email")}
@@ -544,12 +603,15 @@ export default function OnboardingScreen() {
                       >
                         <Text style={styles.toggleAuthText}>
                           {isLoginMode
-                            ? t("onboarding_toggle_sign_up")
-                            : t("onboarding_toggle_sign_in")}
+                            ? t("onboarding_toggle_prefix_sign_up")
+                            : t("onboarding_toggle_prefix_sign_in")}
+                          <Text style={styles.toggleAuthLink}>
+                            {isLoginMode ? t("onboarding_sign_up") : t("onboarding_sign_in")}
+                          </Text>
                         </Text>
                       </Pressable>
                     </View>
-                </FadeInView>
+                </StepTransitionView>
               )}
             </View>
           </ScrollView>
@@ -562,10 +624,29 @@ export default function OnboardingScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: "transparent",
   },
   keyboard: {
     flex: 1,
+  },
+  orbAmber: {
+    position: "absolute",
+    top: 64,
+    left: -96,
+    width: 384,
+    height: 384,
+    borderRadius: 999,
+    backgroundColor: "rgba(254,243,199,0.22)",
+    zIndex: 0,
+  },
+  orbPurple: {
+    position: "absolute",
+    bottom: -128,
+    right: -128,
+    width: 500,
+    height: 500,
+    borderRadius: 999,
+    backgroundColor: "rgba(221,214,254,0.22)",
+    zIndex: 0,
   },
   card: {
     flex: 1,
@@ -623,7 +704,7 @@ const styles = StyleSheet.create({
   },
   columnFullBleed: {
     maxWidth: "100%",
-    paddingHorizontal: 28,
+    paddingHorizontal: 0,
     backgroundColor: "transparent",
   },
   columnNarrow: {
@@ -687,7 +768,14 @@ const styles = StyleSheet.create({
     borderColor: "rgba(251,191,36,0.4)",
   },
   notifCircle: {
-    backgroundColor: "rgba(139,92,246,0.15)",
+    backgroundColor: "rgba(191,219,254,0.6)",
+  },
+  authLogoCircle: {
+    shadowColor: "rgba(236,72,153,0.2)",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 4,
   },
   introTitle: {
     fontSize: 28,
@@ -724,14 +812,15 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   pastAnswersCardIntro: {
-    backgroundColor: "rgba(255,255,255,0.98)",
+    backgroundColor: "rgba(255,255,255,0.7)",
     borderWidth: 1,
-    borderColor: "rgba(139,92,246,0.12)",
-    shadowColor: "#8B5CF6",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    elevation: 2,
+    borderColor: "rgba(255,255,255,1)",
+    borderRadius: 32,
+    shadowColor: "rgba(124,58,237,0.15)",
+    shadowOffset: { width: 0, height: 20 },
+    shadowOpacity: 1,
+    shadowRadius: 25,
+    elevation: 4,
     paddingVertical: 20,
     paddingHorizontal: 20,
     marginBottom: 24,
@@ -928,6 +1017,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 32,
   },
+  notifActionsWrap: {
+    alignSelf: "center",
+    width: "100%",
+    maxWidth: 300,
+  },
   notifTitle: {
     fontSize: 24,
     fontWeight: "600",
@@ -942,7 +1036,7 @@ const styles = StyleSheet.create({
   },
   optionCard: {
     width: "100%",
-    borderRadius: 16,
+    borderRadius: 24,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.8)",
     backgroundColor: "rgba(255,255,255,0.6)",
@@ -951,12 +1045,13 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   optionCardSelected: {
-    backgroundColor: "rgba(139,92,246,0.1)",
-    borderColor: COLORS.ACCENT,
-    shadowColor: COLORS.ACCENT,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
+    backgroundColor: "rgba(255,255,255,1)",
+    borderColor: "rgba(124,58,237,0.2)",
+    borderWidth: 1,
+    shadowColor: "rgba(124,58,237,0.1)",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 1,
+    shadowRadius: 30,
     elevation: 2,
   },
   optionCardPressed: {
@@ -988,13 +1083,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   radioOuterSelected: {
-    borderColor: COLORS.ACCENT,
+    borderColor: "#7C3AED",
   },
   radioInner: {
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: COLORS.ACCENT,
+    backgroundColor: "#7C3AED",
   },
   authHeader: {
     alignItems: "center",
@@ -1038,5 +1133,10 @@ const styles = StyleSheet.create({
   toggleAuthText: {
     fontSize: 14,
     color: COLORS.TEXT_SECONDARY,
+  },
+  toggleAuthLink: {
+    color: "#7C3AED",
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(124,58,237,0.3)",
   },
 });

@@ -31,6 +31,7 @@ import { JokerModal } from "@/src/components/JokerModal";
 import { JokerBadge } from "@/src/components/JokerBadge";
 import { PrimaryButton } from "@/src/components/PrimaryButton";
 import { GlassCardContainer } from "@/src/components/GlassCardContainer";
+import { AnsweringExperience } from "@/src/components/AnsweringExperience";
 
 const MAX_ANSWER_LENGTH = 280;
 
@@ -50,7 +51,7 @@ export default function TodayScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const [isAnswering, setIsAnswering] = useState(false);
+  const [answerModalOpen, setAnswerModalOpen] = useState(false);
   const [showSubmitSuccess, setShowSubmitSuccess] = useState(false);
   const [jokerModalVisible, setJokerModalVisible] = useState(false);
   const [editConfirmVisible, setEditConfirmVisible] = useState(false);
@@ -61,67 +62,40 @@ export default function TodayScreen() {
   const buttonOpacity = useRef(new Animated.Value(1)).current;
   const buttonScale = useRef(new Animated.Value(1)).current;
 
-  // Force reset translateY on mount so it can't be stuck after modal/recap.
+  // Entrance animation when question is ready: slide up + fade button in
   useEffect(() => {
-    questionBlockOffset.setValue(0);
-  }, [questionBlockOffset]);
-
-  useEffect(() => {
-    if (isAnswering) {
-      Animated.timing(questionBlockOffset, {
-        toValue: -200,
-        duration: 200,
-        useNativeDriver: true,
-      }).start();
-    } else {
-      Animated.timing(questionBlockOffset, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }).start(({ finished }) => {
-        questionBlockOffset.setValue(0);
-      });
+    if (!question) {
+      questionBlockOffset.setValue(24);
+      buttonOpacity.setValue(0);
+      buttonScale.setValue(0.96);
+      return;
     }
-  }, [isAnswering, questionBlockOffset]);
-
-  useEffect(() => {
-    if (isAnswering) {
+    // Set initial "from" values then animate so the motion is visible every time
+    questionBlockOffset.setValue(24);
+    buttonOpacity.setValue(0);
+    buttonScale.setValue(0.96);
+    const id = requestAnimationFrame(() => {
       Animated.parallel([
-        Animated.timing(buttonOpacity, {
+        Animated.timing(questionBlockOffset, {
           toValue: 0,
-          duration: 150,
+          duration: 280,
           useNativeDriver: true,
         }),
-        Animated.timing(buttonScale, {
-          toValue: 0.85,
-          duration: 150,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    } else {
-      Animated.parallel([
         Animated.timing(buttonOpacity, {
           toValue: 1,
-          duration: 250,
-          delay: 150,
+          duration: 280,
           useNativeDriver: true,
         }),
-        Animated.timing(buttonScale, {
+        Animated.spring(buttonScale, {
           toValue: 1,
-          duration: 250,
-          delay: 150,
           useNativeDriver: true,
+          friction: 10,
+          tension: 80,
         }),
       ]).start();
-    }
-  }, [isAnswering, buttonOpacity, buttonScale]);
-
-  useEffect(() => {
-    if (isAnswering) {
-      const t = setTimeout(() => inputRef.current?.focus(), 100);
-      return () => clearTimeout(t);
-    }
-  }, [isAnswering]);
+    });
+    return () => cancelAnimationFrame(id);
+  }, [question, questionBlockOffset, buttonOpacity, buttonScale]);
 
   useEffect(() => {
     const show = Keyboard.addListener(
@@ -195,88 +169,115 @@ export default function TodayScreen() {
     };
   }, [userId, question?.day]);
 
-  const handleSubmit = useCallback(async () => {
-    if (!userId || !question || userId === "dev-user") return;
-    const text = answerText.trim();
-    if (!text) return;
+  const submitAnswer = useCallback(
+    async (text: string) => {
+      const trimmed = text.trim();
+      if (!userId || !question || userId === "dev-user" || !trimmed) return;
 
-    setSubmitError(null);
-    setSubmitting(true);
-    try {
-      // Streak before submit (for milestone "crossed" check)
-      let previousStreak = 0;
+      setSubmitError(null);
+      setSubmitting(true);
       try {
-        const { data: streaksBefore } = await supabase.rpc("get_user_streaks", { p_user_id: userId });
-        const rowBefore = Array.isArray(streaksBefore) && streaksBefore.length > 0 ? streaksBefore[0] : null;
-        const vBefore = rowBefore?.visual_streak ?? 0;
-        const rBefore = rowBefore?.real_streak ?? 0;
-        previousStreak = Math.max(Number(vBefore), Number(rBefore));
-      } catch {
-        // ignore
+        let previousStreak = 0;
+        try {
+          const { data: streaksBefore } = await supabase.rpc("get_user_streaks", {
+            p_user_id: userId,
+          });
+          const rowBefore =
+            Array.isArray(streaksBefore) && streaksBefore.length > 0
+              ? streaksBefore[0]
+              : null;
+          const vBefore = rowBefore?.visual_streak ?? 0;
+          const rBefore = rowBefore?.real_streak ?? 0;
+          previousStreak = Math.max(Number(vBefore), Number(rBefore));
+        } catch {
+          // ignore
+        }
+
+        const dayKey = question.day;
+        const { error } = await supabase
+          .from("answers")
+          .upsert(
+            {
+              user_id: userId,
+              question_date: dayKey,
+              answer_text: trimmed,
+            },
+            { onConflict: "user_id,question_date" }
+          );
+        if (error) throw error;
+
+        setAnswerForDay(dayKey, {
+          questionText: question.text,
+          answerText: trimmed,
+        });
+
+        const wasUpdate =
+          existingAnswer != null && existingAnswer.length > 0;
+        setExistingAnswer(trimmed);
+        setAnswerText(trimmed);
+
+        setShowSubmitSuccess(true);
+        setTimeout(() => setShowSubmitSuccess(false), 1200);
+
+        if (wasUpdate) {
+          setEditConfirmVisible(true);
+          setTimeout(() => setEditConfirmVisible(false), 2500);
+        }
+
+        const { data: streaks } = await supabase.rpc("get_user_streaks", {
+          p_user_id: userId,
+        });
+        const row =
+          Array.isArray(streaks) && streaks.length > 0 ? streaks[0] : null;
+        const visual = row?.visual_streak ?? 0;
+        const real = row?.real_streak ?? 0;
+        const newStreak = Math.max(Number(visual), Number(real));
+        const crossed = getMilestonesCrossed(previousStreak, newStreak);
+        for (const m of crossed) {
+          await supabase.rpc("grant_milestone_jokers", {
+            p_user_id: userId,
+            p_milestone: m,
+          });
+        }
+        if (crossed.length > 0) {
+          const highest = getHighestMilestoneCrossed(
+            previousStreak,
+            newStreak
+          );
+          if (highest) showMilestone(highest);
+        }
+        await refetchProfile();
+        setAnswerModalOpen(false);
+      } catch (e: unknown) {
+        const err = e as {
+          message?: string;
+          code?: string;
+          details?: string;
+        };
+        console.error("[Today submit] Supabase error:", {
+          message: err?.message,
+          code: err?.code,
+          details: err?.details,
+          full: e,
+        });
+        setSubmitError(t("today_submit_error"));
+      } finally {
+        setSubmitting(false);
       }
-
-      // answers_user_date_unique (user_id, question_date). Kolomnaam in DB: question_date.
-      const dayKey = question.day;
-      const upsertPayload = {
-        user_id: userId,
-        question_date: dayKey,
-        answer_text: text,
-      };
-      const { error } = await supabase
-        .from("answers")
-        .upsert(upsertPayload, { onConflict: "user_id,question_date" });
-      if (error) throw error;
-
-      setAnswerForDay(dayKey, { questionText: question.text, answerText: text });
-
-      const wasUpdate = existingAnswer != null && existingAnswer.length > 0;
-      setExistingAnswer(text);
-      setIsAnswering(false);
-
-      // Submit-success overlay (short visual feedback)
-      setShowSubmitSuccess(true);
-      setTimeout(() => setShowSubmitSuccess(false), 1200);
-
-      // Edit confirm: show after changing an existing answer
-      if (wasUpdate) {
-        setEditConfirmVisible(true);
-        setTimeout(() => setEditConfirmVisible(false), 2500);
-      }
-
-      // Streak milestone: check if we crossed any (previousStreak < m <= newStreak), grant jokers, show modal
-      const { data: streaks } = await supabase.rpc("get_user_streaks", { p_user_id: userId });
-      const row = Array.isArray(streaks) && streaks.length > 0 ? streaks[0] : null;
-      const visual = row?.visual_streak ?? 0;
-      const real = row?.real_streak ?? 0;
-      const newStreak = Math.max(Number(visual), Number(real));
-      const crossed = getMilestonesCrossed(previousStreak, newStreak);
-      for (const m of crossed) {
-        await supabase.rpc("grant_milestone_jokers", { p_user_id: userId, p_milestone: m });
-      }
-      if (crossed.length > 0) {
-        const highest = getHighestMilestoneCrossed(previousStreak, newStreak);
-        if (highest) showMilestone(highest);
-      }
-      // Always refetch profile so joker_balance and any profile-driven UI stay in sync.
-      await refetchProfile();
-    } catch (e: unknown) {
-      const err = e as { message?: string; code?: string; details?: string };
-      console.error("[Today submit] Supabase error:", {
-        message: err?.message,
-        code: err?.code,
-        details: err?.details,
-        full: e,
-      });
-      setSubmitError(t("today_submit_error"));
-    } finally {
-      setSubmitting(false);
-    }
-  }, [userId, question, answerText, existingAnswer, effectiveUser?.created_at, t, setAnswerForDay, refetchProfile, showMilestone]);
+    },
+    [
+      userId,
+      question,
+      existingAnswer,
+      t,
+      setAnswerForDay,
+      refetchProfile,
+      showMilestone,
+    ]
+  );
 
   const dayLabel = question ? `#${String(getDayOfYear(question.day)).padStart(3, "0")}` : "";
   const hasAnswer = existingAnswer != null && existingAnswer.length > 0;
-  const isUnchanged = hasAnswer && answerText.trim() === existingAnswer;
-  const canSubmit = answerText.trim().length > 0 && (!hasAnswer || !isUnchanged);
 
   if (questionLoading) {
     return (
@@ -300,16 +301,7 @@ export default function TodayScreen() {
 
   return (
     <GlassCardContainer>
-      <TouchableWithoutFeedback
-        onPress={() => {
-          Keyboard.dismiss();
-          if (isAnswering) {
-            setIsAnswering(false);
-            setAnswerText("");
-          }
-        }}
-        accessible={false}
-      >
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
         <View style={[styles.container, { paddingTop: insets.top }]}>
           <View style={styles.header}>
             <View style={styles.headerSpacer} />
@@ -326,7 +318,7 @@ export default function TodayScreen() {
             <Animated.View
               style={[styles.centerBlock, { transform: [{ translateY: questionBlockOffset }] }]}
             >
-              {hasAnswer && !isAnswering ? (
+              {hasAnswer ? (
                 <View style={styles.answeredWrap}>
                   <View style={styles.answeredCardOuter}>
                     <View style={styles.answeredCardInnerWrap}>
@@ -393,88 +385,47 @@ export default function TodayScreen() {
                   </View>
                 </View>
               )}
-              {!isAnswering && (
-                <Animated.View
+              <Animated.View
                 style={[
                   styles.buttonArea,
                   { opacity: buttonOpacity, transform: [{ scale: buttonScale }] },
                 ]}
               >
-                  {hasAnswer ? (
-                    <PrimaryButton
-                      onPress={() => {
-                        setIsAnswering(true);
-                        setAnswerText(existingAnswer ?? "");
-                        requestAnimationFrame(() => {
-                          setTimeout(() => inputRef.current?.focus(), 50);
-                        });
-                      }}
-                    >
-                      {t("today_edit_answer")}
-                    </PrimaryButton>
-                  ) : (
-                    <PrimaryButton
-                      fullWidth
-                      onPress={() => {
-                        setIsAnswering(true);
-                        setAnswerText("");
-                        requestAnimationFrame(() => {
-                          setTimeout(() => inputRef.current?.focus(), 50);
-                        });
-                      }}
-                    >
-                      {t("today_answer_question")}
-                    </PrimaryButton>
-                  )}
-                </Animated.View>
-              )}
+                {hasAnswer ? (
+                  <PrimaryButton
+                    onPress={() => setAnswerModalOpen(true)}
+                  >
+                    {t("today_edit_answer")}
+                  </PrimaryButton>
+                ) : (
+                  <PrimaryButton
+                    fullWidth
+                    onPress={() => setAnswerModalOpen(true)}
+                  >
+                    {t("today_answer_question")}
+                  </PrimaryButton>
+                )}
+              </Animated.View>
             </Animated.View>
           </View>
 
-          {!isAnswering && <View style={styles.tabBarSpacer} />}
+          <View style={styles.tabBarSpacer} />
 
-          {isAnswering === true && (
-            <View
-              style={{
-                position: "absolute",
-                left: 0,
-                right: 0,
-                bottom: keyboardHeight === 0 ? 83 : keyboardHeight - 20,
-              }}
-            >
-              <View style={styles.bottomBarKAV}>
-                <View style={styles.bottomBarRow}>
-                  <TextInput
-                    ref={inputRef}
-                    autoFocus={true}
-                    style={styles.barInput}
-                    placeholder={t("today_placeholder")}
-                    placeholderTextColor={COLORS.TEXT_MUTED}
-                    value={answerText}
-                    onChangeText={(text) => {
-                      if (text.length <= MAX_ANSWER_LENGTH) setAnswerText(text);
-                    }}
-                    maxLength={MAX_ANSWER_LENGTH}
-                    multiline={true}
-                    editable={!submitting}
-                    autoCapitalize="sentences"
-                  />
-                  <PrimaryButton
-                    onPress={handleSubmit}
-                    disabled={!canSubmit}
-                    loading={submitting}
-                    style={styles.barSubmitButton}
-                    textStyle={styles.barSubmitButtonText}
-                  >
-                    {hasAnswer ? t("today_update") : t("today_submit")}
-                  </PrimaryButton>
-                </View>
-                {submitError && (
-                  <Text style={styles.submitError}>{submitError}</Text>
-                )}
-              </View>
-            </View>
-          )}
+          <AnsweringExperience
+            isOpen={answerModalOpen}
+            onClose={() => {
+              setAnswerModalOpen(false);
+              setSubmitError(null);
+            }}
+            onComplete={(answer) => submitAnswer(answer)}
+            question={question.text}
+            initialAnswer={existingAnswer ?? ""}
+            dayKey={question.day}
+            contextLabel={t("today_question_label")}
+            placeholder={t("today_placeholder")}
+            submitError={submitError}
+            submitting={submitting}
+          />
 
           <JokerModal
             visible={jokerModalVisible}

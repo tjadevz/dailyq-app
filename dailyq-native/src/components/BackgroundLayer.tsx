@@ -1,10 +1,12 @@
 /**
  * iOS 26-style bokeh glass bubbles (Figma); radial approximated with LinearGradient.
  * Base: #FAF9FF. No blur in Expo Go; LinearGradient only.
+ * Top layer: very subtle purple blur (same style as modal backdrops, much lighter).
  */
 import React from "react";
 import { StyleSheet, View, useWindowDimensions } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { BlurView } from "expo-blur";
 
 const BASE_BG = "#FAF9FF";
 
@@ -34,8 +36,8 @@ export function BackgroundLayer() {
             borderRadius: 160,
             shadowColor: "#7C3AED",
             shadowOffset: { width: 0, height: 8 },
-            shadowOpacity: 0.12,
-            shadowRadius: 32,
+            shadowOpacity: 0.06,
+            shadowRadius: 56,
             elevation: 4,
           },
         ]}
@@ -43,9 +45,9 @@ export function BackgroundLayer() {
       >
         <LinearGradient
           colors={[
-            "rgba(221,214,254,0.29)",
-            "rgba(196,181,253,0.21)",
-            "rgba(167,139,250,0.12)",
+            "rgba(221,214,254,0.14)",
+            "rgba(196,181,253,0.10)",
+            "rgba(167,139,250,0.06)",
             "transparent",
           ]}
           start={RADIAL_START}
@@ -67,8 +69,8 @@ export function BackgroundLayer() {
             borderRadius: 120,
             shadowColor: "#F59E0B",
             shadowOffset: { width: 0, height: 6 },
-            shadowOpacity: 0.1,
-            shadowRadius: 28,
+            shadowOpacity: 0.05,
+            shadowRadius: 48,
             elevation: 3,
           },
         ]}
@@ -76,9 +78,9 @@ export function BackgroundLayer() {
       >
         <LinearGradient
           colors={[
-            "rgba(253,230,138,0.26)",
-            "rgba(252,211,77,0.19)",
-            "rgba(251,191,36,0.11)",
+            "rgba(253,230,138,0.13)",
+            "rgba(252,211,77,0.09)",
+            "rgba(251,191,36,0.05)",
             "transparent",
           ]}
           start={RADIAL_START}
@@ -100,8 +102,8 @@ export function BackgroundLayer() {
             borderRadius: 192,
             shadowColor: "#3B82F6",
             shadowOffset: { width: 0, height: 8 },
-            shadowOpacity: 0.08,
-            shadowRadius: 36,
+            shadowOpacity: 0.04,
+            shadowRadius: 56,
             elevation: 4,
           },
         ]}
@@ -109,9 +111,9 @@ export function BackgroundLayer() {
       >
         <LinearGradient
           colors={[
-            "rgba(199,210,254,0.26)",
-            "rgba(147,197,253,0.19)",
-            "rgba(96,165,250,0.11)",
+            "rgba(199,210,254,0.13)",
+            "rgba(147,197,253,0.09)",
+            "rgba(96,165,250,0.05)",
             "transparent",
           ]}
           start={RADIAL_START}
@@ -133,8 +135,8 @@ export function BackgroundLayer() {
             borderRadius: 144,
             shadowColor: "#7C3AED",
             shadowOffset: { width: 0, height: 6 },
-            shadowOpacity: 0.1,
-            shadowRadius: 30,
+            shadowOpacity: 0.05,
+            shadowRadius: 52,
             elevation: 3,
           },
         ]}
@@ -142,9 +144,9 @@ export function BackgroundLayer() {
       >
         <LinearGradient
           colors={[
-            "rgba(233,213,255,0.25)",
-            "rgba(216,180,254,0.18)",
-            "rgba(167,139,250,0.1)",
+            "rgba(233,213,255,0.12)",
+            "rgba(216,180,254,0.09)",
+            "rgba(167,139,250,0.05)",
             "transparent",
           ]}
           start={RADIAL_START}
@@ -166,8 +168,8 @@ export function BackgroundLayer() {
             borderRadius: 128,
             shadowColor: "#6D28D9",
             shadowOffset: { width: 0, height: 6 },
-            shadowOpacity: 0.1,
-            shadowRadius: 28,
+            shadowOpacity: 0.05,
+            shadowRadius: 48,
             elevation: 3,
           },
         ]}
@@ -175,9 +177,9 @@ export function BackgroundLayer() {
       >
         <LinearGradient
           colors={[
-            "rgba(196,181,253,0.26)",
-            "rgba(167,139,250,0.19)",
-            "rgba(124,58,237,0.11)",
+            "rgba(196,181,253,0.13)",
+            "rgba(167,139,250,0.09)",
+            "rgba(124,58,237,0.05)",
             "transparent",
           ]}
           start={RADIAL_START}
@@ -199,8 +201,8 @@ export function BackgroundLayer() {
             borderRadius: 104,
             shadowColor: "#3B82F6",
             shadowOffset: { width: 0, height: 5 },
-            shadowOpacity: 0.09,
-            shadowRadius: 26,
+            shadowOpacity: 0.04,
+            shadowRadius: 44,
             elevation: 2,
           },
         ]}
@@ -208,9 +210,9 @@ export function BackgroundLayer() {
       >
         <LinearGradient
           colors={[
-            "rgba(191,219,254,0.26)",
-            "rgba(147,197,253,0.19)",
-            "rgba(59,130,246,0.1)",
+            "rgba(191,219,254,0.13)",
+            "rgba(147,197,253,0.09)",
+            "rgba(59,130,246,0.05)",
             "transparent",
           ]}
           start={RADIAL_START}
@@ -229,7 +231,7 @@ export function BackgroundLayer() {
         pointerEvents="none"
       >
         <LinearGradient
-          colors={["rgba(224,231,255,0.075)", "transparent"]}
+          colors={["rgba(224,231,255,0.04)", "transparent"]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={StyleSheet.absoluteFill}
@@ -245,7 +247,7 @@ export function BackgroundLayer() {
         pointerEvents="none"
       >
         <LinearGradient
-          colors={["rgba(243,232,255,0.06)", "transparent"]}
+          colors={["rgba(243,232,255,0.03)", "transparent"]}
           start={{ x: 0, y: 1 }}
           end={{ x: 1, y: 0 }}
           style={StyleSheet.absoluteFill}
@@ -267,10 +269,19 @@ export function BackgroundLayer() {
         pointerEvents="none"
       >
         <LinearGradient
-          colors={["rgba(250,232,255,0.05)", "transparent"]}
+          colors={["rgba(250,232,255,0.025)", "transparent"]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={StyleSheet.absoluteFill}
+        />
+      </View>
+
+      {/* Subtle purple blur overlay (same style as modals, very light) */}
+      <View style={StyleSheet.absoluteFill} pointerEvents="none">
+        <BlurView intensity={8} tint="dark" style={StyleSheet.absoluteFill} />
+        <View
+          style={[StyleSheet.absoluteFill, styles.purpleOverlay]}
+          pointerEvents="none"
         />
       </View>
     </View>
@@ -289,5 +300,8 @@ const styles = StyleSheet.create({
   glow: {
     position: "absolute",
     overflow: "hidden",
+  },
+  purpleOverlay: {
+    backgroundColor: "rgba(76, 29, 149, 0.04)",
   },
 });

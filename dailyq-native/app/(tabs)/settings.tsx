@@ -27,8 +27,11 @@ import {
   type ReminderTime,
 } from "@/src/lib/pushSubscription";
 import { getExpoPushTokenAsync } from "@/src/native/notifications";
+import { useStreakMilestone, STREAK_MILESTONES } from "@/src/context/StreakMilestoneContext";
 
 const REMINDER_TIME_KEY = "dailyq-reminder-time";
+
+const showDebugModals = __DEV__ && process.env.EXPO_PUBLIC_DEBUG_MODALS === "true";
 
 // ----- LanguageModal -----
 function LanguageModal({
@@ -247,6 +250,7 @@ export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const { t, lang, setLang } = useLanguage();
   const { effectiveUser, signOut, deleteUser } = useAuth();
+  const { showMilestone } = useStreakMilestone();
   const router = useRouter();
 
   const [languageModalVisible, setLanguageModalVisible] = useState(false);
@@ -395,6 +399,31 @@ export default function SettingsScreen() {
               </View>
             </View>
           </View>
+
+          {/* Debug modals (only when npm start with EXPO_PUBLIC_DEBUG_MODALS=true) */}
+          {showDebugModals && (
+            <>
+              <Text style={[styles.title, { marginTop: 8, marginBottom: 12 }]}>Debug modals</Text>
+              {STREAK_MILESTONES.map((milestone) => (
+                <Pressable
+                  key={milestone}
+                  style={styles.card}
+                  onPress={() => showMilestone(milestone)}
+                >
+                  <View style={styles.cardIconWrap}>
+                    <View style={[styles.cardIcon, styles.cardIconPurple]}>
+                      <Feather name="award" size={16} strokeWidth={2} color={COLORS.ACCENT} />
+                    </View>
+                    <View style={styles.cardTextWrap}>
+                      <Text style={styles.cardTitle}>Streak {milestone}</Text>
+                      <Text style={styles.cardSubtitle}>Show celebration modal</Text>
+                    </View>
+                    <Feather name="chevron-right" size={20} color={COLORS.TEXT_MUTED} />
+                  </View>
+                </Pressable>
+              ))}
+            </>
+          )}
         </ScrollView>
 
       <ReminderModal

@@ -7,7 +7,6 @@ import {
   TouchableWithoutFeedback,
   StyleSheet,
   Animated,
-  Easing,
   Dimensions,
   Platform,
   ActivityIndicator,
@@ -27,17 +26,14 @@ interface JokerOfferModalProps {
   dayKey: string | null;
   jokerCount: number;
   onClose: () => void;
-  onUseJoker: () => void;
+  onUseJoker: (dayKey: string, questionText: string) => void;
 }
 
-function parseDayKey(dayKey: string | null): { dayNum: number; monthStr: string } | null {
+function parseDayKey(dayKey: string | null): Date | null {
   if (!dayKey) return null;
   const date = new Date(dayKey + "T12:00:00");
   if (isNaN(date.getTime())) return null;
-  return {
-    dayNum: date.getDate(),
-    monthStr: date.toLocaleString("en-US", { month: "long" }).toUpperCase(),
-  };
+  return date;
 }
 
 export default function JokerOfferModal({
@@ -47,17 +43,18 @@ export default function JokerOfferModal({
   onClose,
   onUseJoker,
 }: JokerOfferModalProps) {
-  const { t, lang } = useLanguage();
+  const { t, lang, formatDate } = useLanguage();
   const [questionText, setQuestionText] = useState("");
   const [questionLoading, setQuestionLoading] = useState(false);
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const cardScale = useRef(new Animated.Value(0.9)).current;
   const cardOpacity = useRef(new Animated.Value(0)).current;
   const cardY = useRef(new Animated.Value(20)).current;
-  const glowScale = useRef(new Animated.Value(1)).current;
-  const glowOpacity = useRef(new Animated.Value(0.3)).current;
-
-  const parsed = useMemo(() => parseDayKey(dayKey), [dayKey]);
+  const dateObj = useMemo(() => parseDayKey(dayKey), [dayKey]);
+  const dateLabel =
+    dateObj != null
+      ? formatDate(dateObj, { day: "numeric", month: "long" })
+      : "";
 
   useEffect(() => {
     if (!visible || !dayKey) {
@@ -98,7 +95,7 @@ export default function JokerOfferModal({
       Animated.parallel([
         Animated.timing(backdropOpacity, {
           toValue: 1,
-          duration: 200,
+          duration: 300,
           useNativeDriver: true,
         }),
         Animated.spring(cardScale, {
@@ -119,50 +116,15 @@ export default function JokerOfferModal({
           friction: 14,
         }),
       ]).start();
-
-      Animated.loop(
-        Animated.sequence([
-          Animated.parallel([
-            Animated.timing(glowScale, {
-              toValue: 1.12,
-              duration: 1250,
-              easing: Easing.inOut(Easing.ease),
-              useNativeDriver: true,
-            }),
-            Animated.timing(glowOpacity, {
-              toValue: 0.6,
-              duration: 1250,
-              easing: Easing.inOut(Easing.ease),
-              useNativeDriver: true,
-            }),
-          ]),
-          Animated.parallel([
-            Animated.timing(glowScale, {
-              toValue: 1,
-              duration: 1250,
-              easing: Easing.inOut(Easing.ease),
-              useNativeDriver: true,
-            }),
-            Animated.timing(glowOpacity, {
-              toValue: 0.3,
-              duration: 1250,
-              easing: Easing.inOut(Easing.ease),
-              useNativeDriver: true,
-            }),
-          ]),
-        ])
-      ).start();
     } else {
       backdropOpacity.setValue(0);
       cardScale.setValue(0.9);
       cardOpacity.setValue(0);
       cardY.setValue(20);
     }
-  }, [visible, backdropOpacity, cardScale, cardOpacity, cardY, glowScale, glowOpacity]);
+  }, [visible, backdropOpacity, cardScale, cardOpacity, cardY]);
 
-  if (!visible || !dayKey || parsed == null) return null;
-
-  const { dayNum, monthStr } = parsed;
+  if (!visible || !dayKey || dateObj == null) return null;
 
   return (
     <Modal
@@ -176,97 +138,89 @@ export default function JokerOfferModal({
         <Animated.View
           style={[StyleSheet.absoluteFillObject, { opacity: backdropOpacity }]}
         >
-          <BlurView
-            intensity={18}
-            tint="dark"
+          <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFillObject} />
+          <View
             style={[
               StyleSheet.absoluteFillObject,
-              { backgroundColor: "rgba(0,0,0,0.4)" },
+              { backgroundColor: "rgba(76, 29, 149, 0.25)" },
             ]}
+            pointerEvents="none"
           />
         </Animated.View>
       </TouchableWithoutFeedback>
 
       <View style={styles.centeredView} pointerEvents="box-none">
-        <Animated.View
-          style={[
-            styles.cardWrapper,
-            {
-              opacity: cardOpacity,
-              transform: [{ scale: cardScale }, { translateY: cardY }],
-            },
-          ]}
-        >
-          <View style={styles.glowBorder} />
-          <View style={styles.card}>
-            <TouchableOpacity
-              onPress={onClose}
-              style={styles.closeBtn}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Feather name="x" size={18} color="#6B7280" strokeWidth={2.5} />
-            </TouchableOpacity>
+        <View>
+          <Animated.View
+            style={[
+              styles.cardWrapper,
+              {
+                opacity: cardOpacity,
+                transform: [{ scale: cardScale }, { translateY: cardY }],
+              },
+            ]}
+          >
+            <View style={styles.card}>
+              {/* Header: amber "Missed Day" badge (left) + close (right) */}
+              <View style={styles.headerRow}>
+                <View style={styles.badge}>
+                  <Feather
+                    name="star"
+                    size={14}
+                    color="#D97706"
+                    strokeWidth={2}
+                  />
+                  <Text style={styles.badgeText}>{t("joker_offer_badge")}</Text>
+                </View>
+                <TouchableOpacity
+                  onPress={onClose}
+                  style={styles.closeBtn}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Feather name="x" size={16} color="#6B7280" strokeWidth={2.5} />
+                </TouchableOpacity>
+              </View>
 
-            <View style={styles.badgeRow}>
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>
-                  {monthStr} {dayNum}
+              {/* Date */}
+              <Text style={styles.dateLabel}>{dateLabel}</Text>
+
+              {/* Question */}
+              {questionLoading ? (
+                <View style={styles.questionLoader}>
+                  <ActivityIndicator size="small" color="#F59E0B" />
+                </View>
+              ) : (
+                <Text style={styles.questionText}>
+                  {questionText || " "}
                 </Text>
-              </View>
-            </View>
+              )}
 
-            <View style={styles.iconWrapper}>
-              <Animated.View
-                style={[
-                  styles.glowCircle,
-                  { opacity: glowOpacity, transform: [{ scale: glowScale }] },
-                ]}
-              />
-              <LinearGradient
-                colors={["#FDE68A", "#FBBF24", "#F59E0B"]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.iconTile}
-              >
-                <MaterialCommunityIcons
-                  name="crown"
-                  size={40}
-                  color="#FFFFFF"
+              {/* Unlock CTA */}
+              <View style={styles.ctaWrap}>
+                <TouchableOpacity
+                  onPress={() => {
+                    if (jokerCount > 0 && dayKey) onUseJoker(dayKey, questionText);
+                  }}
+                  activeOpacity={0.88}
+                  style={[styles.ctaBtn, jokerCount === 0 && styles.ctaBtnDisabled]}
+                >
+                <LinearGradient
+                  colors={["#FCD34D", "#FBBF24"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={StyleSheet.absoluteFill}
                 />
-              </LinearGradient>
-            </View>
-
-            <View style={styles.paperStack}>
-              <View style={[styles.paperLayer, styles.paperLayerBack]} />
-              <View style={[styles.paperLayer, styles.paperLayerMid]} />
-              <View style={styles.paperLayerFront}>
-                {questionLoading ? (
-                  <ActivityIndicator size="small" color="#6D28D9" />
-                ) : (
-                  <Text style={styles.questionText}>
-                    {questionText || " "}
-                  </Text>
-                )}
+                  <MaterialCommunityIcons
+                    name="crown"
+                    size={16}
+                    color="#FFFFFF"
+                  />
+                  <Text style={styles.ctaText}>{t("joker_offer_unlock")}</Text>
+                </TouchableOpacity>
               </View>
             </View>
-
-            <TouchableOpacity
-              onPress={() => {
-                if (jokerCount > 0) onUseJoker();
-              }}
-              activeOpacity={0.88}
-              style={[styles.ctaBtn, jokerCount === 0 && styles.ctaBtnDisabled]}
-            >
-              <LinearGradient
-                colors={["#FCD34D", "#F59E0B"]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={StyleSheet.absoluteFill}
-              />
-              <Text style={styles.ctaText}>{t("joker_offer_cta")}</Text>
-            </TouchableOpacity>
-          </View>
-        </Animated.View>
+          </Animated.View>
+        </View>
       </View>
     </Modal>
   );
@@ -282,150 +236,95 @@ const styles = StyleSheet.create({
     width: MODAL_WIDTH,
     maxWidth: 420,
     borderRadius: 32,
-    position: "relative",
-  },
-  glowBorder: {
-    position: "absolute",
-    top: 0,
-    bottom: 0,
-    left: 0,
-    right: 0,
-    borderRadius: 32,
-    shadowColor: "#7C3AED",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.25,
-    shadowRadius: 14,
-    elevation: 8,
+    overflow: "hidden",
   },
   card: {
-    backgroundColor: "rgba(255,255,255,0.97)",
+    backgroundColor: "rgba(255,255,255,0.95)",
     borderRadius: 32,
-    padding: 36,
+    padding: 28,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.7)",
+    borderColor: "rgba(255,255,255,0.6)",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 24 },
-    shadowOpacity: 0.22,
-    shadowRadius: 40,
+    shadowOpacity: 0.25,
+    shadowRadius: 48,
     elevation: 20,
   },
+  headerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 24,
+  },
+  badge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#FDE68A",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  badgeText: {
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 2,
+    color: "#D97706",
+    textTransform: "uppercase",
+    fontFamily: Platform.OS === "ios" ? "System" : "sans-serif-medium",
+  },
   closeBtn: {
-    position: "absolute",
-    top: 16,
-    right: 16,
     width: 32,
     height: 32,
     borderRadius: 16,
     backgroundColor: "rgba(0,0,0,0.05)",
     alignItems: "center",
     justifyContent: "center",
-    zIndex: 10,
   },
-  badgeRow: {
-    alignItems: "center",
-    marginBottom: 32,
-  },
-  badge: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(124,58,237,0.12)",
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 999,
-  },
-  badgeText: {
+  dateLabel: {
     fontSize: 11,
-    fontWeight: "600",
-    letterSpacing: 0.8,
-    color: "#6D28D9",
-    fontFamily: Platform.OS === "ios" ? "System" : "sans-serif-medium",
+    fontWeight: "700",
+    color: "#9CA3AF",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    marginBottom: 12,
   },
-  iconWrapper: {
-    alignItems: "center",
-    justifyContent: "center",
+  questionLoader: {
+    minHeight: 32,
     marginBottom: 32,
-    height: 88,
-  },
-  glowCircle: {
-    position: "absolute",
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: "rgba(251,191,36,0.5)",
-  },
-  iconTile: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#B45309",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.45,
-    shadowRadius: 12,
-    elevation: 10,
-  },
-  paperStack: {
-    marginBottom: 40,
-    position: "relative",
-  },
-  paperLayer: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: 18,
-    backgroundColor: "rgba(255,255,255,0.55)",
-  },
-  paperLayerBack: {
-    transform: [{ translateY: 7 }, { translateX: 5 }],
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  paperLayerMid: {
-    transform: [{ translateY: 3.5 }, { translateX: 2.5 }],
-    backgroundColor: "rgba(255,255,255,0.75)",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  paperLayerFront: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 18,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: "rgba(209,213,219,0.5)",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.07,
-    shadowRadius: 16,
-    elevation: 5,
   },
   questionText: {
-    fontSize: 19,
-    lineHeight: 27.5,
-    color: "#1F2937",
-    textAlign: "center",
+    fontSize: 23,
+    lineHeight: 31,
+    fontWeight: "500",
+    color: "#111827",
+    marginBottom: 32,
+    letterSpacing: -0.5,
     fontFamily: Platform.OS === "ios" ? "System" : "sans-serif",
-    fontWeight: "400",
+  },
+  ctaWrap: {
+    paddingTop: 8,
+    marginTop: "auto",
   },
   ctaBtn: {
     width: "100%",
-    paddingVertical: 18,
-    borderRadius: 999,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    gap: 10,
+    paddingVertical: 16,
+    borderRadius: 20,
     overflow: "hidden",
     shadowColor: "#F59E0B",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.35,
+    shadowRadius: 24,
     elevation: 8,
   },
   ctaBtnDisabled: {
@@ -437,8 +336,8 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     fontFamily: Platform.OS === "ios" ? "System" : "sans-serif-medium",
     letterSpacing: 0.1,
-    textShadowColor: "rgba(0,0,0,0.15)",
+    textShadowColor: "rgba(0,0,0,0.35)",
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    textShadowRadius: 3,
   },
 });

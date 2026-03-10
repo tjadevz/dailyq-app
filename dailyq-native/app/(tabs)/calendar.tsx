@@ -14,6 +14,7 @@ import {
   Platform,
   Keyboard,
 } from "react-native";
+import { BlurView } from "expo-blur";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import Feather from "@expo/vector-icons/Feather";
@@ -45,10 +46,12 @@ import JokerOfferModal from "@/src/components/JokerOfferModal";
 import { JokerBadge } from "@/src/components/JokerBadge";
 import { GlassCardContainer } from "@/src/components/GlassCardContainer";
 import { PrimaryButton } from "@/src/components/PrimaryButton";
+import { AnsweringExperience } from "@/src/components/AnsweringExperience";
 import { useStreakMilestone, getHighestMilestoneCrossed, getMilestonesCrossed } from "@/src/context/StreakMilestoneContext";
 
 const GRID_ROWS = 6;
 const GRID_COLS = 7;
+const MISSED_ANSWER_DAYS_CAP = 30;
 
 /** Short weekday labels (Mon–Sun) in the given locale. */
 function getWeekdayLabels(lang: string): string[] {
@@ -131,14 +134,14 @@ function getCellState(
   return "missed";
 }
 
-function isWithin7Days(dayKey: string, todayKey: string): boolean {
+function isWithinMissedAnswerWindow(dayKey: string, todayKey: string): boolean {
   const a = new Date(dayKey);
   const b = new Date(todayKey);
   const diff = Math.floor((b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24));
-  return diff >= 0 && diff <= 6;
+  return diff >= 0 && diff <= MISSED_ANSWER_DAYS_CAP - 1;
 }
 
-const SHEET_HEIGHT = Dimensions.get("window").height * 0.72;
+const SHEET_HEIGHT = Dimensions.get("window").height * 0.78;
 
 // ----- ViewAnswerModal (bottom sheet) -----
 function ViewAnswerModal({
@@ -198,7 +201,6 @@ function ViewAnswerModal({
           });
         })()
       : "";
-
   const sheetData =
     dayKey && entry
       ? {
@@ -211,6 +213,11 @@ function ViewAnswerModal({
   return (
     <Modal transparent visible={visible} animationType="none">
       <Animated.View style={[styles.modalBackdrop, { opacity: backdropOpacity }]}>
+        <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
+        <View
+          style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(76, 29, 149, 0.25)" }]}
+          pointerEvents="none"
+        />
         <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
         <Animated.View
           style={[
@@ -221,23 +228,21 @@ function ViewAnswerModal({
           ]}
           pointerEvents="box-none"
         >
-          {/* Soft atmospheric background blobs */}
           <View style={[StyleSheet.absoluteFillObject, styles.bottomSheetBlobWrap]}>
             <View style={[styles.bottomSheetBlob, styles.bottomSheetBlobPurple]} />
             <View style={[styles.bottomSheetBlob, styles.bottomSheetBlobAmber]} />
             <View style={[styles.bottomSheetBlob, styles.bottomSheetBlobBlue]} />
           </View>
 
-          {/* Drag handle */}
           <View style={styles.bottomSheetHandleWrap}>
             <View style={styles.bottomSheetHandle} />
           </View>
 
-          {/* Fixed header */}
           <View style={styles.bottomSheetHeader}>
             <Pressable onPress={handleClose} style={styles.bottomSheetCloseBtn}>
               <Feather name="x" size={18} color="#7C3AED" strokeWidth={2.5} />
             </Pressable>
+            <Text style={styles.bottomSheetDateLabel}>{dateLabel}</Text>
             {sheetData ? (
               <Text style={styles.bottomSheetQuestion} numberOfLines={3}>
                 {sheetData.question}
@@ -245,7 +250,6 @@ function ViewAnswerModal({
             ) : null}
           </View>
 
-          {/* Scrollable year cards */}
           <ScrollView
             style={styles.bottomSheetScroll}
             contentContainerStyle={styles.bottomSheetScrollContent}
@@ -296,7 +300,12 @@ function MissedDayModal({
   if (!visible) return null;
   return (
     <Modal transparent visible={visible} animationType="none">
-      <Animated.View style={[styles.modalBackdrop, { opacity }]}>
+      <Animated.View style={[styles.modalBackdrop, styles.missedDayBackdrop, { opacity }]}>
+        <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
+        <View
+          style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(76, 29, 149, 0.25)" }]}
+          pointerEvents="none"
+        />
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         <View style={styles.modalCard}>
           <Pressable style={MODAL.CLOSE_BUTTON} onPress={onClose}>
@@ -315,7 +324,7 @@ function MissedDayModal({
               <Text style={styles.modalBody}>{t("missed_use_joker_message")}</Text>
               <Pressable onPress={onUseJoker} style={styles.primaryBtnWrap}>
                 <LinearGradient
-                  colors={["#A78BFA", "#8B5CF6"]}
+                  colors={["#C4B5FD", "#A78BFA"]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.primaryBtn}
@@ -325,158 +334,6 @@ function MissedDayModal({
               </Pressable>
             </>
           )}
-        </View>
-      </Animated.View>
-    </Modal>
-  );
-}
-
-// ----- MissedDayAnswerModal -----
-function MissedDayAnswerModal({
-  visible,
-  dayKey,
-  onClose,
-  onSaved,
-  userId,
-  lang,
-}: {
-  visible: boolean;
-  dayKey: string | null;
-  onClose: () => void;
-  onSaved: (previousStreak: number) => void;
-  userId: string;
-  lang: string;
-}) {
-  const { t } = useLanguage();
-  const [questionText, setQuestionText] = useState("");
-  const [answerText, setAnswerText] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
-  const inputRef = useRef<TextInput>(null);
-  const opacity = React.useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    const show = Keyboard.addListener(
-      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
-      (e) => setKeyboardHeight(e.endCoordinates.height)
-    );
-    const hide = Keyboard.addListener(
-      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide",
-      () => setKeyboardHeight(0)
-    );
-    return () => {
-      show.remove();
-      hide.remove();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (visible && dayKey) {
-      setAnswerText("");
-      setError(null);
-      setQuestionText("");
-      const questionTable = lang === "en" ? "daily_questions_en" : "questions";
-      const dateCol = lang === "en" ? "question_date" : "day";
-      const textCol = lang === "en" ? "question_text" : "text";
-      supabase
-        .from(questionTable)
-        .select(textCol)
-        .eq(dateCol, dayKey)
-        .maybeSingle()
-        .then(({ data }) => {
-          const row = data as { question_text?: string; text?: string } | null;
-          setQuestionText((row && (textCol === "question_text" ? row.question_text : row.text)) ?? "");
-        });
-      Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: true }).start();
-      const focusTimer = setTimeout(() => inputRef.current?.focus(), 100);
-      return () => clearTimeout(focusTimer);
-    } else {
-      Animated.timing(opacity, { toValue: 0, duration: MODAL_CLOSE_MS, useNativeDriver: true }).start();
-    }
-  }, [visible, dayKey, lang, opacity]);
-
-  const handleSubmit = useCallback(async () => {
-    if (!dayKey || !answerText.trim() || userId === "dev-user") return;
-    setError(null);
-    setSubmitting(true);
-    try {
-      let previousStreak = 0;
-      try {
-        const { data: streaks } = await supabase.rpc("get_user_streaks", { p_user_id: userId });
-        const row = Array.isArray(streaks) && streaks.length > 0 ? streaks[0] : null;
-        const r = row?.real_streak ?? 0;
-        const v = row?.visual_streak ?? 0;
-        previousStreak = Math.max(Number(r), Number(v));
-      } catch {
-        // ignore
-      }
-
-      const { error: rpcErr } = await supabase.rpc("use_joker");
-      if (rpcErr) throw rpcErr;
-
-      const { error: insertErr } = await supabase.from("answers").insert({
-        user_id: userId,
-        question_date: dayKey,
-        answer_text: answerText.trim(),
-        is_joker: true,
-      });
-      if (insertErr) throw insertErr;
-      onSaved(previousStreak);
-      onClose();
-    } catch (e: unknown) {
-      setError((e as { message?: string })?.message ?? t("missed_answer_error_save"));
-    } finally {
-      setSubmitting(false);
-    }
-  }, [dayKey, answerText, userId, onSaved, onClose, t]);
-
-  if (!visible) return null;
-  return (
-    <Modal transparent visible={visible} animationType="none">
-      <Animated.View style={[styles.modalBackdrop, { opacity }]}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-        <View style={[styles.modalCard, styles.modalCardWide]}>
-          <Pressable style={MODAL.CLOSE_BUTTON} onPress={onClose}>
-            <Feather name="x" size={18} color={COLORS.TEXT_SECONDARY} strokeWidth={2.5} />
-          </Pressable>
-          <Text style={styles.modalQuestion}>{questionText}</Text>
-        </View>
-        <View
-          style={[
-            styles.missedDayAnswerBarWrap,
-            { bottom: keyboardHeight === 0 ? 40 : keyboardHeight - 20 },
-          ]}
-        >
-          <View style={styles.bottomBarKAV}>
-            <View style={styles.bottomBarRow}>
-              <TextInput
-                ref={inputRef}
-                style={styles.barInput}
-                placeholder={t("today_placeholder")}
-                placeholderTextColor={COLORS.TEXT_MUTED}
-                value={answerText}
-                onChangeText={(text) => {
-                  if (text.length <= 280) setAnswerText(text);
-                }}
-                maxLength={280}
-                multiline
-                editable={!submitting}
-                autoCapitalize="sentences"
-                keyboardType="default"
-              />
-              <PrimaryButton
-                onPress={handleSubmit}
-                disabled={!answerText.trim() || submitting}
-                loading={submitting}
-                style={styles.barSubmitButton}
-                textStyle={styles.barSubmitButtonText}
-              >
-                {t("missed_answer_now")}
-              </PrimaryButton>
-            </View>
-            {error && <Text style={styles.submitError}>{error}</Text>}
-          </View>
         </View>
       </Animated.View>
     </Modal>
@@ -595,6 +452,9 @@ export default function CalendarScreen() {
   const [viewAnswerDay, setViewAnswerDay] = useState<string | null>(null);
   const [missedDay, setMissedDay] = useState<string | null>(null);
   const [missedAnswerDay, setMissedAnswerDay] = useState<string | null>(null);
+  const [missedAnswerQuestionText, setMissedAnswerQuestionText] = useState("");
+  const [missedAnswerSubmitting, setMissedAnswerSubmitting] = useState(false);
+  const [missedAnswerError, setMissedAnswerError] = useState<string | null>(null);
   const [jokerModalVisible, setJokerModalVisible] = useState(false);
   const [realStreak, setRealStreak] = useState(0);
   const [showYearPicker, setShowYearPicker] = useState(false);
@@ -695,10 +555,15 @@ export default function CalendarScreen() {
     []
   );
 
-  const openMissedAnswer = useCallback((dayKey: string) => {
-    setMissedAnswerDay(dayKey);
-    setMissedDay(null);
-  }, []);
+  const openMissedAnswer = useCallback(
+    (dayKey: string, questionText?: string) => {
+      setMissedAnswerDay(dayKey);
+      setMissedAnswerQuestionText(questionText ?? "");
+      setMissedDay(null);
+      setMissedAnswerError(null);
+    },
+    []
+  );
 
   const handleMissedSaved = useCallback(
     async (previousStreak: number) => {
@@ -733,10 +598,70 @@ export default function CalendarScreen() {
     [missedAnswerDay, refetch, fetchStreak, refetchProfile, showMilestone, userId]
   );
 
+  const handleJokerAnswerComplete = useCallback(
+    async (answerText: string) => {
+      if (!userId || userId === "dev-user" || !missedAnswerDay) return;
+      const trimmed = answerText.trim();
+      if (!trimmed) return;
+
+      setMissedAnswerError(null);
+      setMissedAnswerSubmitting(true);
+      try {
+        let previousStreak = 0;
+        try {
+          const { data: streaks } = await supabase.rpc("get_user_streaks", {
+            p_user_id: userId,
+          });
+          const row =
+            Array.isArray(streaks) && streaks.length > 0 ? streaks[0] : null;
+          const r = row?.real_streak ?? 0;
+          const v = row?.visual_streak ?? 0;
+          previousStreak = Math.max(Number(r), Number(v));
+        } catch {
+          // ignore
+        }
+
+        const { error: rpcErr } = await supabase.rpc("use_joker");
+        if (rpcErr) throw rpcErr;
+
+        const { error: insertErr } = await supabase.from("answers").insert({
+          user_id: userId,
+          question_date: missedAnswerDay,
+          answer_text: trimmed,
+          is_joker: true,
+        });
+        if (insertErr) throw insertErr;
+
+        setAnswerForDay(missedAnswerDay, {
+          questionText: missedAnswerQuestionText,
+          answerText: trimmed,
+        });
+        await handleMissedSaved(previousStreak);
+        setMissedAnswerDay(null);
+        setMissedAnswerQuestionText("");
+      } catch (e: unknown) {
+        setMissedAnswerError(
+          (e as { message?: string })?.message ??
+            t("missed_answer_error_save")
+        );
+      } finally {
+        setMissedAnswerSubmitting(false);
+      }
+    },
+    [
+      userId,
+      missedAnswerDay,
+      missedAnswerQuestionText,
+      setAnswerForDay,
+      handleMissedSaved,
+      t,
+    ]
+  );
+
   const viewEntry = viewAnswerDay ? answersMap.get(viewAnswerDay) ?? null : null;
   const missedWithinWindow = !!(
     missedDay &&
-    isWithin7Days(missedDay, todayKey) &&
+    isWithinMissedAnswerWindow(missedDay, todayKey) &&
     !isBeforeAccountStart(missedDay, effectiveUser?.created_at)
   );
   const jokerCount = profile?.joker_balance ?? 0;
@@ -960,7 +885,9 @@ export default function CalendarScreen() {
           dayKey={missedDay}
           jokerCount={jokerCount}
           onClose={() => setMissedDay(null)}
-          onUseJoker={() => missedDay && openMissedAnswer(missedDay)}
+          onUseJoker={(dayKey, questionText) =>
+            openMissedAnswer(dayKey, questionText)
+          }
         />
       ) : (
         <MissedDayModal
@@ -973,14 +900,22 @@ export default function CalendarScreen() {
           onUseJoker={() => missedDay && openMissedAnswer(missedDay)}
         />
       )}
-      {userId && (
-        <MissedDayAnswerModal
-          visible={!!missedAnswerDay}
+      {userId && missedAnswerDay && (
+        <AnsweringExperience
+          isOpen={!!missedAnswerDay}
+          onClose={() => {
+            setMissedAnswerDay(null);
+            setMissedAnswerQuestionText("");
+            setMissedAnswerError(null);
+          }}
+          onComplete={handleJokerAnswerComplete}
+          question={missedAnswerQuestionText}
           dayKey={missedAnswerDay}
-          onClose={() => setMissedAnswerDay(null)}
-          onSaved={handleMissedSaved}
-          userId={userId}
           lang={lang}
+          contextLabel={t("missed_answer_question_label")}
+          placeholder={t("today_placeholder")}
+          submitError={missedAnswerError}
+          submitting={missedAnswerSubmitting}
         />
       )}
       <JokerModal
@@ -1312,6 +1247,9 @@ const styles = StyleSheet.create({
     ...MODAL.WRAPPER,
     backgroundColor: "rgba(0,0,0,0.4)",
   },
+  missedDayBackdrop: {
+    backgroundColor: "transparent",
+  },
   modalCard: {
     ...MODAL.CARD,
   },
@@ -1349,11 +1287,6 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 200,
   },
-  viewAnswerScroll: { flex: 1 },
-  viewAnswerScrollContent: {
-    paddingBottom: 24,
-    paddingRight: 8,
-  },
   modalQuestionViewAnswer: {
     fontSize: 17,
     fontWeight: "500",
@@ -1382,7 +1315,7 @@ const styles = StyleSheet.create({
     height: SHEET_HEIGHT,
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
-    backgroundColor: "rgba(254, 254, 254, 0.92)",
+    backgroundColor: "rgba(254, 254, 254, 0.95)",
     shadowColor: "#7C3AED",
     shadowOffset: { width: 0, height: -8 },
     shadowOpacity: 0.12,
@@ -1392,7 +1325,7 @@ const styles = StyleSheet.create({
   },
   bottomSheetBlobWrap: {
     pointerEvents: "none",
-    opacity: 0.6,
+    opacity: 0.35,
   },
   bottomSheetBlob: {
     position: "absolute",
@@ -1404,24 +1337,24 @@ const styles = StyleSheet.create({
     left: 0,
     width: 320,
     height: 320,
-    backgroundColor: "rgba(221, 214, 254, 0.5)",
+    backgroundColor: "rgba(221, 214, 254, 0.25)",
   },
   bottomSheetBlobAmber: {
     bottom: 0,
     right: 0,
     width: 384,
     height: 384,
-    backgroundColor: "rgba(254, 243, 199, 0.5)",
+    backgroundColor: "rgba(254, 243, 199, 0.25)",
   },
   bottomSheetBlobBlue: {
     top: "33%",
     right: "25%",
     width: 288,
     height: 288,
-    backgroundColor: "rgba(219, 234, 254, 0.4)",
+    backgroundColor: "rgba(219, 234, 254, 0.2)",
   },
   bottomSheetHandleWrap: {
-    paddingTop: 32,
+    paddingTop: 12,
     paddingBottom: 8,
     alignItems: "center",
     zIndex: 10,
@@ -1434,7 +1367,7 @@ const styles = StyleSheet.create({
   },
   bottomSheetHeader: {
     paddingHorizontal: 24,
-    paddingTop: 56,
+    paddingTop: 8,
     paddingBottom: 20,
     borderBottomWidth: 1,
     borderBottomColor: "rgba(124, 58, 237, 0.08)",
@@ -1447,24 +1380,23 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: "rgba(255,255,255,0.6)",
+    backgroundColor: "rgba(243, 244, 246, 0.9)",
     alignItems: "center",
     justifyContent: "center",
     zIndex: 11,
   },
   bottomSheetDateLabel: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: "600",
-    color: "rgba(124, 58, 237, 0.6)",
-    letterSpacing: 0.5,
-    marginBottom: 12,
+    color: "rgba(124, 58, 237, 0.8)",
+    marginBottom: 8,
   },
   bottomSheetQuestion: {
-    fontSize: 17,
-    fontWeight: "500",
-    color: "#374151",
-    lineHeight: 24,
-    paddingRight: 32,
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#1F2937",
+    lineHeight: 26,
+    paddingRight: 40,
   },
   bottomSheetScroll: {
     flex: 1,
@@ -1478,7 +1410,7 @@ const styles = StyleSheet.create({
   bottomSheetYearCard: {
     borderRadius: 20,
     padding: 20,
-    backgroundColor: "rgba(255,255,255,0.85)",
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.06,
@@ -1495,7 +1427,7 @@ const styles = StyleSheet.create({
   bottomSheetYearAnswer: {
     fontSize: 15,
     color: "#374151",
-    lineHeight: 24,
+    lineHeight: 22,
   },
   modalTitle: { fontSize: 20, fontWeight: "600", color: COLORS.TEXT_PRIMARY, marginBottom: 12 },
   modalSubtitle: { fontSize: 14, color: COLORS.TEXT_SECONDARY, marginBottom: 8 },
@@ -1575,5 +1507,12 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   primaryBtnDisabled: { opacity: 0.6 },
-  primaryBtnText: { fontSize: 16, fontWeight: "600", color: "#fff" },
+  primaryBtnText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#fff",
+    textShadowColor: "rgba(0,0,0,0.35)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
 });

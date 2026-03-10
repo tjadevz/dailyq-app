@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import { View, Text, StyleSheet, Modal, Pressable, Animated } from "react-native";
+import { BlurView } from "expo-blur";
 import Feather from "@expo/vector-icons/Feather";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { COLORS, JOKER, MODAL, MODAL_CLOSE_MS } from "@/src/config/constants";
@@ -40,6 +41,11 @@ export function JokerModal({
   return (
     <Modal transparent visible={visible} animationType="none">
       <Animated.View style={[styles.backdrop, { opacity }]}>
+        <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
+        <View
+          style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(76, 29, 149, 0.25)" }]}
+          pointerEvents="none"
+        />
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         <View style={styles.card}>
           <Pressable style={MODAL.CLOSE_BUTTON} onPress={onClose}>
@@ -68,7 +74,6 @@ export function JokerModal({
 const styles = StyleSheet.create({
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.4)",
     justifyContent: "center",
     alignItems: "center",
     padding: 16,

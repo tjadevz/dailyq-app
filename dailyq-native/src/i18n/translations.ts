@@ -86,6 +86,7 @@ export const translations: Record<Lang, Record<string, string>> = {
     missed_use_joker_message:
       "You missed this day.\n\nWith a joker you can still answer it.",
     missed_use_joker_btn: "Use joker",
+    joker_offer_cta: "Answer with a Joker",
     missed_no_jokers_body: "You don't have any jokers left.",
     missed_no_jokers_left_error: "No jokers left",
     closed_title: "This day is closed",
@@ -242,6 +243,7 @@ export const translations: Record<Lang, Record<string, string>> = {
     missed_use_joker_message:
       "Je hebt deze dag gemist.\n\nMet een joker kun je de vraag alsnog beantwoorden.",
     missed_use_joker_btn: "Joker inzetten",
+    joker_offer_cta: "Beantwoord met een joker",
     missed_no_jokers_body: "Je hebt geen jokers meer.",
     missed_no_jokers_left_error: "Geen jokers meer",
     closed_title: "Deze dag is gesloten",

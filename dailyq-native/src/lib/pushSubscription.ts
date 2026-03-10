@@ -10,6 +10,9 @@ export type ReminderTime = "morning" | "afternoon" | "evening";
 /**
  * Upsert push_subscriptions for the current user with expo_push_token and reminder_time.
  * Call after successful auth (onboarding) or on app open to keep token/choice in sync.
+ *
+ * Before upserting, clears expo_push_token from any other user who had the same token
+ * (e.g. after reinstall Expo may return the same token; we avoid multiple users receiving the same notification).
  */
 export async function upsertPushSubscription(
   userId: string,
@@ -19,6 +22,18 @@ export async function upsertPushSubscription(
   if (userId === "dev-user") return { error: null };
 
   try {
+    // Clear this token from any other user's row first, so the token is never present for more than one user.
+    if (expoPushToken?.trim()) {
+      const { error: clearError } = await supabase.rpc("clear_expo_push_token_from_other_users", {
+        p_token: expoPushToken.trim(),
+        p_user_id: userId,
+      });
+      if (clearError) {
+        console.error("[pushSubscription] clear_expo_push_token_from_other_users error:", clearError.message);
+        return { error: clearError };
+      }
+    }
+
     const payload = {
       user_id: userId,
       subscription: {},

@@ -11,8 +11,11 @@ import {
   ScrollView,
   PanResponder,
   Dimensions,
+  Platform,
+  Keyboard,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useFocusEffect } from "@react-navigation/native";
 import Feather from "@expo/vector-icons/Feather";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -38,8 +41,10 @@ import {
 import { getNow, getLocalDayKey } from "@/src/lib/date";
 import { supabase } from "@/src/config/supabase";
 import { JokerModal } from "@/src/components/JokerModal";
+import JokerOfferModal from "@/src/components/JokerOfferModal";
 import { JokerBadge } from "@/src/components/JokerBadge";
 import { GlassCardContainer } from "@/src/components/GlassCardContainer";
+import { PrimaryButton } from "@/src/components/PrimaryButton";
 import { useStreakMilestone, getHighestMilestoneCrossed, getMilestonesCrossed } from "@/src/context/StreakMilestoneContext";
 
 const GRID_ROWS = 6;
@@ -347,7 +352,24 @@ function MissedDayAnswerModal({
   const [answerText, setAnswerText] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const inputRef = useRef<TextInput>(null);
   const opacity = React.useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const show = Keyboard.addListener(
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
+      (e) => setKeyboardHeight(e.endCoordinates.height)
+    );
+    const hide = Keyboard.addListener(
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide",
+      () => setKeyboardHeight(0)
+    );
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
 
   useEffect(() => {
     if (visible && dayKey) {
@@ -367,6 +389,8 @@ function MissedDayAnswerModal({
           setQuestionText((row && (textCol === "question_text" ? row.question_text : row.text)) ?? "");
         });
       Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: true }).start();
+      const focusTimer = setTimeout(() => inputRef.current?.focus(), 100);
+      return () => clearTimeout(focusTimer);
     } else {
       Animated.timing(opacity, { toValue: 0, duration: MODAL_CLOSE_MS, useNativeDriver: true }).start();
     }
@@ -416,38 +440,43 @@ function MissedDayAnswerModal({
           <Pressable style={MODAL.CLOSE_BUTTON} onPress={onClose}>
             <Feather name="x" size={18} color={COLORS.TEXT_SECONDARY} strokeWidth={2.5} />
           </Pressable>
-          <Text style={styles.modalSubtitle}>{t("missed_answer_question_label")}</Text>
           <Text style={styles.modalQuestion}>{questionText}</Text>
-          <TextInput
-            style={styles.modalInput}
-            placeholder={t("today_placeholder")}
-            placeholderTextColor={COLORS.TEXT_MUTED}
-            value={answerText}
-            onChangeText={setAnswerText}
-            multiline
-            maxLength={280}
-            editable={!submitting}
-            autoCapitalize="sentences"
-          />
-          {error && <Text style={styles.modalError}>{error}</Text>}
-          <Pressable
-            style={[styles.primaryBtnWrap, submitting && styles.primaryBtnDisabled]}
-            onPress={handleSubmit}
-            disabled={submitting || !answerText.trim()}
-          >
-            <LinearGradient
-              colors={["#A78BFA", "#8B5CF6"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.primaryBtn}
-            >
-              {submitting ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <Text style={styles.primaryBtnText}>{t("missed_answer_now")}</Text>
-              )}
-            </LinearGradient>
-          </Pressable>
+        </View>
+        <View
+          style={[
+            styles.missedDayAnswerBarWrap,
+            { bottom: keyboardHeight === 0 ? 40 : keyboardHeight - 20 },
+          ]}
+        >
+          <View style={styles.bottomBarKAV}>
+            <View style={styles.bottomBarRow}>
+              <TextInput
+                ref={inputRef}
+                style={styles.barInput}
+                placeholder={t("today_placeholder")}
+                placeholderTextColor={COLORS.TEXT_MUTED}
+                value={answerText}
+                onChangeText={(text) => {
+                  if (text.length <= 280) setAnswerText(text);
+                }}
+                maxLength={280}
+                multiline
+                editable={!submitting}
+                autoCapitalize="sentences"
+                keyboardType="default"
+              />
+              <PrimaryButton
+                onPress={handleSubmit}
+                disabled={!answerText.trim() || submitting}
+                loading={submitting}
+                style={styles.barSubmitButton}
+                textStyle={styles.barSubmitButtonText}
+              >
+                {t("missed_answer_now")}
+              </PrimaryButton>
+            </View>
+            {error && <Text style={styles.submitError}>{error}</Text>}
+          </View>
         </View>
       </Animated.View>
     </Modal>
@@ -587,6 +616,13 @@ export default function CalendarScreen() {
   useEffect(() => {
     fetchStreak();
   }, [fetchStreak]);
+
+  // Refetch streak when Calendar tab gains focus (e.g. after submitting answer on Today).
+  useFocusEffect(
+    useCallback(() => {
+      fetchStreak();
+    }, [fetchStreak])
+  );
 
   const goPrev = useCallback(() => {
     if (accountStartYearMonth && yearMonth <= accountStartYearMonth) return;
@@ -918,15 +954,25 @@ export default function CalendarScreen() {
         entry={viewEntry}
         onClose={() => setViewAnswerDay(null)}
       />
-      <MissedDayModal
-        visible={!!missedDay}
-        dayKey={missedDay}
-        canUseJoker={jokerCount > 0}
-        jokerCount={jokerCount}
-        withinWindow={missedWithinWindow}
-        onClose={() => setMissedDay(null)}
-        onUseJoker={() => missedDay && openMissedAnswer(missedDay)}
-      />
+      {missedWithinWindow ? (
+        <JokerOfferModal
+          visible={!!missedDay}
+          dayKey={missedDay}
+          jokerCount={jokerCount}
+          onClose={() => setMissedDay(null)}
+          onUseJoker={() => missedDay && openMissedAnswer(missedDay)}
+        />
+      ) : (
+        <MissedDayModal
+          visible={!!missedDay}
+          dayKey={missedDay}
+          canUseJoker={jokerCount > 0}
+          jokerCount={jokerCount}
+          withinWindow={false}
+          onClose={() => setMissedDay(null)}
+          onUseJoker={() => missedDay && openMissedAnswer(missedDay)}
+        />
+      )}
       {userId && (
         <MissedDayAnswerModal
           visible={!!missedAnswerDay}
@@ -1470,6 +1516,52 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   modalError: { fontSize: 14, color: "#DC2626", marginBottom: 12 },
+  missedDayAnswerBarWrap: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+  },
+  bottomBarKAV: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 24,
+    backgroundColor: "transparent",
+  },
+  bottomBarRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  barInput: {
+    flex: 1,
+    minHeight: 40,
+    maxHeight: 120,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.6)",
+    backgroundColor: "rgba(255,255,255,0.85)",
+    fontSize: 16,
+    color: COLORS.TEXT_PRIMARY,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  barSubmitButton: {
+    minWidth: 88,
+    width: 108,
+  },
+  barSubmitButtonText: {
+    fontSize: 12,
+  },
+  submitError: {
+    fontSize: 14,
+    color: "#DC2626",
+    marginTop: 12,
+    textAlign: "center",
+  },
   primaryBtnWrap: { alignSelf: "stretch" },
   primaryBtn: {
     paddingVertical: 14,

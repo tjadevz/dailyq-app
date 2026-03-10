@@ -801,22 +801,18 @@ export default function CalendarScreen() {
               end={{ x: 1, y: 1 }}
               style={StyleSheet.absoluteFill}
             />
-            <View style={styles.nextRewardStatsBanner}>
-              <View style={styles.nextRewardStatsItem}>
-                <Feather name="check-circle" size={14} color="#F59E0B" strokeWidth={2.5} />
-                <Text style={styles.nextRewardStatsNum}>
-                  {capturedThisMonth}/{answerableDaysThisMonth}
-                </Text>
-                <Text style={styles.nextRewardStatsLabel}>{t("calendar_stats_days_answered")}</Text>
-              </View>
-              <View style={styles.nextRewardStatsDot} />
-              <View style={styles.nextRewardStatsItem}>
-                <Feather name="zap" size={14} color="#F59E0B" strokeWidth={2.5} />
-                <Text style={styles.nextRewardStatsNum}>{realStreak}</Text>
-                <Text style={styles.nextRewardStatsLabel}>{t("calendar_stats_day_streak")}</Text>
-              </View>
-            </View>
             <View style={styles.nextRewardContent}>
+              <View style={styles.nextRewardHeader}>
+                <View style={styles.nextRewardStreakIconWrap}>
+                  <Feather name="zap" size={20} color={COLORS.ACCENT} strokeWidth={2.5} />
+                </View>
+                <View style={styles.nextRewardTextWrap}>
+                  <View style={styles.nextRewardStreakRow}>
+                    <Text style={styles.nextRewardStreakValue}>{realStreak}</Text>
+                    <Text style={styles.nextRewardStreakLabel}>{t("calendar_stats_day_streak")}</Text>
+                  </View>
+                </View>
+              </View>
               <View style={styles.nextRewardHeader}>
                 <View style={styles.nextRewardCrownCircleWrap}>
                   <LinearGradient
@@ -1125,45 +1121,46 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 3,
   },
-  nextRewardStatsBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-  },
-  nextRewardStatsItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  nextRewardStatsNum: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#F59E0B",
-  },
-  nextRewardStatsLabel: {
-    fontSize: 10,
-    fontWeight: "500",
-    color: "#6B7280",
-  },
-  nextRewardStatsDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: "rgba(245,158,11,0.3)",
-  },
   nextRewardContent: {
     paddingHorizontal: 20,
     paddingBottom: 20,
-    paddingTop: 4,
+    paddingTop: 16,
   },
   nextRewardHeader: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
     marginBottom: 12,
+  },
+  nextRewardStreakIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(139,92,246,0.2)",
+    borderWidth: 1,
+    borderColor: "rgba(139,92,246,0.35)",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: COLORS.ACCENT,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  nextRewardStreakRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: 6,
+  },
+  nextRewardStreakValue: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: COLORS.ACCENT,
+  },
+  nextRewardStreakLabel: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: COLORS.ACCENT,
   },
   nextRewardCrownCircleWrap: {
     width: 40,

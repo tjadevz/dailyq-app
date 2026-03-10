@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   Modal,
   StyleSheet,
-  KeyboardAvoidingView,
   Platform,
   TouchableWithoutFeedback,
   Keyboard,
@@ -18,6 +17,7 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
   withSpring,
+  Easing,
 } from "react-native-reanimated";
 import { BlurView } from "expo-blur";
 import Feather from "@expo/vector-icons/Feather";
@@ -128,14 +128,19 @@ export function AnsweringExperience({
   useEffect(() => {
     if (isOpen) {
       setUserAnswer(initialAnswer);
-      slideY.value = withSpring(0, { damping: 25, stiffness: 200 });
-      setTimeout(() => {
-        inputRef.current?.focus();
-      }, 400);
-    } else {
-      slideY.value = withTiming(height, { duration: 300 });
-      Keyboard.dismiss();
+      slideY.value = withSpring(0, {
+        damping: 22,
+        stiffness: 140,
+        mass: 0.8,
+      });
+      const focusTimer = setTimeout(() => inputRef.current?.focus(), 50);
+      return () => clearTimeout(focusTimer);
     }
+    slideY.value = withTiming(height, {
+      duration: 280,
+      easing: Easing.inOut(Easing.cubic),
+    });
+    Keyboard.dismiss();
   }, [isOpen, initialAnswer, slideY]);
 
   useEffect(() => {
@@ -181,12 +186,11 @@ export function AnsweringExperience({
           ]}
         />
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.keyboardContainer}
-      >
-        <Animated.View style={[styles.contentContainer, animatedSlideStyle]}>
-          <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
+      <View style={styles.keyboardContainer}>
+        <View style={styles.bottomAnchor}>
+          <Animated.View style={[styles.contentContainer, animatedSlideStyle]}>
+            <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
+            <View style={{ width: 36 }} />
             <TouchableOpacity
               onPress={onClose}
               style={styles.closeButton}
@@ -194,7 +198,6 @@ export function AnsweringExperience({
             >
               <Feather name="x" size={20} color="#FFFFFF" strokeWidth={2.5} />
             </TouchableOpacity>
-            <View style={{ width: 36 }} />
           </View>
 
           <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
@@ -289,8 +292,9 @@ export function AnsweringExperience({
               </View>
             </View>
           </TouchableWithoutFeedback>
-        </Animated.View>
-      </KeyboardAvoidingView>
+          </Animated.View>
+        </View>
+      </View>
       </View>
     </Modal>
   );
@@ -300,8 +304,13 @@ const styles = StyleSheet.create({
   keyboardContainer: {
     flex: 1,
   },
-  contentContainer: {
+  bottomAnchor: {
     flex: 1,
+    justifyContent: "flex-end",
+    /** Reserve space for keyboard from frame 1 so the card doesn't jump when it opens */
+    paddingBottom: Platform.OS === "ios" ? 320 : 280,
+  },
+  contentContainer: {
     flexDirection: "column",
   },
   header: {
@@ -322,12 +331,10 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255, 255, 255, 0.2)",
   },
   cardWrapper: {
-    flex: 1,
     paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingBottom: Platform.OS === "ios" ? 28 : 20,
   },
   card: {
-    flex: 1,
     backgroundColor: "rgba(255, 255, 255, 0.95)",
     borderRadius: 32,
     padding: 28,
@@ -338,6 +345,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 24,
     elevation: 10,
+    minHeight: 340,
+    maxHeight: 420,
   },
   cardHeaderRow: {
     flexDirection: "row",
@@ -394,13 +403,13 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   inputContainer: {
-    flex: 1,
+    minHeight: 100,
   },
   input: {
-    flex: 1,
     fontSize: 18,
     color: "#374151",
     lineHeight: 28,
+    minHeight: 100,
     fontFamily: Platform.OS === "ios" ? "System" : "sans-serif",
   },
   footer: {

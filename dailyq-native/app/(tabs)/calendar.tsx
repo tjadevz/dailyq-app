@@ -47,7 +47,16 @@ import { JokerBadge } from "@/src/components/JokerBadge";
 import { GlassCardContainer } from "@/src/components/GlassCardContainer";
 import { PrimaryButton } from "@/src/components/PrimaryButton";
 import { AnsweringExperience } from "@/src/components/AnsweringExperience";
-import { useStreakMilestone, getHighestMilestoneCrossed, getMilestonesCrossed } from "@/src/context/StreakMilestoneContext";
+import { useStreakMilestone, getHighestMilestoneCrossed, getMilestonesCrossed, grantMilestoneJokersForCrossed } from "@/src/context/StreakMilestoneContext";
+import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
+import AnimatedReanimated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withSpring,
+  runOnJS,
+  Easing,
+} from "react-native-reanimated";
 
 const GRID_ROWS = 6;
 const GRID_COLS = 7;
@@ -156,39 +165,63 @@ function ViewAnswerModal({
   onClose: () => void;
 }) {
   const { t, lang } = useLanguage();
-  const backdropOpacity = React.useRef(new Animated.Value(0)).current;
-  const slideY = React.useRef(new Animated.Value(SHEET_HEIGHT)).current;
+  const backdropOpacity = useSharedValue(0);
+  const slideY = useSharedValue(SHEET_HEIGHT);
+  const dragY = useSharedValue(0);
+
+  const closeModal = useCallback(() => onClose(), [onClose]);
+
+  const panGesture = useMemo(
+    () =>
+      Gesture.Pan()
+        .activeOffsetY(10)
+        .onUpdate((e) => {
+          if (e.translationY > 0) {
+            dragY.value = e.translationY;
+          }
+        })
+        .onEnd((e) => {
+          const threshold = 120;
+          const velocityThreshold = 400;
+          const shouldDismiss =
+            dragY.value > threshold || e.velocityY > velocityThreshold;
+          if (shouldDismiss) {
+            dragY.value = 0;
+            backdropOpacity.value = withTiming(0, { duration: 180 });
+            slideY.value = withTiming(
+              SHEET_HEIGHT,
+              { duration: 220, easing: Easing.inOut(Easing.cubic) },
+              (finished) => {
+                if (finished) runOnJS(closeModal)();
+              }
+            );
+          } else {
+            dragY.value = withSpring(0, { damping: 20, stiffness: 300 });
+          }
+        }),
+    [backdropOpacity, slideY, dragY, closeModal]
+  );
 
   useEffect(() => {
     if (visible) {
-      slideY.setValue(SHEET_HEIGHT);
-      backdropOpacity.setValue(0);
-      Animated.parallel([
-        Animated.timing(backdropOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
-        Animated.spring(slideY, {
-          toValue: 0,
-          useNativeDriver: true,
-          tension: 65,
-          friction: 11,
-        }),
-      ]).start();
+      dragY.value = 0;
+      slideY.value = SHEET_HEIGHT;
+      backdropOpacity.value = 0;
+      slideY.value = withSpring(0, { damping: 22, stiffness: 140, mass: 0.8 });
+      backdropOpacity.value = withTiming(1, { duration: 200 });
     }
-  }, [visible, slideY, backdropOpacity]);
+  }, [visible, slideY, backdropOpacity, dragY]);
 
   const handleClose = useCallback(() => {
-    Animated.parallel([
-      Animated.timing(backdropOpacity, {
-        toValue: 0,
-        duration: MODAL_CLOSE_MS,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideY, {
-        toValue: SHEET_HEIGHT,
-        duration: 250,
-        useNativeDriver: true,
-      }),
-    ]).start(() => onClose());
-  }, [onClose, backdropOpacity, slideY]);
+    backdropOpacity.value = withTiming(0, { duration: MODAL_CLOSE_MS });
+    slideY.value = withTiming(
+      SHEET_HEIGHT,
+      { duration: 250, easing: Easing.inOut(Easing.cubic) },
+      (finished) => {
+        if (finished) runOnJS(closeModal)();
+      }
+    );
+  }, [closeModal, backdropOpacity, slideY]);
 
   const dateLabel =
     dayKey && entry
@@ -209,61 +242,68 @@ function ViewAnswerModal({
         }
       : null;
 
+  const backdropStyle = useAnimatedStyle(() => ({
+    opacity: backdropOpacity.value,
+  }));
+
+  const sheetStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: slideY.value + dragY.value }],
+  }));
+
   if (!visible) return null;
   return (
     <Modal transparent visible={visible} animationType="none">
-      <Animated.View style={[styles.modalBackdrop, { opacity: backdropOpacity }]}>
-        <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
-        <View
-          style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(76, 29, 149, 0.25)" }]}
-          pointerEvents="none"
-        />
-        <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
-        <Animated.View
-          style={[
-            styles.bottomSheet,
-            {
-              transform: [{ translateY: slideY }],
-            },
-          ]}
-          pointerEvents="box-none"
-        >
-          <View style={[StyleSheet.absoluteFillObject, styles.bottomSheetBlobWrap]}>
-            <View style={[styles.bottomSheetBlob, styles.bottomSheetBlobPurple]} />
-            <View style={[styles.bottomSheetBlob, styles.bottomSheetBlobAmber]} />
-            <View style={[styles.bottomSheetBlob, styles.bottomSheetBlobBlue]} />
-          </View>
-
-          <View style={styles.bottomSheetHandleWrap}>
-            <View style={styles.bottomSheetHandle} />
-          </View>
-
-          <View style={styles.bottomSheetHeader}>
-            <Pressable onPress={handleClose} style={styles.bottomSheetCloseBtn}>
-              <Feather name="x" size={18} color="#7C3AED" strokeWidth={2.5} />
-            </Pressable>
-            <Text style={styles.bottomSheetDateLabel}>{dateLabel}</Text>
-            {sheetData ? (
-              <Text style={styles.bottomSheetQuestion} numberOfLines={3}>
-                {sheetData.question}
-              </Text>
-            ) : null}
-          </View>
-
-          <ScrollView
-            style={styles.bottomSheetScroll}
-            contentContainerStyle={styles.bottomSheetScrollContent}
-            showsVerticalScrollIndicator={true}
+      <GestureHandlerRootView style={StyleSheet.absoluteFill}>
+        <AnimatedReanimated.View style={[styles.modalBackdrop, backdropStyle]}>
+          <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
+          <View
+            style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(76, 29, 149, 0.25)" }]}
+            pointerEvents="none"
+          />
+          <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
+          <GestureDetector gesture={panGesture}>
+          <AnimatedReanimated.View
+            style={[styles.bottomSheet, sheetStyle]}
+            pointerEvents="box-none"
           >
-            {sheetData?.answers.map((item) => (
-              <View key={item.year} style={styles.bottomSheetYearCard}>
-                <Text style={styles.bottomSheetYearLabel}>{dateLabel || item.year}</Text>
-                <Text style={styles.bottomSheetYearAnswer}>{item.answer}</Text>
-              </View>
-            ))}
-          </ScrollView>
-        </Animated.View>
-      </Animated.View>
+            <View style={[StyleSheet.absoluteFillObject, styles.bottomSheetBlobWrap]}>
+              <View style={[styles.bottomSheetBlob, styles.bottomSheetBlobPurple]} />
+              <View style={[styles.bottomSheetBlob, styles.bottomSheetBlobAmber]} />
+              <View style={[styles.bottomSheetBlob, styles.bottomSheetBlobBlue]} />
+            </View>
+
+            <View style={styles.bottomSheetHandleWrap}>
+              <View style={styles.bottomSheetHandle} />
+            </View>
+
+            <View style={styles.bottomSheetHeader}>
+              <Pressable onPress={handleClose} style={styles.bottomSheetCloseBtn}>
+                <Feather name="x" size={18} color="#7C3AED" strokeWidth={2.5} />
+              </Pressable>
+              <Text style={styles.bottomSheetDateLabel}>{dateLabel}</Text>
+              {sheetData ? (
+                <Text style={styles.bottomSheetQuestion} numberOfLines={3}>
+                  {sheetData.question}
+                </Text>
+              ) : null}
+            </View>
+
+            <ScrollView
+              style={styles.bottomSheetScroll}
+              contentContainerStyle={styles.bottomSheetScrollContent}
+              showsVerticalScrollIndicator={true}
+            >
+              {sheetData?.answers.map((item) => (
+                <View key={item.year} style={styles.bottomSheetYearCard}>
+                  <Text style={styles.bottomSheetYearLabel}>{dateLabel || item.year}</Text>
+                  <Text style={styles.bottomSheetYearAnswer}>{item.answer}</Text>
+                </View>
+              ))}
+            </ScrollView>
+          </AnimatedReanimated.View>
+          </GestureDetector>
+        </AnimatedReanimated.View>
+      </GestureHandlerRootView>
     </Modal>
   );
 }
@@ -435,6 +475,21 @@ export default function CalendarScreen() {
     ? getLocalDayKey(new Date(effectiveUser.created_at)).slice(0, 7)
     : null;
   const [yearMonth, setYearMonth] = useState(() => todayKey.slice(0, 7));
+  const prevYearMonthRef = useRef<string | null>(null);
+  const slideX = useSharedValue(0);
+
+  useEffect(() => {
+    if (prevYearMonthRef.current !== null && prevYearMonthRef.current !== yearMonth) {
+      const direction = yearMonth > prevYearMonthRef.current ? 1 : -1;
+      slideX.value = direction * 36;
+      slideX.value = withTiming(0, { duration: 220, easing: Easing.out(Easing.cubic) });
+    }
+    prevYearMonthRef.current = yearMonth;
+  }, [yearMonth, slideX]);
+
+  const animatedCardContentStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: slideX.value }],
+  }));
 
   useEffect(() => {
     if (!accountStartYearMonth) return;
@@ -571,9 +626,7 @@ export default function CalendarScreen() {
       refetch();
       const newStreak = await fetchStreak();
       const crossed = getMilestonesCrossed(previousStreak, newStreak);
-      for (const m of crossed) {
-        await supabase.rpc("grant_milestone_jokers", { p_user_id: userId, p_milestone: m });
-      }
+      await grantMilestoneJokersForCrossed(supabase, userId, previousStreak, newStreak);
       if (crossed.length > 0) {
         const highest = getHighestMilestoneCrossed(previousStreak, newStreak);
         if (highest) showMilestone(highest);
@@ -667,15 +720,6 @@ export default function CalendarScreen() {
   const jokerCount = profile?.joker_balance ?? 0;
   const insets = useSafeAreaInsets();
 
-  if (loading) {
-    return (
-      <View style={[styles.centered, { paddingTop: insets.top }]}>
-        <ActivityIndicator size="large" color={COLORS.ACCENT} />
-        <Text style={styles.loadingText}>{t("loading_calendar")}</Text>
-      </View>
-    );
-  }
-
   if (error) {
     return (
       <View style={[styles.centered, { paddingTop: insets.top }]}>
@@ -704,7 +748,7 @@ export default function CalendarScreen() {
           <View style={styles.yearRowSpacer} />
         </View>
 
-        {/* Month nav: ‹ › 36x36 round buttons */}
+        {/* Month nav: ‹ › 36x36 round buttons; small loading indicator when fetching */}
       <View style={styles.monthNav}>
         <Pressable
           style={[styles.navBtn, isAtAccountStartMonth && styles.navBtnDisabled]}
@@ -714,7 +758,12 @@ export default function CalendarScreen() {
           <Text style={[styles.navBtnText, isAtAccountStartMonth && styles.navBtnTextDisabled]}>‹</Text>
         </Pressable>
         <Pressable onPress={() => setShowYearPicker(true)} style={styles.monthLabelWrap}>
-          <Text style={styles.monthLabel}>{getMonthNameOnly(yearMonth, lang)}</Text>
+          <View style={styles.monthLabelRow}>
+            <Text style={styles.monthLabel}>{getMonthNameOnly(yearMonth, lang)}</Text>
+            {loading && (
+              <ActivityIndicator size="small" color={COLORS.ACCENT} style={styles.monthNavSpinner} />
+            )}
+          </View>
         </Pressable>
         <Pressable style={styles.navBtn} onPress={goNext}>
           <Text style={styles.navBtnText}>›</Text>
@@ -735,6 +784,7 @@ export default function CalendarScreen() {
 
       {/* Card: weekdays + grid + divider + stats + Next Reward */}
       <View style={styles.card} {...panResponder.panHandlers}>
+        <AnimatedReanimated.View style={animatedCardContentStyle}>
         <View style={styles.weekdayRow}>
           {getWeekdayLabels(lang).map((wd) => (
             <View key={wd} style={styles.weekdayCell}>
@@ -853,6 +903,7 @@ export default function CalendarScreen() {
             </View>
           </View>
         )}
+        </AnimatedReanimated.View>
       </View>
       </View>
 
@@ -995,7 +1046,9 @@ const styles = StyleSheet.create({
   navBtnDisabled: { opacity: 0.4 },
   navBtnTextDisabled: { color: COLORS.TEXT_MUTED },
   monthLabelWrap: { paddingVertical: 4, paddingHorizontal: 8 },
+  monthLabelRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   monthLabel: { fontSize: 22, fontWeight: "700", color: COLORS.TEXT_PRIMARY },
+  monthNavSpinner: { marginLeft: 4 },
   todayWrap: {
     height: 28,
     justifyContent: "center",

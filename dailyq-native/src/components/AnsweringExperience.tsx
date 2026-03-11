@@ -177,20 +177,29 @@ export function AnsweringExperience({
       onRequestClose={onClose}
     >
       <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-        {/* Blur the Today/Calendar tab behind the modal, then purple tint */}
-        <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
-        <View
-          style={[
-            StyleSheet.absoluteFill,
-            { backgroundColor: "rgba(76, 29, 149, 0.25)" },
-          ]}
-        />
+        <TouchableWithoutFeedback onPress={onClose}>
+          <View style={StyleSheet.absoluteFill}>
+            <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
+            <View
+              style={[
+                StyleSheet.absoluteFill,
+                { backgroundColor: "rgba(76, 29, 149, 0.25)" },
+              ]}
+            />
+          </View>
+        </TouchableWithoutFeedback>
 
-      <View style={styles.keyboardContainer}>
-        <View style={styles.bottomAnchor}>
-          <Animated.View style={[styles.contentContainer, animatedSlideStyle]}>
-            <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-            <View style={{ width: 36 }} />
+      <View style={styles.keyboardContainer} pointerEvents="box-none">
+        <View style={styles.bottomAnchor} pointerEvents="box-none">
+          <Animated.View
+            style={[styles.contentContainer, animatedSlideStyle]}
+            pointerEvents="box-none"
+          >
+            <View
+              style={[styles.header, { paddingTop: insets.top + 16 }]}
+              pointerEvents="box-none"
+            >
+            <View style={{ width: 36 }} pointerEvents="box-none" />
             <TouchableOpacity
               onPress={onClose}
               style={styles.closeButton}

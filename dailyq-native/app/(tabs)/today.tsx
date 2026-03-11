@@ -20,7 +20,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { COLORS, JOKER, MODAL, MODAL_ENTER_MS, MODAL_CLOSE_MS } from "@/src/config/constants";
 import { useLanguage } from "@/src/context/LanguageContext";
 import { useAuth } from "@/src/context/AuthContext";
-import { useStreakMilestone, getHighestMilestoneCrossed, getMilestonesCrossed } from "@/src/context/StreakMilestoneContext";
+import { useStreakMilestone, getHighestMilestoneCrossed, getMilestonesCrossed, grantMilestoneJokersForCrossed } from "@/src/context/StreakMilestoneContext";
 import { useCalendarAnswersContext } from "@/src/context/CalendarAnswersContext";
 import { useTodayQuestion } from "@/src/hooks/useTodayQuestion";
 import { useProfileContext } from "@/src/context/ProfileContext";
@@ -232,21 +232,27 @@ export default function TodayScreen() {
         const visual = row?.visual_streak ?? 0;
         const real = row?.real_streak ?? 0;
         const newStreak = Math.max(Number(visual), Number(real));
-        const crossed = getMilestonesCrossed(previousStreak, newStreak);
-        for (const m of crossed) {
-          await supabase.rpc("grant_milestone_jokers", {
-            p_user_id: userId,
-            p_milestone: m,
-          });
-        }
-        if (crossed.length > 0) {
-          const highest = getHighestMilestoneCrossed(
+
+        try {
+          console.log("[Today submit] previousStreak, newStreak", previousStreak, newStreak);
+          const crossed = getMilestonesCrossed(previousStreak, newStreak);
+          const grantSuccess = await grantMilestoneJokersForCrossed(
+            supabase,
+            userId,
             previousStreak,
             newStreak
           );
-          if (highest) showMilestone(highest);
+          if (crossed.length > 0) {
+            const highest = getHighestMilestoneCrossed(
+              previousStreak,
+              newStreak
+            );
+            if (highest) showMilestone(highest);
+          }
+          if (grantSuccess) await refetchProfile();
+        } catch (e) {
+          console.error("[Today submit] Milestone flow error", e);
         }
-        await refetchProfile();
         setAnswerModalOpen(false);
       } catch (e: unknown) {
         const err = e as {

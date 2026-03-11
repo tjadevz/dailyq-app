@@ -19,9 +19,11 @@ import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+import * as AppleAuthentication from "expo-apple-authentication";
+
 import { COLORS } from "@/src/config/constants";
 import { useLanguage } from "@/src/context/LanguageContext";
-import { useAuth } from "@/src/context/AuthContext";
+import { useAuth, useAppleSignIn } from "@/src/context/AuthContext";
 import { supabase } from "@/src/config/supabase";
 import {
   getStoredExpoPushToken,
@@ -133,9 +135,11 @@ export default function OnboardingScreen() {
   const { t } = useLanguage();
   const insets = useSafeAreaInsets();
   useAuth();
+  const { signInWithApple, loading: appleLoading, error: appleError, clearError: clearAppleError } = useAppleSignIn();
   const router = useRouter();
 
   const [step, setStep] = useState<Step>("intro");
+  const [appleAuthAvailable, setAppleAuthAvailable] = useState(false);
   const [notificationTime, setNotificationTime] =
     useState<NotificationTime>(null);
   const [isLoginMode, setIsLoginMode] = useState(true);
@@ -145,6 +149,11 @@ export default function OnboardingScreen() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    if (Platform.OS !== "ios") return;
+    AppleAuthentication.isAvailableAsync().then(setAppleAuthAvailable);
+  }, []);
 
   const goNext = useCallback((next: Step) => {
     setStep(next);
@@ -167,6 +176,26 @@ export default function OnboardingScreen() {
     goNext("auth");
   }, [notificationTime, goNext]);
 
+  const performPostAuthPushUpsertAndNavigate = useCallback(
+    async (userId: string) => {
+      const token = await getStoredExpoPushToken();
+      const stored =
+        notificationTime ??
+        ((await AsyncStorage.getItem(REMINDER_TIME_KEY)) as "morning" | "afternoon" | "evening" | null);
+      const reminderTime =
+        stored === "morning" || stored === "afternoon" || stored === "evening" ? stored : null;
+      console.log("Upserting push subscription", {
+        userId,
+        token,
+        reminderTime,
+      });
+      const { error: upsertErr } = await upsertPushSubscription(userId, token, reminderTime);
+      if (upsertErr) console.error("[onboarding] Push subscription upsert failed:", upsertErr);
+      router.replace("/(tabs)/today");
+    },
+    [notificationTime, router]
+  );
+
   const handleAuthSubmit = useCallback(async () => {
     const trimmedEmail = email.trim();
     const trimmedPassword = password.trim();
@@ -187,27 +216,32 @@ export default function OnboardingScreen() {
         setAuthError(error.message);
         return;
       }
-      const user = data?.user;
-      if (user?.id) {
-        const token = await getStoredExpoPushToken();
-        const stored =
-          notificationTime ??
-          ((await AsyncStorage.getItem(REMINDER_TIME_KEY)) as "morning" | "afternoon" | "evening" | null);
-        const reminderTime =
-          stored === "morning" || stored === "afternoon" || stored === "evening" ? stored : null;
-        console.log("Upserting push subscription", {
-          userId: user.id,
-          token,
-          reminderTime,
-        });
-        const { error: upsertErr } = await upsertPushSubscription(user.id, token, reminderTime);
-        if (upsertErr) console.error("[onboarding] Push subscription upsert failed:", upsertErr);
+      const authUser = data?.user;
+      if (authUser?.id) {
+        await performPostAuthPushUpsertAndNavigate(authUser.id);
+      } else {
+        router.replace("/(tabs)/today");
       }
-      router.replace("/(tabs)/today");
     } finally {
       setSubmitting(false);
     }
-  }, [email, password, isLoginMode, notificationTime, router]);
+  }, [email, password, isLoginMode, performPostAuthPushUpsertAndNavigate, router]);
+
+  const handleAppleSignIn = useCallback(async () => {
+    clearAppleError();
+    setAuthError(null);
+    const { error } = await signInWithApple();
+    if (error) return;
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const authUser = session?.user;
+    if (authUser?.id) {
+      await performPostAuthPushUpsertAndNavigate(authUser.id);
+    } else {
+      router.replace("/(tabs)/today");
+    }
+  }, [signInWithApple, clearAppleError, performPostAuthPushUpsertAndNavigate, router]);
 
   // When keyboard opens on auth step, nudge scroll so the login button stays visible (not full scrollToEnd)
   useEffect(() => {
@@ -531,6 +565,43 @@ export default function OnboardingScreen() {
                             : t("onboarding_auth_create_account")}
                         </Text>
                       </View>
+                      {Platform.OS === "ios" && appleAuthAvailable && (
+                        <>
+                          <View style={styles.appleButtonWrap}>
+                            <AppleAuthentication.AppleAuthenticationButton
+                              buttonType={
+                                AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN
+                              }
+                              buttonStyle={
+                                AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
+                              }
+                              cornerRadius={9999}
+                              style={styles.appleButton}
+                              onPress={handleAppleSignIn}
+                              disabled={appleLoading || submitting}
+                            />
+                            {appleLoading && (
+                              <ActivityIndicator
+                                size="small"
+                                color="#fff"
+                                style={styles.appleButtonLoader}
+                              />
+                            )}
+                          </View>
+                          {appleError && (
+                            <Text style={styles.authError}>
+                              {appleError.message}
+                            </Text>
+                          )}
+                          <View style={styles.authDividerWrap}>
+                            <View style={styles.authDividerLine} />
+                            <Text style={styles.authDividerText}>
+                              {t("onboarding_or")}
+                            </Text>
+                            <View style={styles.authDividerLine} />
+                          </View>
+                        </>
+                      )}
                       <View style={styles.form}>
                         {!isLoginMode && (
                           <TextInput
@@ -1125,6 +1196,38 @@ const styles = StyleSheet.create({
     color: "#DC2626",
     marginBottom: 8,
     textAlign: "center",
+  },
+  appleButtonWrap: {
+    width: "100%",
+    minHeight: 52,
+    marginBottom: 8,
+    position: "relative",
+  },
+  appleButton: {
+    width: "100%",
+    height: 52,
+  },
+  appleButtonLoader: {
+    position: "absolute",
+    alignSelf: "center",
+    top: 16,
+  },
+  authDividerWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "stretch",
+    marginVertical: 20,
+    gap: 12,
+  },
+  authDividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "rgba(229,231,235,0.8)",
+  },
+  authDividerText: {
+    fontSize: 14,
+    color: COLORS.TEXT_MUTED,
+    fontWeight: "500",
   },
   toggleAuth: {
     alignSelf: "center",

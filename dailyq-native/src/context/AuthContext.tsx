@@ -7,10 +7,14 @@ import {
   useEffect,
   useState,
 } from "react";
-import { InteractionManager } from "react-native";
+import { InteractionManager, Platform } from "react-native";
 import type { User } from "@supabase/supabase-js";
+import * as AppleAuthentication from "expo-apple-authentication";
 import { supabase } from "../config/supabase";
 import { syncPushSubscriptionOnAppOpen } from "../lib/pushSubscription";
+
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? "";
+const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? "";
 
 // #region agent log
 function logAuth(id: string, message: string, data: Record<string, unknown>) {
@@ -54,6 +58,8 @@ type AuthContextValue = {
   signOut: () => Promise<void>;
   /** Calls delete_user RPC then signOut. */
   deleteUser: () => Promise<{ error: Error | null }>;
+  /** Sign in with Apple (iOS). Gets identity token, sends to Edge Function, sets session. */
+  signInWithApple: () => Promise<{ error: Error | null }>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -178,6 +184,75 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const signInWithApple = useCallback(async () => {
+    if (Platform.OS !== "ios") {
+      return { error: new Error("Sign in with Apple is only available on iOS") };
+    }
+    try {
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+      const identityToken = credential.identityToken;
+      if (!identityToken) {
+        return { error: new Error("Apple did not return an identity token") };
+      }
+      if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+        return { error: new Error("Supabase configuration missing") };
+      }
+      const url = `${SUPABASE_URL}/functions/v1/verify-apple-token`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({
+          identityToken,
+          user: credential.user,
+          fullName: credential.fullName
+            ? {
+                givenName: credential.fullName.givenName ?? undefined,
+                familyName: credential.fullName.familyName ?? undefined,
+              }
+            : undefined,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const message = data?.error ?? data?.message ?? res.statusText;
+        return { error: new Error(String(message)) };
+      }
+      const access_token = data.access_token;
+      const refresh_token = data.refresh_token;
+      if (!access_token || !refresh_token) {
+        return {
+          error: new Error(
+            data?.error ?? "verify-apple-token not implemented"
+          ),
+        };
+      }
+      const { error } = await supabase.auth.setSession({
+        access_token,
+        refresh_token,
+      });
+      if (error) return { error };
+      return { error: null };
+    } catch (e) {
+      if (e && typeof e === "object" && "code" in e) {
+        const code = (e as { code: string }).code;
+        if (code === "ERR_REQUEST_CANCELED") {
+          return { error: null };
+        }
+      }
+      return {
+        error: e instanceof Error ? e : new Error(String(e)),
+      };
+    }
+  }, []);
+
   const effectiveUser = getCurrentUser(user);
 
   const value: AuthContextValue = {
@@ -189,6 +264,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signInWithPassword,
     signOut,
     deleteUser,
+    signInWithApple,
   };
 
   return (
@@ -202,4 +278,32 @@ export function useAuth(): AuthContextValue {
     throw new Error("useAuth must be used within AuthProvider");
   }
   return ctx;
+}
+
+/** Hook for Apple Sign In with loading and error state. Use on the auth screen. */
+export function useAppleSignIn(): {
+  signInWithApple: () => Promise<{ error: Error | null }>;
+  loading: boolean;
+  error: Error | null;
+  clearError: () => void;
+} {
+  const { signInWithApple: doSignIn } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+
+  const signInWithApple = useCallback(async () => {
+    setError(null);
+    setLoading(true);
+    try {
+      const { error: err } = await doSignIn();
+      if (err) setError(err);
+      return { error: err };
+    } finally {
+      setLoading(false);
+    }
+  }, [doSignIn]);
+
+  const clearError = useCallback(() => setError(null), []);
+
+  return { signInWithApple, loading, error, clearError };
 }

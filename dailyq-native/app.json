@@ -11,12 +11,13 @@
       "fallbackToCacheTimeout": 0
     },
     "slug": "dailyq",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "orientation": "portrait",
     "scheme": "dailyq",
     "icon": "./assets/images/icon.png",
     "userInterfaceStyle": "automatic",
     "plugins": [
+      "expo-apple-authentication",
       "expo-font",
       "expo-router",
       [

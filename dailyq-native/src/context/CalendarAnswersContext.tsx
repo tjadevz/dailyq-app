@@ -120,6 +120,74 @@ export function useCalendarAnswers(
   const cached = getCacheForMonth(yearMonth);
   const answersMap = cached ?? localMap;
 
+  /** Fetches answers + questions for a month in parallel; returns map (does not set loading/cache). */
+  const fetchMonthData = useCallback(
+    async (
+      uid: string,
+      ym: string,
+      langParam: Lang
+    ): Promise<Map<string, CalendarAnswerEntry>> => {
+      const [y, m] = ym.split("-").map(Number);
+      const startStr = `${ym}-01`;
+      const lastDay = new Date(y, m, 0).getDate();
+      const endStr = `${ym}-${String(lastDay).padStart(2, "0")}`;
+
+      const questionTable = langParam === "en" ? "daily_questions_en" : "questions";
+      const questionDateCol = langParam === "en" ? "question_date" : "day";
+      const questionTextCol = langParam === "en" ? "question_text" : "text";
+
+      const [answersResult, questionsResult] = await Promise.all([
+        supabase
+          .from("answers")
+          .select("question_date, answer_text, is_joker")
+          .eq("user_id", uid)
+          .gte("question_date", startStr)
+          .lte("question_date", endStr),
+        supabase
+          .from(questionTable)
+          .select(`${questionDateCol}, ${questionTextCol}`)
+          .gte(questionDateCol, startStr)
+          .lte(questionDateCol, endStr),
+      ]);
+
+      if (answersResult.error) throw answersResult.error;
+
+      const dayToText = new Map<string, string>();
+      const questionsData = questionsResult.data;
+      if (questionsData) {
+        for (const row of questionsData as {
+          question_date?: string;
+          day?: string;
+          question_text?: string;
+          text?: string;
+        }[]) {
+          const day = questionDateCol === "question_date" ? row.question_date : row.day;
+          const text = questionTextCol === "question_text" ? row.question_text : row.text;
+          if (day) dayToText.set(day, text ?? "");
+        }
+      }
+
+      const map = new Map<string, CalendarAnswerEntry>();
+      const answersData = answersResult.data;
+      if (answersData) {
+        for (const row of answersData as {
+          question_date: string;
+          answer_text: string | null;
+          is_joker?: boolean;
+        }[]) {
+          const day = row.question_date;
+          map.set(day, {
+            questionText: dayToText.get(day) ?? "",
+            answerText: row.answer_text ?? "",
+            isJoker: row.is_joker === true,
+          });
+        }
+      }
+      return map;
+    },
+    []
+  );
+
   const fetchMonth = useCallback(async () => {
     if (!userId || userId === "dev-user") {
       if (userId === "dev-user") {
@@ -149,68 +217,27 @@ export function useCalendarAnswers(
     setLoading(true);
     setError(null);
     try {
-      const [y, m] = yearMonth.split("-").map(Number);
-      const startStr = `${yearMonth}-01`;
-      const lastDay = new Date(y, m, 0).getDate();
-      const endStr = `${yearMonth}-${String(lastDay).padStart(2, "0")}`;
-
-      const { data: answersData, error: answersError } = await supabase
-        .from("answers")
-        .select("question_date, answer_text, is_joker")
-        .eq("user_id", userId)
-        .gte("question_date", startStr)
-        .lte("question_date", endStr);
-
-      if (answersError) throw answersError;
-
-      const questionTable = lang === "en" ? "daily_questions_en" : "questions";
-      const questionDateCol = lang === "en" ? "question_date" : "day";
-      const questionTextCol = lang === "en" ? "question_text" : "text";
-
-      const { data: questionsData } = await supabase
-        .from(questionTable)
-        .select(`${questionDateCol}, ${questionTextCol}`)
-        .gte(questionDateCol, startStr)
-        .lte(questionDateCol, endStr);
-
-      const dayToText = new Map<string, string>();
-      if (questionsData) {
-        for (const row of questionsData as {
-          question_date?: string;
-          day?: string;
-          question_text?: string;
-          text?: string;
-        }[]) {
-          const day = questionDateCol === "question_date" ? row.question_date : row.day;
-          const text = questionTextCol === "question_text" ? row.question_text : row.text;
-          if (day) dayToText.set(day, text ?? "");
-        }
-      }
-
-      const map = new Map<string, CalendarAnswerEntry>();
-      if (answersData) {
-        for (const row of answersData as {
-          question_date: string;
-          answer_text: string | null;
-          is_joker?: boolean;
-        }[]) {
-          const day = row.question_date;
-          map.set(day, {
-            questionText: dayToText.get(day) ?? "",
-            answerText: row.answer_text ?? "",
-            isJoker: row.is_joker === true,
-          });
-        }
-      }
+      const map = await fetchMonthData(userId, yearMonth, lang);
       setLocalMap(map);
       setCacheForMonth(yearMonth, map);
+
+      // Prefetch adjacent months in background (no loading state)
+      const [y, m] = yearMonth.split("-").map(Number);
+      const prevYm = m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, "0")}`;
+      const nextYm = m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, "0")}`;
+      for (const ym of [prevYm, nextYm]) {
+        if (getCacheForMonth(ym) != null) continue;
+        fetchMonthData(userId, ym, lang)
+          .then((adjacentMap) => setCacheForMonth(ym, adjacentMap))
+          .catch(() => {});
+      }
     } catch (e) {
       console.error("Calendar answers fetch error:", e);
       setError("calendar_error_load");
     } finally {
       setLoading(false);
     }
-  }, [userId, yearMonth, lang, setCacheForMonth]);
+  }, [userId, yearMonth, lang, setCacheForMonth, fetchMonthData, getCacheForMonth]);
 
   useEffect(() => {
     // Guarantee fresh fetch when userId becomes available after mount (was null/undefined).
@@ -228,6 +255,8 @@ export function useCalendarAnswers(
       setLoading(false);
       return;
     }
+    // Stale-while-revalidate: show empty grid for this month immediately, then fetch in background
+    setLocalMap(new Map());
     fetchMonth();
   }, [yearMonth, userId, lang, clearCache, getCacheForMonth, fetchMonth]);
 

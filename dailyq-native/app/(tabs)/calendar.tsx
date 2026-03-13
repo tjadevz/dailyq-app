@@ -47,6 +47,7 @@ import { JokerBadge } from "@/src/components/JokerBadge";
 import { GlassCardContainer } from "@/src/components/GlassCardContainer";
 import { PrimaryButton } from "@/src/components/PrimaryButton";
 import { AnsweringExperience } from "@/src/components/AnsweringExperience";
+import { SubmitSuccessModal } from "@/src/components/SubmitSuccessModal";
 import { useStreakMilestone, getHighestMilestoneCrossed, getMilestonesCrossed, grantMilestoneJokersForCrossed } from "@/src/context/StreakMilestoneContext";
 import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
 import AnimatedReanimated, {
@@ -535,6 +536,7 @@ export default function CalendarScreen() {
   const [missedAnswerQuestionText, setMissedAnswerQuestionText] = useState("");
   const [missedAnswerSubmitting, setMissedAnswerSubmitting] = useState(false);
   const [missedAnswerError, setMissedAnswerError] = useState<string | null>(null);
+  const [showSubmitSuccess, setShowSubmitSuccess] = useState(false);
   const [jokerModalVisible, setJokerModalVisible] = useState(false);
   const [realStreak, setRealStreak] = useState(0);
   const [showYearPicker, setShowYearPicker] = useState(false);
@@ -742,9 +744,11 @@ export default function CalendarScreen() {
           answerText: trimmed,
           isJoker: true,
         });
-        await handleMissedSaved(previousStreak);
         setMissedAnswerDay(null);
         setMissedAnswerQuestionText("");
+        setShowSubmitSuccess(true);
+        setTimeout(() => setShowSubmitSuccess(false), 1700);
+        await handleMissedSaved(previousStreak);
       } catch (e: unknown) {
         setMissedAnswerError(
           (e as { message?: string })?.message ??
@@ -1026,6 +1030,7 @@ export default function CalendarScreen() {
         jokerBalance={jokerCount}
         t={t}
       />
+      <SubmitSuccessModal visible={showSubmitSuccess} />
       </ScrollView>
     </GlassCardContainer>
   );

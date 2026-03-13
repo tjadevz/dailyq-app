@@ -31,18 +31,29 @@ export function PrimaryButton({
         style,
       ]}
     >
-      <LinearGradient
-        colors={disabled ? ["#9CA3AF", "#9CA3AF"] : GRADIENT_COLORS}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-        style={[styles.gradient, disabled && styles.gradientDisabled]}
-      >
-        {loading ? (
-          <ActivityIndicator size="small" color="#fff" />
-        ) : (
-          <Text style={[styles.text, textStyle]}>{children}</Text>
+      <View style={styles.gradientWrap}>
+        <LinearGradient
+          colors={disabled ? ["#9CA3AF", "#9CA3AF"] : GRADIENT_COLORS}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={[styles.gradient, disabled && styles.gradientDisabled]}
+        >
+          {loading ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <Text style={[styles.text, textStyle]}>{children}</Text>
+          )}
+        </LinearGradient>
+        {!disabled && (
+          <LinearGradient
+            colors={["rgba(255,255,255,0.15)", "rgba(255,255,255,0)"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+            style={styles.innerHighlightGradient}
+            pointerEvents="none"
+          />
         )}
-      </LinearGradient>
+      </View>
     </Pressable>
   );
 }
@@ -53,6 +64,19 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.9,
+  },
+  gradientWrap: {
+    position: "relative",
+    borderRadius: 9999,
+    overflow: "hidden",
+  },
+  innerHighlightGradient: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 9999,
   },
   gradient: {
     paddingVertical: 16,

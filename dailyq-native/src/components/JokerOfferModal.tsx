@@ -202,21 +202,34 @@ export default function JokerOfferModal({
                     if (jokerCount > 0 && dayKey) onUseJoker(dayKey, questionText);
                   }}
                   activeOpacity={0.88}
-                  style={[styles.ctaBtn, jokerCount === 0 && styles.ctaBtnDisabled]}
+                  disabled={jokerCount === 0}
+                  style={[
+                    styles.ctaBtn,
+                    jokerCount === 0 && styles.ctaBtnDisabled,
+                  ]}
                 >
-                <LinearGradient
-                  colors={["#FCD34D", "#FBBF24"]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={StyleSheet.absoluteFill}
-                />
+                  {jokerCount > 0 ? (
+                    <LinearGradient
+                      colors={["#FCD34D", "#FBBF24"]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={StyleSheet.absoluteFill}
+                    />
+                  ) : (
+                    <View style={styles.ctaBtnGrayBg} />
+                  )}
                   <MaterialCommunityIcons
-                    name="crown"
+                    name={jokerCount > 0 ? "crown" : "crown-outline"}
                     size={16}
                     color="#FFFFFF"
                   />
-                  <Text style={styles.ctaText}>{t("joker_offer_unlock")}</Text>
+                  <Text style={styles.ctaText}>
+                    {jokerCount > 0 ? t("joker_offer_unlock") : t("missed_no_jokers_left_error")}
+                  </Text>
                 </TouchableOpacity>
+                {jokerCount === 0 && (
+                  <Text style={styles.ctaHint}>{t("joker_offer_no_jokers_hint")}</Text>
+                )}
               </View>
             </View>
           </Animated.View>
@@ -329,6 +342,17 @@ const styles = StyleSheet.create({
   },
   ctaBtnDisabled: {
     opacity: 0.4,
+  },
+  ctaBtnGrayBg: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "#9CA3AF",
+  },
+  ctaHint: {
+    marginTop: 10,
+    fontSize: 12,
+    color: "#6B7280",
+    opacity: 0.7,
+    textAlign: "center",
   },
   ctaText: {
     color: "#FFFFFF",

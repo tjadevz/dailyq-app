@@ -32,6 +32,7 @@ import { JokerBadge } from "@/src/components/JokerBadge";
 import { PrimaryButton } from "@/src/components/PrimaryButton";
 import { GlassCardContainer } from "@/src/components/GlassCardContainer";
 import { AnsweringExperience } from "@/src/components/AnsweringExperience";
+import { SubmitSuccessModal } from "@/src/components/SubmitSuccessModal";
 
 const MAX_ANSWER_LENGTH = 280;
 
@@ -222,8 +223,9 @@ export default function TodayScreen() {
         setExistingAnswer(trimmed);
         setAnswerText(trimmed);
 
+        setAnswerModalOpen(false);
         setShowSubmitSuccess(true);
-        setTimeout(() => setShowSubmitSuccess(false), 1200);
+        setTimeout(() => setShowSubmitSuccess(false), 1700);
 
         if (wasUpdate) {
           setEditConfirmVisible(true);
@@ -254,14 +256,12 @@ export default function TodayScreen() {
             crossed.length > 0
               ? getHighestMilestoneCrossed(previousStreak, newStreak)
               : null;
-          setAnswerModalOpen(false);
           await new Promise((resolve) => setTimeout(resolve, 300));
           if (crossed.length > 0 && highest) showMilestone(highest);
           if (grantSuccess) await refetchProfile();
         } catch (e) {
           console.error("[Today submit] Milestone flow error", e);
         }
-        setAnswerModalOpen(false);
       } catch (e: unknown) {
         const err = e as {
           message?: string;
@@ -328,7 +328,6 @@ export default function TodayScreen() {
           </View>
 
           <View style={styles.mainContent}>
-            {showSubmitSuccess && <SubmitSuccessOverlay />}
             <Animated.View
               style={[styles.centerBlock, { transform: [{ translateY: questionBlockOffset }] }]}
             >
@@ -447,42 +446,11 @@ export default function TodayScreen() {
             jokerBalance={profile?.joker_balance ?? 0}
             t={t}
           />
+          <SubmitSuccessModal visible={showSubmitSuccess} />
           <EditConfirmModal visible={editConfirmVisible} message={t("today_answer_changed")} />
         </View>
       </TouchableWithoutFeedback>
     </GlassCardContainer>
-  );
-}
-
-function SubmitSuccessOverlay() {
-  const scale = React.useRef(new Animated.Value(0.5)).current;
-  const opacity = React.useRef(new Animated.Value(0)).current;
-
-  React.useEffect(() => {
-    Animated.parallel([
-      Animated.timing(opacity, { toValue: 1, duration: 150, useNativeDriver: true }),
-      Animated.spring(scale, {
-        toValue: 1,
-        useNativeDriver: true,
-        friction: 8,
-        tension: 80,
-      }),
-    ]).start();
-  }, [opacity, scale]);
-
-  return (
-    <Animated.View style={[styles.submitSuccessOverlay, { opacity }]} pointerEvents="none">
-      <Animated.View style={[styles.submitSuccessCircleWrap, { transform: [{ scale }] }]}>
-        <LinearGradient
-          colors={["#FEF3C7", "#FDE68A", "#FCD34D"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.submitSuccessCircle}
-        >
-          <Feather name="check" size={36} color="#fff" strokeWidth={2.5} />
-        </LinearGradient>
-      </Animated.View>
-    </Animated.View>
   );
 }
 
@@ -596,37 +564,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     marginTop: 8,
-  },
-  submitSuccessOverlay: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-    backgroundColor: "rgba(244,246,249,0.9)",
-    borderRadius: 24,
-    justifyContent: "center",
-    alignItems: "center",
-    zIndex: 10,
-  },
-  submitSuccessCircleWrap: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-  },
-  submitSuccessCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    borderWidth: 1,
-    borderColor: "rgba(251,191,36,0.4)",
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#B45309",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 6,
   },
   answeredWrap: {
     width: "100%",

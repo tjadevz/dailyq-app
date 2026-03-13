@@ -12,7 +12,6 @@ import {
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Feather from "@expo/vector-icons/Feather";
-import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { COLORS, MODAL, MODAL_CLOSE_MS, APP_VERSION } from "@/src/config/constants";
@@ -145,22 +144,15 @@ function DeleteAccountModal({
               <Text style={styles.modalButtonSecondaryText}>{t("common_cancel")}</Text>
             </Pressable>
             <Pressable
-              style={[styles.modalButton, styles.modalButtonDangerWrap]}
+              style={[styles.modalButton, styles.modalButtonDanger]}
               onPress={handleConfirm}
               disabled={deleting}
             >
-              <LinearGradient
-                colors={["#DC2626", "#B91C1C"]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={[styles.modalButton, styles.modalButtonDanger]}
-              >
-                {deleting ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Text style={styles.modalButtonPrimaryText}>{t("settings_delete_account")}</Text>
-                )}
-              </LinearGradient>
+              {deleting ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.modalButtonDangerText}>{t("common_confirm")}</Text>
+              )}
             </Pressable>
           </View>
         </View>
@@ -268,8 +260,6 @@ export default function SettingsScreen() {
     });
   }, []);
 
-  const email = effectiveUser?.email ?? "";
-
   const appVersion = APP_VERSION;
 
   const handleSignOut = useCallback(async () => {
@@ -345,21 +335,6 @@ export default function SettingsScreen() {
               <Feather name="chevron-right" size={20} color={COLORS.TEXT_MUTED} />
             </View>
           </Pressable>
-
-          {/* Ingelogd als */}
-          <View style={styles.card}>
-            <View style={styles.cardIconWrap}>
-              <View style={[styles.cardIcon, styles.cardIconIndigo]}>
-                <Feather name="mail" size={16} strokeWidth={2} color="#6366F1" />
-              </View>
-              <View style={[styles.cardTextWrap, styles.cardTextWrapFlex]}>
-                <Text style={styles.cardTitle}>{t("settings_signed_in_as")}</Text>
-                <Text style={styles.cardSubtitle} numberOfLines={1}>
-                  {email}
-                </Text>
-              </View>
-            </View>
-          </View>
 
           {/* Uitloggen */}
           <Pressable style={styles.card} onPress={handleSignOut}>
@@ -581,9 +556,13 @@ cardIconWrap: {
     fontWeight: "600",
     color: COLORS.TEXT_PRIMARY,
   },
-  modalButtonDangerWrap: { flex: 1 },
   modalButtonDanger: {
-    backgroundColor: "transparent",
+    backgroundColor: "#DC2626",
+  },
+  modalButtonDangerText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#fff",
   },
   modalButtonPrimaryText: {
     fontSize: 16,

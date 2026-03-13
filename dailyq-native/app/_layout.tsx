@@ -18,7 +18,7 @@ export default function RootLayout() {
           <LanguageProvider>
             <StreakMilestoneProvider>
               <CalendarAnswersProvider>
-                <View style={{ flex: 1, backgroundColor: "#FAF9FF" }}>
+                <View style={{ flex: 1, backgroundColor: "#FAFAFF" }}>
                   <BackgroundLayer />
                   <View style={{ flex: 1, backgroundColor: "transparent" }}>
                     <Slot />

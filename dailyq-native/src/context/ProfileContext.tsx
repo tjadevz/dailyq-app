@@ -1,5 +1,5 @@
-import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { getNow } from "../lib/date";
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { getNow, getLocalDayKey } from "../lib/date";
 import { supabase } from "../config/supabase";
 import { useAuth } from "./AuthContext";
 
@@ -21,6 +21,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
   const { effectiveUser } = useAuth();
   const userId = effectiveUser?.id ?? null;
   const [profile, setProfile] = useState<Profile | null>(null);
+  const grantInFlightRef = useRef(false);
 
   const refetch = useCallback(async (): Promise<Profile | null> => {
     if (!userId || userId === "dev-user") {
@@ -48,21 +49,26 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       return null;
     }
 
-    const currentMonth = getNow().toISOString().slice(0, 7);
+    const currentMonth = getLocalDayKey(getNow()).slice(0, 7);
     const lastGrant = (prof as Profile | null)?.last_joker_grant_month ?? null;
 
-    if (lastGrant !== currentMonth) {
-      const { error: rpcErr } = await supabase.rpc("grant_monthly_jokers");
-      if (!rpcErr) {
-        const { data: refetched } = await supabase
-          .from("profiles")
-          .select("id, joker_balance, last_joker_grant_month, language")
-          .eq("id", userId)
-          .single();
-        if (refetched) {
-          setProfile(refetched as Profile);
-          return refetched as Profile;
+    if (lastGrant !== currentMonth && !grantInFlightRef.current) {
+      grantInFlightRef.current = true;
+      try {
+        const { error: rpcErr } = await supabase.rpc("grant_monthly_jokers");
+        if (!rpcErr) {
+          const { data: refetched } = await supabase
+            .from("profiles")
+            .select("id, joker_balance, last_joker_grant_month, language")
+            .eq("id", userId)
+            .single();
+          if (refetched) {
+            setProfile(refetched as Profile);
+            return refetched as Profile;
+          }
         }
+      } finally {
+        grantInFlightRef.current = false;
       }
     }
 

@@ -147,6 +147,8 @@ export default function OnboardingScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [authError, setAuthError] = useState<string | null>(null);
+  const [forgotPasswordSent, setForgotPasswordSent] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
 
@@ -227,6 +229,28 @@ export default function OnboardingScreen() {
     }
   }, [email, password, isLoginMode, performPostAuthPushUpsertAndNavigate, router]);
 
+  const handleForgotPassword = useCallback(async () => {
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
+      setAuthError(t("forgot_password_enter_email"));
+      return;
+    }
+    setAuthError(null);
+    setForgotPasswordSent(false);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(trimmedEmail, {
+        redirectTo: "dailyq://reset-password",
+      });
+      if (error) {
+        setAuthError(error.message);
+        return;
+      }
+      setForgotPasswordSent(true);
+    } catch (e) {
+      setAuthError(e instanceof Error ? e.message : String(e));
+    }
+  }, [email, t]);
+
   const handleAppleSignIn = useCallback(async () => {
     clearAppleError();
     setAuthError(null);
@@ -255,28 +279,6 @@ export default function OnboardingScreen() {
     return () => sub.remove();
   }, [step]);
 
-  // #region agent log
-  useEffect(() => {
-    fetch("http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "6dee77" },
-      body: JSON.stringify({
-        sessionId: "6dee77",
-        runId: "run1",
-        hypothesisId: "H1",
-        location: "onboarding.tsx",
-        message: "Onboarding mount",
-        data: {
-          step,
-          cardBg: styles.card.backgroundColor ?? "undefined",
-          pastAnswersBg: styles.pastAnswersCard.backgroundColor,
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-  }, [step]);
-  // #endregion
-
   return (
     <SafeAreaView
       style={[styles.safe, { backgroundColor: "#FAFAFA" }]}
@@ -286,34 +288,27 @@ export default function OnboardingScreen() {
       <View style={styles.orbAmber} pointerEvents="none" />
       <View style={styles.orbPurple} pointerEvents="none" />
       <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.keyboard}
-        behavior={Platform.OS === "ios" ? "padding" : "padding"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 60 : 0}
       >
-        <View
-          style={[
-            styles.card,
-            { backgroundColor: "transparent" },
-            styles.cardNoFrame,
+        <ScrollView
+          ref={scrollRef}
+          style={[styles.scrollView, styles.scrollViewFullBleed]}
+          contentContainerStyle={[
+            styles.scrollContent,
+            styles.scrollContentFullBleed,
+            {
+              flexGrow: 1,
+              justifyContent: "center",
+              paddingTop: Math.max(insets.top, 64),
+              paddingHorizontal: 32,
+              paddingBottom: 48,
+            },
           ]}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          showsVerticalScrollIndicator={false}
         >
-          <ScrollView
-            ref={scrollRef}
-            style={[styles.scrollView, styles.scrollViewFullBleed]}
-            contentContainerStyle={[
-              styles.scrollContent,
-              styles.scrollContentFullBleed,
-              { paddingTop: Math.max(insets.top, 64), paddingHorizontal: 32, paddingBottom: 48 },
-              step === "auth" && {
-                justifyContent: "flex-start",
-                paddingBottom: 400,
-                flexGrow: 1,
-              },
-            ]}
-            keyboardShouldPersistTaps="handled"
-            keyboardDismissMode="on-drag"
-            showsVerticalScrollIndicator={false}
-          >
             <View
               style={[
                 styles.column,
@@ -621,24 +616,57 @@ export default function OnboardingScreen() {
                           placeholder={t("onboarding_email")}
                           placeholderTextColor={COLORS.TEXT_MUTED}
                           value={email}
-                          onChangeText={setEmail}
+                          onChangeText={(text) => {
+                            setEmail(text);
+                            setForgotPasswordSent(false);
+                          }}
                           editable={!submitting}
                           autoCapitalize="none"
                           autoCorrect={false}
                           keyboardType="email-address"
                           autoComplete="email"
                         />
-                        <TextInput
-                          style={styles.input}
-                          placeholder={t("onboarding_password")}
-                          placeholderTextColor={COLORS.TEXT_MUTED}
-                          value={password}
-                          onChangeText={setPassword}
-                          editable={!submitting}
-                          secureTextEntry
-                          autoComplete={isLoginMode ? "password" : "new-password"}
-                          autoCapitalize="none"
-                        />
+                        <View style={styles.passwordInputWrap}>
+                          <TextInput
+                            style={[styles.input, styles.passwordInput]}
+                            placeholder={t("onboarding_password")}
+                            placeholderTextColor={COLORS.TEXT_MUTED}
+                            value={password}
+                            onChangeText={setPassword}
+                            editable={!submitting}
+                            secureTextEntry={!showPassword}
+                            autoComplete={isLoginMode ? "password" : "new-password"}
+                            autoCapitalize="none"
+                          />
+                          <Pressable
+                            onPress={() => setShowPassword((s) => !s)}
+                            style={styles.passwordToggle}
+                            accessibilityLabel={showPassword ? t("common_hide_password") : t("common_show_password")}
+                          >
+                            <Feather
+                              name={showPassword ? "eye-off" : "eye"}
+                              size={22}
+                              color={COLORS.TEXT_MUTED}
+                              strokeWidth={2}
+                            />
+                          </Pressable>
+                        </View>
+                        {isLoginMode && (
+                          <Pressable
+                            onPress={handleForgotPassword}
+                            disabled={submitting}
+                            style={styles.forgotPasswordWrap}
+                          >
+                            <Text style={styles.toggleAuthLink}>
+                              {t("onboarding_forgot_password")}
+                            </Text>
+                          </Pressable>
+                        )}
+                        {forgotPasswordSent && (
+                          <Text style={styles.forgotPasswordSent}>
+                            {t("forgot_password_check_email")}
+                          </Text>
+                        )}
                         <OnboardingPrimaryButton
                           fullWidth
                           onPress={handleAuthSubmit}
@@ -686,7 +714,6 @@ export default function OnboardingScreen() {
               )}
             </View>
           </ScrollView>
-        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -1188,6 +1215,29 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: COLORS.TEXT_PRIMARY,
   },
+  passwordInputWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    width: "100%",
+    minHeight: 52,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(229,231,235,0.8)",
+    backgroundColor: "#fff",
+  },
+  passwordInput: {
+    flex: 1,
+    width: undefined,
+    minHeight: 52,
+    paddingRight: 12,
+    borderWidth: 0,
+    borderRadius: 0,
+  },
+  passwordToggle: {
+    padding: 12,
+    justifyContent: "center",
+    alignItems: "center",
+  },
   authSubmit: {
     marginTop: 8,
   },
@@ -1228,6 +1278,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.TEXT_MUTED,
     fontWeight: "500",
+  },
+  forgotPasswordWrap: {
+    alignSelf: "center",
+    paddingVertical: 4,
+    marginTop: -4,
+  },
+  forgotPasswordSent: {
+    fontSize: 14,
+    color: COLORS.TEXT_SECONDARY,
+    marginBottom: 4,
   },
   toggleAuth: {
     alignSelf: "center",

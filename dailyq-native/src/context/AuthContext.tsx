@@ -16,16 +16,6 @@ import { syncPushSubscriptionOnAppOpen } from "../lib/pushSubscription";
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? "";
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? "";
 
-// #region agent log
-function logAuth(id: string, message: string, data: Record<string, unknown>) {
-  fetch("http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "332a30" },
-    body: JSON.stringify({ sessionId: "332a30", runId: "run1", hypothesisId: id, location: "AuthContext.tsx", message, data, timestamp: Date.now() }),
-  }).catch(() => {});
-}
-// #endregion
-
 const DEV_USER: User = {
   id: "dev-user",
   app_metadata: {},
@@ -71,27 +61,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
-    const t0 = Date.now();
-    // #region agent log
-    logAuth("H2", "initAuth start", { ts: t0 });
-    // #endregion
 
     const initAuth = async () => {
       try {
         const {
           data: { session },
         } = await supabase.auth.getSession();
-        // #region agent log
-        logAuth("H2", "getSession returned", { ts: Date.now(), elapsed: Date.now() - t0, hasUser: !!session?.user });
-        // #endregion
         if (!cancelled) {
-          console.log("setUser called with:", session?.user?.id ?? null);
           setUser(session?.user ?? null);
           setAuthCheckDone(true);
         }
       } catch (e) {
         if (!cancelled) {
-          console.log("setUser called with:", null);
           setUser(null);
         }
         console.error("Auth init error:", e);
@@ -99,9 +80,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!cancelled) {
           setAuthCheckDone(true);
           setLoading(false);
-          // #region agent log
-          logAuth("H1", "authCheckDone set", { ts: Date.now(), elapsed: Date.now() - t0 });
-          // #endregion
         }
       }
     };
@@ -112,7 +90,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       if (cancelled) return;
-      console.log("setUser called with:", session?.user?.id ?? null);
       setUser(session?.user ?? null);
     });
 
@@ -165,7 +142,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
-    console.log("setUser called with:", null);
     setUser(null);
   }, []);
 
@@ -174,7 +150,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { error } = await supabase.rpc("delete_user");
       if (error) return { error };
       await supabase.auth.signOut();
-      console.log("setUser called with:", null);
       setUser(null);
       return { error: null };
     } catch (e) {

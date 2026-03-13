@@ -50,6 +50,7 @@ import { AnsweringExperience } from "@/src/components/AnsweringExperience";
 import { useStreakMilestone, getHighestMilestoneCrossed, getMilestonesCrossed, grantMilestoneJokersForCrossed } from "@/src/context/StreakMilestoneContext";
 import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
 import AnimatedReanimated, {
+  FadeInUp,
   useSharedValue,
   useAnimatedStyle,
   withTiming,
@@ -144,8 +145,8 @@ function getCellState(
 }
 
 function isWithinMissedAnswerWindow(dayKey: string, todayKey: string): boolean {
-  const a = new Date(dayKey);
-  const b = new Date(todayKey);
+  const a = new Date(dayKey + "T12:00:00");
+  const b = new Date(todayKey + "T12:00:00");
   const diff = Math.floor((b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24));
   return diff >= 0 && diff <= MISSED_ANSWER_DAYS_CAP - 1;
 }
@@ -157,11 +158,16 @@ function ViewAnswerModal({
   visible,
   dayKey,
   entry,
+  allYearsEntries,
+  allYearsLoading,
   onClose,
 }: {
   visible: boolean;
   dayKey: string | null;
   entry: CalendarAnswerEntry | null;
+  /** When set, show all years for this MM-DD (oldest first). */
+  allYearsEntries: { year: string; answer: string }[] | null;
+  allYearsLoading: boolean;
   onClose: () => void;
 }) {
   const { t, lang } = useLanguage();
@@ -186,6 +192,8 @@ function ViewAnswerModal({
           const shouldDismiss =
             dragY.value > threshold || e.velocityY > velocityThreshold;
           if (shouldDismiss) {
+            const currentY = slideY.value + dragY.value;
+            slideY.value = currentY;
             dragY.value = 0;
             backdropOpacity.value = withTiming(0, { duration: 180 });
             slideY.value = withTiming(
@@ -224,7 +232,7 @@ function ViewAnswerModal({
   }, [closeModal, backdropOpacity, slideY]);
 
   const dateLabel =
-    dayKey && entry
+    dayKey
       ? (() => {
           const [y, m, d] = dayKey.split("-").map(Number);
           return new Date(y, m - 1, d).toLocaleDateString(lang === "nl" ? "nl-NL" : "en-US", {
@@ -235,10 +243,15 @@ function ViewAnswerModal({
         })()
       : "";
   const sheetData =
-    dayKey && entry
+    dayKey && (entry || (allYearsEntries && allYearsEntries.length > 0))
       ? {
-          question: entry.questionText,
-          answers: [{ year: dayKey.slice(0, 4), answer: entry.answerText }] as { year: string; answer: string }[],
+          question: entry?.questionText ?? "",
+          answers:
+            allYearsEntries && allYearsEntries.length > 0
+              ? allYearsEntries
+              : entry
+                ? [{ year: dayKey.slice(0, 4), answer: entry.answerText }]
+                : [],
         }
       : null;
 
@@ -293,12 +306,22 @@ function ViewAnswerModal({
               contentContainerStyle={styles.bottomSheetScrollContent}
               showsVerticalScrollIndicator={true}
             >
-              {sheetData?.answers.map((item) => (
-                <View key={item.year} style={styles.bottomSheetYearCard}>
-                  <Text style={styles.bottomSheetYearLabel}>{dateLabel || item.year}</Text>
-                  <Text style={styles.bottomSheetYearAnswer}>{item.answer}</Text>
+              {allYearsLoading ? (
+                <View style={styles.bottomSheetLoadingWrap}>
+                  <ActivityIndicator size="small" color={COLORS.ACCENT} />
                 </View>
-              ))}
+              ) : (
+                sheetData?.answers.map((item, index) => (
+                  <AnimatedReanimated.View
+                    key={item.year}
+                    entering={FadeInUp.delay(250 + index * 700).duration(260)}
+                    style={styles.bottomSheetYearCard}
+                  >
+                    <Text style={styles.bottomSheetYearLabel}>{item.year}</Text>
+                    <Text style={styles.bottomSheetYearAnswer}>{item.answer}</Text>
+                  </AnimatedReanimated.View>
+                ))
+              )}
             </ScrollView>
           </AnimatedReanimated.View>
           </GestureDetector>
@@ -505,6 +528,8 @@ export default function CalendarScreen() {
   );
 
   const [viewAnswerDay, setViewAnswerDay] = useState<string | null>(null);
+  const [allYearsEntries, setAllYearsEntries] = useState<{ year: string; answer: string }[] | null>(null);
+  const [allYearsLoading, setAllYearsLoading] = useState(false);
   const [missedDay, setMissedDay] = useState<string | null>(null);
   const [missedAnswerDay, setMissedAnswerDay] = useState<string | null>(null);
   const [missedAnswerQuestionText, setMissedAnswerQuestionText] = useState("");
@@ -519,7 +544,8 @@ export default function CalendarScreen() {
       setRealStreak(0);
       return 0;
     }
-    const { data } = await supabase.rpc("get_user_streaks", { p_user_id: userId });
+    const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const { data } = await supabase.rpc("get_user_streaks", { p_user_id: userId, p_timezone: userTimezone });
     const row = Array.isArray(data) && data.length > 0 ? data[0] : null;
     const r = row?.real_streak ?? 0;
     const v = row?.visual_streak ?? 0;
@@ -538,6 +564,36 @@ export default function CalendarScreen() {
       fetchStreak();
     }, [fetchStreak])
   );
+
+  useEffect(() => {
+    if (!viewAnswerDay || !userId) {
+      setAllYearsEntries(null);
+      return;
+    }
+    setAllYearsEntries(null);
+    const mmdd = viewAnswerDay.slice(5); // e.g. "03-12"
+    console.log("[ViewAnswerModal all-years] mmdd:", mmdd, "viewAnswerDay:", viewAnswerDay);
+    console.log("[ViewAnswerModal all-years] userId at query:", userId);
+    setAllYearsLoading(true);
+    (async () => {
+      const { data, error } = await supabase.rpc("get_answers_for_day", {
+        p_user_id: userId,
+        p_mmdd: mmdd,
+      });
+      console.log("[ViewAnswerModal all-years] raw Supabase response:", { data, error });
+      if (error || !data) {
+        setAllYearsLoading(false);
+        return;
+      }
+      const entries = data.map((row: { question_date: string; answer_text: string | null }) => ({
+        year: row.question_date.slice(0, 4),
+        answer: row.answer_text ?? "",
+      }));
+      console.log("[ViewAnswerModal all-years] final allYearsEntries before setState:", entries);
+      setAllYearsEntries(entries);
+      setAllYearsLoading(false);
+    })();
+  }, [viewAnswerDay, userId]);
 
   const goPrev = useCallback(() => {
     if (accountStartYearMonth && yearMonth <= accountStartYearMonth) return;
@@ -630,20 +686,6 @@ export default function CalendarScreen() {
       if (crossed.length > 0) {
         const highest = getHighestMilestoneCrossed(previousStreak, newStreak);
         if (highest) showMilestone(highest);
-      } else {
-        // #region agent log
-        fetch("http://127.0.0.1:7243/ingest/db237dc3-2932-4821-b603-b2959e85e2e1", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "7bd1af" },
-          body: JSON.stringify({
-            sessionId: "7bd1af",
-            location: "calendar.tsx:handleMissedSaved:noMilestone",
-            message: "joker used, no milestone crossed — refetchProfile was not called (before fix)",
-            data: { crossedLength: crossed.length, hypothesisId: "H2" },
-            timestamp: Date.now(),
-          }),
-        }).catch(() => {});
-        // #endregion
       }
       // Always refetch profile so joker_balance updates after use_joker (RPC deducts in DB).
       await refetchProfile();
@@ -662,8 +704,10 @@ export default function CalendarScreen() {
       try {
         let previousStreak = 0;
         try {
+          const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
           const { data: streaks } = await supabase.rpc("get_user_streaks", {
             p_user_id: userId,
+            p_timezone: userTimezone,
           });
           const row =
             Array.isArray(streaks) && streaks.length > 0 ? streaks[0] : null;
@@ -683,11 +727,20 @@ export default function CalendarScreen() {
           answer_text: trimmed,
           is_joker: true,
         });
-        if (insertErr) throw insertErr;
+        if (insertErr) {
+          // use_joker already decremented joker_balance — compensate by restoring it.
+          try {
+            await supabase.rpc("restore_joker");
+          } catch (compensateErr: unknown) {
+            console.error("Failed to restore joker after insert failure:", compensateErr);
+          }
+          throw insertErr;
+        }
 
         setAnswerForDay(missedAnswerDay, {
           questionText: missedAnswerQuestionText,
           answerText: trimmed,
+          isJoker: true,
         });
         await handleMissedSaved(previousStreak);
         setMissedAnswerDay(null);
@@ -924,6 +977,8 @@ export default function CalendarScreen() {
         visible={!!viewAnswerDay}
         dayKey={viewAnswerDay}
         entry={viewEntry}
+        allYearsEntries={allYearsEntries}
+        allYearsLoading={allYearsLoading}
         onClose={() => setViewAnswerDay(null)}
       />
       {missedWithinWindow ? (
@@ -1436,16 +1491,16 @@ const styles = StyleSheet.create({
     zIndex: 11,
   },
   bottomSheetDateLabel: {
-    fontSize: 14,
+    fontSize: 18,
     fontWeight: "600",
     color: "rgba(124, 58, 237, 0.8)",
     marginBottom: 8,
   },
   bottomSheetQuestion: {
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: "600",
     color: "#1F2937",
-    lineHeight: 26,
+    lineHeight: 30,
     paddingRight: 40,
   },
   bottomSheetScroll: {
@@ -1456,6 +1511,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 20,
     gap: 12,
+  },
+  bottomSheetLoadingWrap: {
+    paddingVertical: 32,
+    alignItems: "center",
+    justifyContent: "center",
   },
   bottomSheetYearCard: {
     borderRadius: 20,
@@ -1468,16 +1528,16 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   bottomSheetYearLabel: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "700",
     color: "rgba(124, 58, 237, 0.7)",
     letterSpacing: 0.5,
     marginBottom: 12,
   },
   bottomSheetYearAnswer: {
-    fontSize: 15,
+    fontSize: 18,
     color: "#374151",
-    lineHeight: 22,
+    lineHeight: 26,
   },
   modalTitle: { fontSize: 20, fontWeight: "600", color: COLORS.TEXT_PRIMARY, marginBottom: 12 },
   modalSubtitle: { fontSize: 14, color: COLORS.TEXT_SECONDARY, marginBottom: 8 },

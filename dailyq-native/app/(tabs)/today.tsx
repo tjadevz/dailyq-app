@@ -148,7 +148,7 @@ export default function TodayScreen() {
     let cancelled = false;
     const dayKey = question.day;
     (async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("answers")
         .select("answer_text")
         .eq("user_id", userId)
@@ -156,6 +156,10 @@ export default function TodayScreen() {
         .maybeSingle();
 
       if (cancelled) return;
+      if (error) {
+        console.error("Failed to fetch existing answer:", error);
+        return;
+      }
       if (data?.answer_text != null) {
         setExistingAnswer(data.answer_text);
         setAnswerText(data.answer_text);
@@ -179,8 +183,10 @@ export default function TodayScreen() {
       try {
         let previousStreak = 0;
         try {
+          const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
           const { data: streaksBefore } = await supabase.rpc("get_user_streaks", {
             p_user_id: userId,
+            p_timezone: userTimezone,
           });
           const rowBefore =
             Array.isArray(streaksBefore) && streaksBefore.length > 0
@@ -224,8 +230,10 @@ export default function TodayScreen() {
           setTimeout(() => setEditConfirmVisible(false), 2500);
         }
 
+        const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
         const { data: streaks } = await supabase.rpc("get_user_streaks", {
           p_user_id: userId,
+          p_timezone: userTimezone,
         });
         const row =
           Array.isArray(streaks) && streaks.length > 0 ? streaks[0] : null;
@@ -242,13 +250,13 @@ export default function TodayScreen() {
             previousStreak,
             newStreak
           );
-          if (crossed.length > 0) {
-            const highest = getHighestMilestoneCrossed(
-              previousStreak,
-              newStreak
-            );
-            if (highest) showMilestone(highest);
-          }
+          const highest =
+            crossed.length > 0
+              ? getHighestMilestoneCrossed(previousStreak, newStreak)
+              : null;
+          setAnswerModalOpen(false);
+          await new Promise((resolve) => setTimeout(resolve, 300));
+          if (crossed.length > 0 && highest) showMilestone(highest);
           if (grantSuccess) await refetchProfile();
         } catch (e) {
           console.error("[Today submit] Milestone flow error", e);

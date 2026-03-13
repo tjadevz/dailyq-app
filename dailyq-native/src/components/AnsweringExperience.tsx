@@ -279,21 +279,16 @@ export function AnsweringExperience({
                         end={{ x: 1, y: 0 }}
                         style={styles.submitButton}
                       >
-                        <View style={styles.submitIconBg}>
-                          {submitting ? (
-                            <ActivityIndicator size="small" color="#FFFFFF" />
-                          ) : (
-                            <Feather
-                              name="check"
-                              size={14}
-                              color="#FFFFFF"
-                              strokeWidth={3}
-                            />
-                          )}
-                        </View>
-                        <Text style={styles.submitText}>
-                          {submitting ? "..." : "Answer"}
-                        </Text>
+                        {submitting ? (
+                          <ActivityIndicator size="small" color="#FFFFFF" />
+                        ) : (
+                          <Feather
+                            name="arrow-right"
+                            size={17}
+                            color="#FFFFFF"
+                            strokeWidth={3}
+                          />
+                        )}
                       </LinearGradient>
                     </TouchableOpacity>
                   </Animated.View>
@@ -437,22 +432,9 @@ const styles = StyleSheet.create({
   submitButton: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 24,
+    justifyContent: "center",
+    paddingHorizontal: 16,
     paddingVertical: 14,
     borderRadius: 999,
-    gap: 10,
-  },
-  submitIconBg: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: "rgba(255, 255, 255, 0.25)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  submitText: {
-    color: "#FFFFFF",
-    fontWeight: "600",
-    fontSize: 15,
   },
 });

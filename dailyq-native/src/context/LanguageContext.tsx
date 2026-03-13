@@ -16,16 +16,6 @@ import {
 import { supabase } from "../config/supabase";
 import { useAuth } from "./AuthContext";
 
-// #region agent log
-function logLang(id: string, message: string, data: Record<string, unknown>) {
-  fetch("http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "332a30" },
-    body: JSON.stringify({ sessionId: "332a30", runId: "run1", hypothesisId: id, location: "LanguageContext.tsx", message, data, timestamp: Date.now() }),
-  }).catch(() => {});
-}
-// #endregion
-
 const LANG_STORAGE_KEY = "dailyq-lang";
 
 type TFunction = (
@@ -73,10 +63,6 @@ export function LanguageProvider({
 
   useEffect(() => {
     let cancelled = false;
-    const t0 = Date.now();
-    // #region agent log
-    logLang("H4", "getStoredLanguage start", { ts: t0 });
-    // #endregion
     (async () => {
       const stored = await getStoredLanguage();
       if (cancelled) return;

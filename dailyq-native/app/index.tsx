@@ -1,5 +1,6 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { View, Text, StyleSheet, Animated } from "react-native";
+import * as Linking from "expo-linking";
 import { Redirect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Feather from "@expo/vector-icons/Feather";
@@ -7,16 +8,10 @@ import Feather from "@expo/vector-icons/Feather";
 import { useAuth } from "@/src/context/AuthContext";
 import { useLanguage } from "@/src/context/LanguageContext";
 import { COLORS } from "@/src/config/constants";
-
-// #region agent log
-function logIndex(id: string, message: string, data: Record<string, unknown>) {
-  fetch("http://127.0.0.1:7243/ingest/8b229217-1871-4da8-8258-2778d0f3e809", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "332a30" },
-    body: JSON.stringify({ sessionId: "332a30", runId: "run1", hypothesisId: id, location: "index.tsx", message, data, timestamp: Date.now() }),
-  }).catch(() => {});
-}
-// #endregion
+import {
+  isResetPasswordUrl,
+  hasRecoveryTokens,
+} from "@/src/lib/resetPasswordLink";
 
 function LoadingDots() {
   const dot1 = useRef(new Animated.Value(0)).current;
@@ -144,9 +139,32 @@ function PostLoginLoadingScreen() {
 
 export default function Index() {
   const { user, authCheckDone } = useAuth();
-  // #region agent log
-  logIndex("H1", "Index render", { authCheckDone, hasUser: !!user });
-  // #endregion
+  const [initialUrlChecked, setInitialUrlChecked] = useState(false);
+  const [pendingResetUrl, setPendingResetUrl] = useState<string | null>(null);
+
+  // Step 1: check cold-start deep link before any auth-based routing
+  useEffect(() => {
+    Linking.getInitialURL().then((url) => {
+      if (url && isResetPasswordUrl(url) && hasRecoveryTokens(url)) {
+        setPendingResetUrl(url);
+      }
+      setInitialUrlChecked(true);
+    });
+  }, []);
+
+  // Wait for initial URL check so we don't redirect to onboarding before we know about a reset link
+  if (!initialUrlChecked) {
+    return <PostLoginLoadingScreen />;
+  }
+
+  // Cold-start reset-password link: redirect with full URL so reset-password can setSession
+  if (pendingResetUrl) {
+    return (
+      <Redirect
+        href={`/(auth)/reset-password?url=${encodeURIComponent(pendingResetUrl)}`}
+      />
+    );
+  }
 
   if (!authCheckDone) {
     return <PostLoginLoadingScreen />;

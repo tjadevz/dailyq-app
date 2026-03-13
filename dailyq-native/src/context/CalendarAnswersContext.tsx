@@ -114,6 +114,7 @@ export function useCalendarAnswers(
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const prevUserIdRef = useRef<string | null>(userId);
+  const partialRevalidateRef = useRef<Set<string>>(new Set());
   const [localMap, setLocalMap] = useState<Map<string, CalendarAnswerEntry>>(
     () => new Map()
   );
@@ -218,8 +219,17 @@ export function useCalendarAnswers(
     setError(null);
     try {
       const map = await fetchMonthData(userId, yearMonth, lang);
-      setLocalMap(map);
-      setCacheForMonth(yearMonth, map);
+      // Don't overwrite cache with fewer entries (e.g. after setAnswerForDay from Today); merge so optimistic updates are kept.
+      const existing = getCacheForMonth(yearMonth);
+      const toSet = existing != null && existing.size > map.size
+        ? (() => {
+            const merged = new Map(map);
+            for (const [k, v] of existing) if (!merged.has(k)) merged.set(k, v);
+            return merged;
+          })()
+        : map;
+      setLocalMap(toSet);
+      setCacheForMonth(yearMonth, toSet);
 
       // Prefetch adjacent months in background (no loading state)
       const [y, m] = yearMonth.split("-").map(Number);
@@ -243,19 +253,25 @@ export function useCalendarAnswers(
     // Guarantee fresh fetch when userId becomes available after mount (was null/undefined).
     const prevUserId = prevUserIdRef.current;
     const userIdJustAvailable = Boolean(userId) && !prevUserId;
+    const existing = getCacheForMonth(yearMonth);
     if (userIdJustAvailable || prevUserId !== userId) {
       prevUserIdRef.current = userId;
+      partialRevalidateRef.current.clear();
       clearCache();
       fetchMonth();
       return;
     }
-    const existing = getCacheForMonth(yearMonth);
     if (existing != null) {
       setLocalMap(existing);
       setLoading(false);
+      const revalidateKey = `${userId ?? "none"}|${lang}|${yearMonth}`;
+      // Revalidate only once for likely partial optimistic cache.
+      if (existing.size <= 1 && !partialRevalidateRef.current.has(revalidateKey)) {
+        partialRevalidateRef.current.add(revalidateKey);
+        fetchMonth();
+      }
       return;
     }
-    // Stale-while-revalidate: show empty grid for this month immediately, then fetch in background
     setLocalMap(new Map());
     fetchMonth();
   }, [yearMonth, userId, lang, clearCache, getCacheForMonth, fetchMonth]);

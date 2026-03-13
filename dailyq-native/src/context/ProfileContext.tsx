@@ -52,21 +52,36 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     const currentMonth = getLocalDayKey(getNow()).slice(0, 7);
     const lastGrant = (prof as Profile | null)?.last_joker_grant_month ?? null;
 
+    const GRANT_TIMEOUT_MS = 15000;
+
     if (lastGrant !== currentMonth && !grantInFlightRef.current) {
       grantInFlightRef.current = true;
       try {
-        const { error: rpcErr } = await supabase.rpc("grant_monthly_jokers");
-        if (!rpcErr) {
-          const { data: refetched } = await supabase
-            .from("profiles")
-            .select("id, joker_balance, last_joker_grant_month, language")
-            .eq("id", userId)
-            .single();
-          if (refetched) {
-            setProfile(refetched as Profile);
-            return refetched as Profile;
-          }
-        }
+        const result = await Promise.race([
+          (async (): Promise<Profile | null> => {
+            const { error: rpcErr } = await supabase.rpc("grant_monthly_jokers");
+            if (rpcErr) return null;
+            const { data: refetched } = await supabase
+              .from("profiles")
+              .select("id, joker_balance, last_joker_grant_month, language")
+              .eq("id", userId)
+              .single();
+            if (refetched) {
+              setProfile(refetched as Profile);
+              return refetched as Profile;
+            }
+            return null;
+          })(),
+          new Promise<never>((_, reject) =>
+            setTimeout(
+              () => reject(new Error("grant_monthly_jokers timeout")),
+              GRANT_TIMEOUT_MS
+            )
+          ),
+        ]);
+        if (result) return result;
+      } catch (e) {
+        console.error("Profile refetch grant path timeout or error", e);
       } finally {
         grantInFlightRef.current = false;
       }

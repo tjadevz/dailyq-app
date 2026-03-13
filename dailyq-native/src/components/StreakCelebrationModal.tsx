@@ -174,7 +174,11 @@ export function StreakCelebrationModal({
     <Modal transparent visible animationType="none">
       <Animated.View style={[streakModalStyles.backdrop, { opacity }]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
-        <BlurView intensity={20} tint="dark" style={streakModalStyles.blurLayer} />
+        <BlurView intensity={40} tint="dark" style={streakModalStyles.blurLayer} />
+        <View
+          style={[StyleSheet.absoluteFill, streakModalStyles.purpleOverlay]}
+          pointerEvents="none"
+        />
         <View style={streakModalStyles.auroraWrap} pointerEvents="none">
           <Animated.View style={[streakModalStyles.auroraOrb, streakModalStyles.aurora1, { opacity: aurora1 }]}>
             <LinearGradient
@@ -339,10 +343,12 @@ export function StreakCelebrationModal({
 const streakModalStyles = StyleSheet.create({
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.4)",
     justifyContent: "center",
     alignItems: "center",
     padding: 28,
+  },
+  purpleOverlay: {
+    backgroundColor: "rgba(76, 29, 149, 0.25)",
   },
   blurLayer: {
     ...StyleSheet.absoluteFillObject,

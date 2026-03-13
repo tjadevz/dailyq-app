@@ -114,12 +114,15 @@ export async function getAlreadyGrantedInCycle(
   if (error || !rows) return granted;
   for (const row of rows as UserMilestoneGrantRow[]) {
     const streakAtGrant = row.streak_at_grant;
+    const m = row.milestone;
     if (streakAtGrant != null) {
-      for (const m of STREAK_MILESTONES) {
-        if (streakAtGrant >= m) granted.add(m);
+      const cycleStart = streakAtGrant - (streakAtGrant % 365);
+      const cycleEnd = cycleStart + 365;
+      if (streakAtGrant >= m && streakAtGrant < cycleEnd) {
+        granted.add(m);
       }
     } else {
-      granted.add(row.milestone);
+      granted.add(m);
     }
   }
   return granted;
@@ -138,25 +141,14 @@ export async function grantMilestoneJokersForCrossed(
   newStreak: number
 ): Promise<boolean> {
   const crossed = getMilestonesCrossed(previousStreak, newStreak);
-  console.log("[StreakMilestone] crossed", crossed);
 
-  const alreadyGranted = await getAlreadyGrantedInCycle(supabase, userId, newStreak);
-  console.log("[StreakMilestone] alreadyGrantedInCycle (weggefilterd)", Array.from(alreadyGranted));
-
-  const toGrant = crossed.filter((m) => !alreadyGranted.has(m));
-  for (const m of toGrant) {
+  for (const m of crossed) {
     try {
-      console.log("[StreakMilestone] calling grant_milestone_jokers", {
-        user_id: userId,
-        milestone: m,
-        newStreak,
-      });
       const { error } = await supabase.rpc("grant_milestone_jokers", {
         p_user_id: userId,
         p_milestone: m,
         p_streak_at_grant: newStreak,
       });
-      console.log("[StreakMilestone] grant_milestone_jokers result", { milestone: m, error });
       if (error) throw error;
     } catch (e) {
       console.error("[StreakMilestone] grant_milestone_jokers failed", {

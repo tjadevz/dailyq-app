@@ -54,6 +54,7 @@ export default function TodayScreen() {
 
   const [answerModalOpen, setAnswerModalOpen] = useState(false);
   const [showSubmitSuccess, setShowSubmitSuccess] = useState(false);
+  const [pendingMilestone, setPendingMilestone] = useState<ReturnType<typeof getHighestMilestoneCrossed>>(null);
   const [jokerModalVisible, setJokerModalVisible] = useState(false);
   const [editConfirmVisible, setEditConfirmVisible] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
@@ -125,6 +126,12 @@ export default function TodayScreen() {
       hide.remove();
     };
   }, []);
+
+  useEffect(() => {
+    if (showSubmitSuccess || !pendingMilestone) return;
+    showMilestone(pendingMilestone);
+    setPendingMilestone(null);
+  }, [showSubmitSuccess, pendingMilestone, showMilestone]);
 
   // Clear leftover Monday recap keys (feature removed); they are not read anywhere.
   useEffect(() => {
@@ -225,7 +232,9 @@ export default function TodayScreen() {
 
         setAnswerModalOpen(false);
         setShowSubmitSuccess(true);
-        setTimeout(() => setShowSubmitSuccess(false), 1700);
+        setTimeout(() => {
+          setShowSubmitSuccess(false);
+        }, 1700);
 
         if (wasUpdate) {
           setEditConfirmVisible(true);
@@ -244,7 +253,6 @@ export default function TodayScreen() {
         const newStreak = Math.max(Number(visual), Number(real));
 
         try {
-          console.log("[Today submit] previousStreak, newStreak", previousStreak, newStreak);
           const crossed = getMilestonesCrossed(previousStreak, newStreak);
           const grantSuccess = await grantMilestoneJokersForCrossed(
             supabase,
@@ -257,8 +265,11 @@ export default function TodayScreen() {
               ? getHighestMilestoneCrossed(previousStreak, newStreak)
               : null;
           await new Promise((resolve) => setTimeout(resolve, 300));
-          if (crossed.length > 0 && highest) showMilestone(highest);
-          if (grantSuccess) await refetchProfile();
+          if (crossed.length > 0 && highest) {
+            setPendingMilestone(highest);
+          }
+          // Run refetch in background so modal can paint; awaiting here blocked the JS thread and prevented the streak popup from showing.
+          if (grantSuccess) void refetchProfile();
         } catch (e) {
           console.error("[Today submit] Milestone flow error", e);
         }

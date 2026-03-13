@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   Animated,
   Keyboard,
+  LayoutAnimation,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
@@ -22,6 +23,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as AppleAuthentication from "expo-apple-authentication";
 
 import { COLORS } from "@/src/config/constants";
+import { BackgroundLayer } from "@/src/components/BackgroundLayer";
 import { useLanguage } from "@/src/context/LanguageContext";
 import { useAuth, useAppleSignIn } from "@/src/context/AuthContext";
 import { supabase } from "@/src/config/supabase";
@@ -267,26 +269,35 @@ export default function OnboardingScreen() {
     }
   }, [signInWithApple, clearAppleError, performPostAuthPushUpsertAndNavigate, router]);
 
-  // When keyboard opens on auth step, nudge scroll so the login button stays visible (not full scrollToEnd)
+  // When keyboard opens/closes on auth step, scroll in sync with keyboard so form and Inloggen button stay visible
   useEffect(() => {
     if (step !== "auth") return;
     const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
-    const sub = Keyboard.addListener(showEvent, () => {
-      setTimeout(() => {
-        scrollRef.current?.scrollTo({ y: 100, animated: true });
-      }, 100);
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const showSub = Keyboard.addListener(showEvent, () => {
+      scrollRef.current?.scrollToEnd({ animated: true });
     });
-    return () => sub.remove();
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      if (Platform.OS === "ios") {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      }
+      requestAnimationFrame(() => {
+        scrollRef.current?.scrollTo({ x: 0, y: 0, animated: true });
+      });
+    });
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
   }, [step]);
 
   return (
-    <SafeAreaView
-      style={[styles.safe, { backgroundColor: "#FAFAFA" }]}
-      edges={step === "intro" ? ["bottom"] : ["top", "bottom"]}
-    >
-      {/* Pastel orbs (Figma-style background) */}
-      <View style={styles.orbAmber} pointerEvents="none" />
-      <View style={styles.orbPurple} pointerEvents="none" />
+    <View style={styles.safe}>
+      <BackgroundLayer />
+      <SafeAreaView
+        style={styles.safeArea}
+        edges={step === "intro" ? ["bottom"] : ["top", "bottom"]}
+      >
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.keyboard}
@@ -544,12 +555,12 @@ export default function OnboardingScreen() {
 
               {step === "auth" && (
                 <StepTransitionView style={styles.step}>
-                  <View style={styles.contentWrapper}>
+                  <View style={[styles.contentWrapper, styles.contentWrapperAuth]}>
                       <View style={styles.authHeader}>
                         <View style={[styles.logoCircle, styles.authLogoCircle]}>
                           <Feather
                             name="mail"
-                            size={40}
+                            size={36}
                             color={COLORS.ACCENT}
                             strokeWidth={2}
                           />
@@ -715,7 +726,8 @@ export default function OnboardingScreen() {
             </View>
           </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 }
 
@@ -723,28 +735,12 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
   },
+  safeArea: {
+    flex: 1,
+    backgroundColor: "transparent",
+  },
   keyboard: {
     flex: 1,
-  },
-  orbAmber: {
-    position: "absolute",
-    top: 64,
-    left: -96,
-    width: 384,
-    height: 384,
-    borderRadius: 999,
-    backgroundColor: "rgba(254,243,199,0.22)",
-    zIndex: 0,
-  },
-  orbPurple: {
-    position: "absolute",
-    bottom: -128,
-    right: -128,
-    width: 500,
-    height: 500,
-    borderRadius: 999,
-    backgroundColor: "rgba(221,214,254,0.22)",
-    zIndex: 0,
   },
   card: {
     flex: 1,
@@ -824,6 +820,10 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
     paddingHorizontal: 0,
   },
+  contentWrapperAuth: {
+    paddingTop: 8,
+    paddingBottom: 24,
+  },
   contentWrapperIntro: {
     paddingTop: 24,
     paddingBottom: 28,
@@ -869,6 +869,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(191,219,254,0.6)",
   },
   authLogoCircle: {
+    marginBottom: 10,
     shadowColor: "rgba(236,72,153,0.2)",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -1191,18 +1192,20 @@ const styles = StyleSheet.create({
   },
   authHeader: {
     alignItems: "center",
-    marginBottom: 24,
+    marginBottom: 20,
   },
   authTitle: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: "600",
     color: COLORS.TEXT_PRIMARY,
     textAlign: "center",
-    marginTop: 8,
+    marginTop: 6,
   },
   form: {
     gap: 14,
     marginBottom: 16,
+    alignSelf: "stretch",
+    overflow: "hidden",
   },
   input: {
     width: "100%",
@@ -1224,14 +1227,18 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(229,231,235,0.8)",
     backgroundColor: "#fff",
+    overflow: "hidden",
   },
   passwordInput: {
     flex: 1,
-    width: undefined,
+    minWidth: 0,
     minHeight: 52,
+    paddingHorizontal: 20,
     paddingRight: 12,
     borderWidth: 0,
     borderRadius: 0,
+    fontSize: 15,
+    color: COLORS.TEXT_PRIMARY,
   },
   passwordToggle: {
     padding: 12,

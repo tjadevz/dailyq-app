@@ -495,9 +495,16 @@ export default function CalendarScreen() {
   const { showMilestone } = useStreakMilestone();
 
   const todayKey = getLocalDayKey(getNow());
-  const accountStartYearMonth = effectiveUser?.created_at
-    ? getLocalDayKey(new Date(effectiveUser.created_at)).slice(0, 7)
-    : null;
+  const accountBoundaryDate = useMemo((): string | undefined => {
+    if (!effectiveUser?.created_at) return undefined;
+    if (profile?.onboarding_completed) {
+      const d = new Date(effectiveUser.created_at);
+      d.setDate(d.getDate() - 7);
+      return getLocalDayKey(d);
+    }
+    return getLocalDayKey(new Date(effectiveUser.created_at));
+  }, [effectiveUser?.created_at, profile?.onboarding_completed]);
+  const accountStartYearMonth = accountBoundaryDate ? accountBoundaryDate.slice(0, 7) : null;
   const [yearMonth, setYearMonth] = useState(() => todayKey.slice(0, 7));
   const prevYearMonthRef = useRef<string | null>(null);
   const slideX = useSharedValue(0);
@@ -779,7 +786,7 @@ export default function CalendarScreen() {
   const missedWithinWindow = !!(
     missedDay &&
     isWithinMissedAnswerWindow(missedDay, todayKey) &&
-    !isBeforeAccountStart(missedDay, effectiveUser?.created_at)
+    !isBeforeAccountStart(missedDay, accountBoundaryDate)
   );
   const jokerCount = profile?.joker_balance ?? 0;
   const insets = useSafeAreaInsets();
@@ -861,7 +868,7 @@ export default function CalendarScreen() {
             {grid.slice(row * GRID_COLS, (row + 1) * GRID_COLS).map((cell, i) => {
               const entry = cell.dayKey ? answersMap.get(cell.dayKey) : undefined;
               const state = cell.dayKey
-                ? getCellState(cell.dayKey, todayKey, entry, effectiveUser?.created_at)
+                ? getCellState(cell.dayKey, todayKey, entry, accountBoundaryDate)
                 : "future";
               const isPlaceholder = !cell.dayKey;
               const isTodayNoAnswer = !isPlaceholder && state === "today" && !entry;

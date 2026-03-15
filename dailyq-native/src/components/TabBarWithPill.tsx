@@ -11,7 +11,9 @@ export function TabBarWithPill({ state, descriptors, navigation }: BottomTabBarP
   const pillX = useRef(new Animated.Value(0)).current;
   const indexRef = useRef(-1);
 
-  const visibleRoutes = state.routes.filter(r => r.name !== "index");
+  const visibleRoutes = state.routes.filter(
+    (r) => r.name !== "index" && r.name !== "onboarding-questions"
+  );
   const visibleIndex = visibleRoutes.findIndex(r => r.key === state.routes[state.index]?.key);
 
   const onLayout = (e: LayoutChangeEvent) => {
@@ -34,6 +36,10 @@ export function TabBarWithPill({ state, descriptors, navigation }: BottomTabBarP
   }, [visibleIndex, barWidth]);
 
   const pillWidth = barWidth > 0 ? barWidth / visibleRoutes.length - 16 : 80;
+  const currentRouteName = state.routes[state.index]?.name;
+  if (currentRouteName === "onboarding-questions") {
+    return null;
+  }
 
   return (
     <View style={styles.outer}>

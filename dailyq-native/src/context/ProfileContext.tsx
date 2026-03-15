@@ -8,6 +8,7 @@ export type Profile = {
   joker_balance: number;
   last_joker_grant_month: string | null;
   language: string;
+  onboarding_completed: boolean;
 };
 
 type ProfileContextValue = {
@@ -31,8 +32,9 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
           joker_balance: 99,
           last_joker_grant_month: null,
           language: "nl",
+          onboarding_completed: true,
         });
-        return { id: "dev-user", joker_balance: 99, last_joker_grant_month: null, language: "nl" };
+        return { id: "dev-user", joker_balance: 99, last_joker_grant_month: null, language: "nl", onboarding_completed: true };
       }
       setProfile(null);
       return null;
@@ -40,7 +42,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
 
     const { data: prof, error: fetchErr } = await supabase
       .from("profiles")
-      .select("id, joker_balance, last_joker_grant_month, language")
+      .select("id, joker_balance, last_joker_grant_month, language, onboarding_completed")
       .eq("id", userId)
       .maybeSingle();
 
@@ -63,7 +65,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
             if (rpcErr) return null;
             const { data: refetched } = await supabase
               .from("profiles")
-              .select("id, joker_balance, last_joker_grant_month, language")
+              .select("id, joker_balance, last_joker_grant_month, language, onboarding_completed")
               .eq("id", userId)
               .single();
             if (refetched) {

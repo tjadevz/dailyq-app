@@ -11,6 +11,7 @@ import {
   Keyboard,
   Dimensions,
   ActivityIndicator,
+  Pressable,
 } from "react-native";
 import Animated, {
   useSharedValue,
@@ -18,6 +19,7 @@ import Animated, {
   withTiming,
   withSpring,
   Easing,
+  runOnJS,
 } from "react-native-reanimated";
 import { BlurView } from "expo-blur";
 import Feather from "@expo/vector-icons/Feather";
@@ -46,6 +48,13 @@ export interface AnsweringExperienceProps {
   submitError?: string | null;
   /** When true, submit button is disabled and can show loading state */
   submitting?: boolean;
+  /** When set, show a small skip button that calls this (e.g. onboarding flow) */
+  onSkip?: () => void;
+  skipLabel?: string;
+  /** When true, card enters from the right (e.g. next question in onboarding) */
+  enterFromRight?: boolean;
+  /** When true, close animates with card swiping down before calling onClose (e.g. onboarding) */
+  animateOnClose?: boolean;
 }
 
 export function AnsweringExperience({
@@ -60,6 +69,10 @@ export function AnsweringExperience({
   lang,
   submitError,
   submitting = false,
+  onSkip,
+  skipLabel = "Skip",
+  enterFromRight = false,
+  animateOnClose = false,
 }: AnsweringExperienceProps) {
   const insets = useSafeAreaInsets();
   const { lang: contextLang, formatDate } = useLanguage();
@@ -81,8 +94,16 @@ export function AnsweringExperience({
     dayKey != null ? `#${String(getDayOfYear(dayKey)).padStart(3, "0")}` : "";
 
   const slideY = useSharedValue(height);
+  const slideX = useSharedValue(enterFromRight ? width : 0);
   const buttonScale = useSharedValue(1);
   const buttonOpacity = useSharedValue(0.4);
+
+  // #region agent log
+  useEffect(() => {
+    fetch('http://127.0.0.1:7243/ingest/db237dc3-2932-4821-b603-b2959e85e2e1',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e1c6d8'},body:JSON.stringify({sessionId:'e1c6d8',location:'AnsweringExperience.tsx:mount',message:'AnsweringExperience mounted',data:{dayKey:dayKey??null,enterFromRight},timestamp:Date.now(),hypothesisId:'A'})}).catch(()=>{});
+    return () => { fetch('http://127.0.0.1:7243/ingest/db237dc3-2932-4821-b603-b2959e85e2e1',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e1c6d8'},body:JSON.stringify({sessionId:'e1c6d8',location:'AnsweringExperience.tsx:unmount',message:'AnsweringExperience unmounted',data:{dayKey:dayKey??null},timestamp:Date.now(),hypothesisId:'A'})}).catch(()=>{}); };
+  }, []);
+  // #endregion
 
   useEffect(() => {
     if (questionProp) {
@@ -126,13 +147,26 @@ export function AnsweringExperience({
   }, [isOpen, dayKey, lang, questionProp]);
 
   useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/db237dc3-2932-4821-b603-b2959e85e2e1',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e1c6d8'},body:JSON.stringify({sessionId:'e1c6d8',location:'AnsweringExperience.tsx:isOpenEffect',message:'isOpen effect ran',data:{isOpen,enterFromRight},timestamp:Date.now(),hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
     if (isOpen) {
       setUserAnswer(initialAnswer);
-      slideY.value = withSpring(0, {
-        damping: 22,
-        stiffness: 140,
-        mass: 0.8,
-      });
+      if (enterFromRight) {
+        slideY.value = 0;
+        slideX.value = width;
+        slideX.value = withTiming(0, {
+          duration: 280,
+          easing: Easing.out(Easing.cubic),
+        });
+      } else {
+        slideX.value = 0;
+        slideY.value = withSpring(0, {
+          damping: 22,
+          stiffness: 140,
+          mass: 0.8,
+        });
+      }
       const focusTimer = setTimeout(() => inputRef.current?.focus(), 50);
       return () => clearTimeout(focusTimer);
     }
@@ -141,7 +175,7 @@ export function AnsweringExperience({
       easing: Easing.inOut(Easing.cubic),
     });
     Keyboard.dismiss();
-  }, [isOpen, initialAnswer, slideY]);
+  }, [isOpen, initialAnswer, slideY, slideX, enterFromRight]);
 
   useEffect(() => {
     const hasText =
@@ -150,15 +184,49 @@ export function AnsweringExperience({
     buttonOpacity.value = withTiming(hasText ? 1 : 0.4, { duration: 200 });
   }, [userAnswer, questionLoading, submitting, buttonScale, buttonOpacity]);
 
-  const handleSubmit = () => {
-    if (userAnswer.trim()) {
-      Keyboard.dismiss();
-      onComplete(userAnswer);
+  const DURATION_SWIPE_MS = 280;
+
+  const handleCloseWithAnimation = () => {
+    Keyboard.dismiss();
+    if (animateOnClose) {
+      slideY.value = withTiming(
+        height,
+        { duration: DURATION_SWIPE_MS, easing: Easing.inOut(Easing.cubic) },
+        () => runOnJS(onClose)()
+      );
+    } else {
+      onClose();
     }
   };
 
+  const handleSubmit = () => {
+    if (!userAnswer.trim()) return;
+    Keyboard.dismiss();
+    const answer = userAnswer;
+    if (onSkip != null) {
+      slideX.value = withTiming(
+        -width,
+        { duration: DURATION_SWIPE_MS, easing: Easing.out(Easing.cubic) },
+        () => {
+          runOnJS(() => { fetch('http://127.0.0.1:7243/ingest/db237dc3-2932-4821-b603-b2959e85e2e1',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e1c6d8'},body:JSON.stringify({sessionId:'e1c6d8',location:'AnsweringExperience.tsx:slideLeftDone',message:'slide-left animation callback (before onComplete)',data:{},timestamp:Date.now(),hypothesisId:'C'})}).catch(()=>{}); onComplete(answer); })();
+        }
+      );
+    } else {
+      onComplete(answer);
+    }
+  };
+
+  const handleSkipWithAnimation = () => {
+    if (onSkip == null) return;
+    slideX.value = withTiming(
+      -width,
+      { duration: DURATION_SWIPE_MS, easing: Easing.out(Easing.cubic) },
+      () => runOnJS(() => { fetch('http://127.0.0.1:7243/ingest/db237dc3-2932-4821-b603-b2959e85e2e1',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e1c6d8'},body:JSON.stringify({sessionId:'e1c6d8',location:'AnsweringExperience.tsx:slideLeftDoneSkip',message:'slide-left animation callback (before onSkip)',data:{},timestamp:Date.now(),hypothesisId:'C'})}).catch(()=>{}); onSkip(); })()
+    );
+  };
+
   const animatedSlideStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: slideY.value }],
+    transform: [{ translateX: slideX.value }, { translateY: slideY.value }],
   }));
 
   const animatedButtonStyle = useAnimatedStyle(() => ({
@@ -176,38 +244,35 @@ export function AnsweringExperience({
       statusBarTranslucent
       onRequestClose={onClose}
     >
-      <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-        <TouchableWithoutFeedback onPress={onClose}>
-          <View style={StyleSheet.absoluteFill}>
+      <View style={styles.modalRoot}>
+        <Pressable style={styles.backdrop} onPress={handleCloseWithAnimation} accessibilityRole="button" accessibilityLabel="Close">
+          <View style={styles.backdropVisual} pointerEvents="none">
             <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
-            <View
-              style={[
-                StyleSheet.absoluteFill,
-                { backgroundColor: "rgba(76, 29, 149, 0.25)" },
-              ]}
-            />
+            <View style={styles.backdropOverlay} />
           </View>
-        </TouchableWithoutFeedback>
+        </Pressable>
 
-      <View style={styles.keyboardContainer} pointerEvents="box-none">
-        <View style={styles.bottomAnchor} pointerEvents="box-none">
-          <Animated.View
-            style={[styles.contentContainer, animatedSlideStyle]}
-            pointerEvents="box-none"
-          >
-            <View
-              style={[styles.header, { paddingTop: insets.top + 16 }]}
+        <View style={styles.keyboardContainer} pointerEvents="box-none">
+          <View style={styles.bottomAnchor} pointerEvents="box-none">
+            <Animated.View
+              style={[styles.contentContainer, animatedSlideStyle]}
               pointerEvents="box-none"
             >
-            <View style={{ width: 36 }} pointerEvents="box-none" />
-            <TouchableOpacity
-              onPress={onClose}
-              style={styles.closeButton}
-              activeOpacity={0.7}
-            >
-              <Feather name="x" size={20} color="#FFFFFF" strokeWidth={2.5} />
-            </TouchableOpacity>
-          </View>
+              <View
+                style={[styles.header, { paddingTop: insets.top + 16 }]}
+                pointerEvents="box-none"
+              >
+                <View style={{ width: 36 }} pointerEvents="box-none" />
+                <Pressable
+                  onPress={handleCloseWithAnimation}
+                  style={styles.closeButton}
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Close"
+                >
+                  <Feather name="x" size={20} color="#FFFFFF" strokeWidth={2.5} />
+                </Pressable>
+              </View>
 
           <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
             <View style={styles.cardWrapper}>
@@ -262,36 +327,51 @@ export function AnsweringExperience({
                 ) : null}
 
                 <View style={styles.footer}>
-                  <Animated.View
-                    style={[animatedButtonStyle, { alignSelf: "flex-end" }]}
-                  >
-                    <TouchableOpacity
-                      onPress={handleSubmit}
-                      disabled={
-                        !userAnswer.trim() || questionLoading || submitting
-                      }
-                      activeOpacity={0.8}
-                      style={styles.submitButtonWrap}
-                    >
-                      <LinearGradient
-                        colors={["#7C3AED", "#6D28D9"]}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 0 }}
-                        style={styles.submitButton}
+                  <View style={styles.footerRow}>
+                    {onSkip ? (
+                      <TouchableOpacity
+                        onPress={handleSkipWithAnimation}
+                        disabled={submitting}
+                        style={styles.skipButton}
+                        activeOpacity={0.7}
                       >
-                        {submitting ? (
-                          <ActivityIndicator size="small" color="#FFFFFF" />
-                        ) : (
-                          <Feather
-                            name="arrow-right"
-                            size={17}
-                            color="#FFFFFF"
-                            strokeWidth={3}
-                          />
-                        )}
-                      </LinearGradient>
-                    </TouchableOpacity>
-                  </Animated.View>
+                        <Text style={styles.skipButtonText}>{skipLabel}</Text>
+                      </TouchableOpacity>
+                    ) : null}
+                    <Animated.View
+                      style={[
+                        animatedButtonStyle,
+                        { alignSelf: "flex-end", marginLeft: "auto" },
+                      ]}
+                    >
+                      <TouchableOpacity
+                        onPress={handleSubmit}
+                        disabled={
+                          !userAnswer.trim() || questionLoading || submitting
+                        }
+                        activeOpacity={0.8}
+                        style={styles.submitButtonWrap}
+                      >
+                        <LinearGradient
+                          colors={["#7C3AED", "#6D28D9"]}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 0 }}
+                          style={styles.submitButton}
+                        >
+                          {submitting ? (
+                            <ActivityIndicator size="small" color="#FFFFFF" />
+                          ) : (
+                            <Feather
+                              name="arrow-right"
+                              size={17}
+                              color="#FFFFFF"
+                              strokeWidth={3}
+                            />
+                          )}
+                        </LinearGradient>
+                      </TouchableOpacity>
+                    </Animated.View>
+                  </View>
                 </View>
               </View>
             </View>
@@ -305,13 +385,26 @@ export function AnsweringExperience({
 }
 
 const styles = StyleSheet.create({
+  modalRoot: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  backdropVisual: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  backdropOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(76, 29, 149, 0.25)",
+  },
   keyboardContainer: {
-    flex: 1,
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
   },
   bottomAnchor: {
-    flex: 1,
-    justifyContent: "flex-end",
-    /** Reserve space for keyboard from frame 1 so the card doesn't jump when it opens */
     paddingBottom: Platform.OS === "ios" ? 320 : 280,
   },
   contentContainer: {
@@ -419,6 +512,19 @@ const styles = StyleSheet.create({
   footer: {
     paddingTop: 16,
     marginTop: 8,
+  },
+  footerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  skipButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+  },
+  skipButtonText: {
+    fontSize: 15,
+    color: "#6B7280",
   },
   submitButtonWrap: {
     overflow: "hidden",

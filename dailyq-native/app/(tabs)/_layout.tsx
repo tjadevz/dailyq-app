@@ -21,6 +21,10 @@ export default function TabsLayout() {
         options={{ tabBarButton: () => null }}
       />
       <Tabs.Screen
+        name="onboarding-questions"
+        options={{ tabBarButton: () => null, headerShown: false }}
+      />
+      <Tabs.Screen
         name="today"
         options={{
           title: t("tabs_today"),

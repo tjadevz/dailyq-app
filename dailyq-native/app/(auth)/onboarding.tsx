@@ -145,9 +145,9 @@ export default function OnboardingScreen() {
   const [notificationTime, setNotificationTime] =
     useState<NotificationTime>(null);
   const [isLoginMode, setIsLoginMode] = useState(true);
-  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
   const [authError, setAuthError] = useState<string | null>(null);
   const [forgotPasswordSent, setForgotPasswordSent] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -195,7 +195,13 @@ export default function OnboardingScreen() {
       });
       const { error: upsertErr } = await upsertPushSubscription(userId, token, reminderTime);
       if (upsertErr) console.error("[onboarding] Push subscription upsert failed:", upsertErr);
-      router.replace("/(tabs)/today");
+      const { data: profileRow } = await supabase
+        .from("profiles")
+        .select("onboarding_completed")
+        .eq("id", userId)
+        .maybeSingle();
+      const completed = profileRow?.onboarding_completed === true;
+      router.replace(completed ? "/(tabs)/today" : "/(tabs)/onboarding-questions");
     },
     [notificationTime, router]
   );
@@ -204,6 +210,10 @@ export default function OnboardingScreen() {
     const trimmedEmail = email.trim();
     const trimmedPassword = password.trim();
     if (!trimmedEmail || !trimmedPassword) return;
+    if (!isLoginMode && trimmedPassword !== passwordConfirm.trim()) {
+      setAuthError(t("onboarding_password_mismatch"));
+      return;
+    }
     setAuthError(null);
     setSubmitting(true);
     try {
@@ -229,7 +239,7 @@ export default function OnboardingScreen() {
     } finally {
       setSubmitting(false);
     }
-  }, [email, password, isLoginMode, performPostAuthPushUpsertAndNavigate, router]);
+  }, [email, password, passwordConfirm, isLoginMode, performPostAuthPushUpsertAndNavigate, router, t]);
 
   const handleForgotPassword = useCallback(async () => {
     const trimmedEmail = email.trim();
@@ -609,19 +619,6 @@ export default function OnboardingScreen() {
                         </>
                       )}
                       <View style={styles.form}>
-                        {!isLoginMode && (
-                          <TextInput
-                            style={styles.input}
-                            placeholder={t("onboarding_name")}
-                            placeholderTextColor={COLORS.TEXT_MUTED}
-                            value={name}
-                            onChangeText={setName}
-                            editable={!submitting}
-                            autoCapitalize="words"
-                            autoCorrect={false}
-                            autoComplete="name"
-                          />
-                        )}
                         <TextInput
                           style={styles.input}
                           placeholder={t("onboarding_email")}
@@ -662,6 +659,33 @@ export default function OnboardingScreen() {
                             />
                           </Pressable>
                         </View>
+                        {!isLoginMode && (
+                          <View style={styles.passwordInputWrap}>
+                            <TextInput
+                              style={[styles.input, styles.passwordInput]}
+                              placeholder={t("onboarding_password_confirm")}
+                              placeholderTextColor={COLORS.TEXT_MUTED}
+                              value={passwordConfirm}
+                              onChangeText={setPasswordConfirm}
+                              editable={!submitting}
+                              secureTextEntry={!showPassword}
+                              autoComplete="new-password"
+                              autoCapitalize="none"
+                            />
+                            <Pressable
+                              onPress={() => setShowPassword((s) => !s)}
+                              style={styles.passwordToggle}
+                              accessibilityLabel={showPassword ? t("common_hide_password") : t("common_show_password")}
+                            >
+                              <Feather
+                                name={showPassword ? "eye-off" : "eye"}
+                                size={22}
+                                color={COLORS.TEXT_MUTED}
+                                strokeWidth={2}
+                              />
+                            </Pressable>
+                          </View>
+                        )}
                         {isLoginMode && (
                           <Pressable
                             onPress={handleForgotPassword}
@@ -682,7 +706,10 @@ export default function OnboardingScreen() {
                           fullWidth
                           onPress={handleAuthSubmit}
                           disabled={
-                            submitting || !email.trim() || !password.trim()
+                            submitting ||
+                            !email.trim() ||
+                            !password.trim() ||
+                            (!isLoginMode && (!passwordConfirm.trim() || password !== passwordConfirm))
                           }
                           style={styles.authSubmit}
                         >

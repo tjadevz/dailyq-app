@@ -11,6 +11,7 @@ import {
   isResetPasswordUrl,
   hasRecoveryTokens,
 } from "@/src/lib/resetPasswordLink";
+import { supabase } from "@/src/config/supabase";
 
 function PostLoginLoadingScreen() {
   const insets = useSafeAreaInsets();
@@ -29,6 +30,8 @@ export default function Index() {
   const { user, authCheckDone } = useAuth();
   const [initialUrlChecked, setInitialUrlChecked] = useState(false);
   const [pendingResetUrl, setPendingResetUrl] = useState<string | null>(null);
+  const [onboardingChecked, setOnboardingChecked] = useState(false);
+  const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
 
   // Step 1: check cold-start deep link before any auth-based routing
   useEffect(() => {
@@ -39,6 +42,36 @@ export default function Index() {
       setInitialUrlChecked(true);
     });
   }, []);
+
+  // When user exists, fetch onboarding_completed to decide redirect
+  useEffect(() => {
+    if (!user?.id || user.id === "dev-user") {
+      setOnboardingChecked(true);
+      setOnboardingCompleted(true);
+      return;
+    }
+    let cancelled = false;
+    supabase
+      .from("profiles")
+      .select("onboarding_completed")
+      .eq("id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!cancelled) {
+          setOnboardingCompleted(data?.onboarding_completed ?? false);
+          setOnboardingChecked(true);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setOnboardingCompleted(false);
+          setOnboardingChecked(true);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
 
   // Wait for initial URL check so we don't redirect to onboarding before we know about a reset link
   if (!initialUrlChecked) {
@@ -59,7 +92,13 @@ export default function Index() {
   }
 
   if (user) {
-    return <Redirect href="/(tabs)/today" />;
+    if (!onboardingChecked) {
+      return <PostLoginLoadingScreen />;
+    }
+    if (onboardingCompleted === true) {
+      return <Redirect href="/(tabs)/today" />;
+    }
+    return <Redirect href="/(tabs)/onboarding-questions" />;
   }
 
   return <Redirect href="/(auth)/onboarding" />;

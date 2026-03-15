@@ -8,6 +8,13 @@ import { CalendarAnswersProvider } from "@/src/context/CalendarAnswersContext";
 import { StreakMilestoneProvider } from "@/src/context/StreakMilestoneContext";
 import { BackgroundLayer } from "@/src/components/BackgroundLayer";
 import { DeepLinkProvider } from "@/src/context/DeepLinkContext";
+import * as Sentry from '@sentry/react-native';
+
+if (!__DEV__) {
+  Sentry.init({
+    dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
+  });
+}
 
 export default function RootLayout() {
   return (

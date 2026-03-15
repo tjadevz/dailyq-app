@@ -33,6 +33,14 @@
           "iosDisplayInForeground": true,
           "sounds": []
         }
+      ],
+      [
+        "@sentry/react-native/expo",
+        {
+          "url": "https://sentry.io/",
+          "project": "react-native",
+          "organization": "dailyq"
+        }
       ]
     ],
     "ios": {
@@ -64,7 +72,10 @@
               "host": "reset-password"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },

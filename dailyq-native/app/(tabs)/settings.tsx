@@ -18,6 +18,8 @@ import { COLORS, MODAL, MODAL_CLOSE_MS, APP_VERSION } from "@/src/config/constan
 import { GlassCardContainer } from "@/src/components/GlassCardContainer";
 import { useLanguage } from "@/src/context/LanguageContext";
 import { useAuth } from "@/src/context/AuthContext";
+import { useProfileContext } from "@/src/context/ProfileContext";
+import { supabase } from "@/src/config/supabase";
 import type { Lang } from "@/src/i18n/translations";
 import {
   upsertPushSubscription,
@@ -242,6 +244,7 @@ export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const { t, lang, setLang } = useLanguage();
   const { effectiveUser, signOut, deleteUser } = useAuth();
+  const { refetch: refetchProfile } = useProfileContext();
   const { showMilestone } = useStreakMilestone();
   const router = useRouter();
 
@@ -249,6 +252,7 @@ export default function SettingsScreen() {
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [reminderModalVisible, setReminderModalVisible] = useState(false);
   const [reminderTime, setReminderTime] = useState<ReminderTime | null>(null);
+  const [replayOnboardingLoading, setReplayOnboardingLoading] = useState(false);
 
   useEffect(() => {
     AsyncStorage.getItem(REMINDER_TIME_KEY).then((value) => {
@@ -296,6 +300,25 @@ export default function SettingsScreen() {
   );
 
   const currentLangLabel = lang === "en" ? t("settings_lang_en") : t("settings_lang_nl");
+
+  const handleReplayOnboarding = useCallback(async () => {
+    const userId = effectiveUser?.id;
+    if (!userId || userId === "dev-user") return;
+    setReplayOnboardingLoading(true);
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ onboarding_completed: false })
+        .eq("id", userId);
+      if (error) throw error;
+      await refetchProfile();
+      router.replace("/(tabs)/onboarding-questions");
+    } catch (e) {
+      console.error("[Settings] Replay onboarding failed:", e);
+    } finally {
+      setReplayOnboardingLoading(false);
+    }
+  }, [effectiveUser?.id, refetchProfile, router]);
 
   return (
     <GlassCardContainer>
@@ -374,6 +397,32 @@ export default function SettingsScreen() {
               </View>
             </View>
           </View>
+
+          {/* Replay onboarding (dev only; tap does nothing when logged in as dev-user) */}
+          {__DEV__ && (
+            <Pressable
+              style={[styles.card, replayOnboardingLoading && styles.cardDisabled]}
+              onPress={handleReplayOnboarding}
+              disabled={replayOnboardingLoading}
+            >
+              <View style={styles.cardIconWrap}>
+                <View style={[styles.cardIcon, styles.cardIconPurple]}>
+                  <Feather name="refresh-cw" size={16} strokeWidth={2} color={COLORS.ACCENT} />
+                </View>
+                <View style={styles.cardTextWrap}>
+                  <Text style={styles.cardTitle}>Replay onboarding (dev)</Text>
+                  <Text style={styles.cardSubtitle}>
+                    {replayOnboardingLoading ? "Loading…" : "Set onboarding_completed = false and open flow"}
+                  </Text>
+                </View>
+                {replayOnboardingLoading ? (
+                  <ActivityIndicator size="small" color={COLORS.ACCENT} />
+                ) : (
+                  <Feather name="chevron-right" size={20} color={COLORS.TEXT_MUTED} />
+                )}
+              </View>
+            </Pressable>
+          )}
 
           {/* Debug modals (only when npm start with EXPO_PUBLIC_DEBUG_MODALS=true) */}
           {showDebugModals && (
@@ -461,7 +510,10 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 2,
   },
-cardIconWrap: {
+  cardDisabled: {
+    opacity: 0.6,
+  },
+  cardIconWrap: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,

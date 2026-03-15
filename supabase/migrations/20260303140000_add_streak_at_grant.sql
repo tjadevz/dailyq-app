@@ -5,7 +5,10 @@ alter table public.user_milestone_grants
 comment on column public.user_milestone_grants.streak_at_grant is
   'Streak value at time of grant; used to determine if milestone was already granted in current cycle.';
 
--- grant_milestone_jokers: CREATE OR REPLACE is idempotent (safe if already applied via SQL Editor).
+-- Drop existing overloads so CREATE OR REPLACE can change signature (cannot change return type/params with replace).
+drop function if exists public.grant_milestone_jokers(uuid, int, int);
+drop function if exists public.grant_milestone_jokers(uuid, int);
+
 create or replace function public.grant_milestone_jokers(p_user_id uuid, p_milestone int, p_streak_at_grant int default null)
 returns void
 language plpgsql

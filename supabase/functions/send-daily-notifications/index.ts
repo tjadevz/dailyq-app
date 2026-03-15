@@ -13,8 +13,8 @@ const corsHeaders = {
 const EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
 const VALID_SLOTS = ["morning", "afternoon", "evening"] as const;
 
-function getTodayEuropeAmsterdam(): string {
-  return new Date().toLocaleDateString("en-CA", { timeZone: "Europe/Amsterdam" });
+function getTodayInTimezone(timeZone: string): string {
+  return new Date().toLocaleDateString("en-CA", { timeZone: timeZone || "Europe/Amsterdam" });
 }
 
 function getBody(lang: string | null): string {
@@ -28,6 +28,7 @@ serve(async (req) => {
 
   const url = new URL(req.url);
   const timeSlot = url.searchParams.get("time_slot");
+  const timezone = url.searchParams.get("timezone") ?? "Europe/Amsterdam";
   if (!timeSlot || !VALID_SLOTS.includes(timeSlot as (typeof VALID_SLOTS)[number])) {
     return new Response(
       JSON.stringify({ error: "Missing or invalid time_slot (use morning, afternoon, or evening)" }),
@@ -45,7 +46,7 @@ serve(async (req) => {
   }
 
   const supabase = createClient(supabaseUrl, serviceRoleKey);
-  const today = getTodayEuropeAmsterdam();
+  const today = getTodayInTimezone(timezone);
 
   // 1) Subscriptions with expo_push_token and reminder_time = time_slot
   const { data: subs, error: subsErr } = await supabase

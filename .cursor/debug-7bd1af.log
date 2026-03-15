@@ -51,3 +51,5 @@
 {"sessionId":"7bd1af","location":"GlassCardContainer.tsx:content:onLayout","message":"GlassCardContainer content layout","data":{"width":402,"x":0,"hypothesisId":"H-layout"},"timestamp":1773064197194}
 {"sessionId":"7bd1af","location":"GlassCardContainer.tsx:content:onLayout","message":"GlassCardContainer content layout","data":{"width":402,"x":0,"hypothesisId":"H-layout"},"timestamp":1773064211626}
 {"sessionId":"7bd1af","location":"GlassCardContainer.tsx:content:onLayout","message":"GlassCardContainer content layout","data":{"width":402,"x":0,"hypothesisId":"H-layout"},"timestamp":1773064217139}
+{"sessionId":"7bd1af","location":"calendar.tsx:handleMissedSaved:noMilestone","message":"joker used, no milestone crossed — refetchProfile was not called (before fix)","data":{"crossedLength":0,"hypothesisId":"H2"},"timestamp":1773332278550}
+{"sessionId":"7bd1af","location":"calendar.tsx:handleMissedSaved:noMilestone","message":"joker used, no milestone crossed — refetchProfile was not called (before fix)","data":{"crossedLength":0,"hypothesisId":"H2"},"timestamp":1773332284731}

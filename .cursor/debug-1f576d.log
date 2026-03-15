@@ -1,0 +1,9 @@
+{"sessionId":"1f576d","location":"DeepLinkHandler.tsx","message":"getInitialURL result","data":{"hasUrl":true,"urlPrefix":"exp://192.168.1.28:8081"},"timestamp":1773323882432,"hypothesisId":"H1"}
+{"sessionId":"1f576d","location":"DeepLinkHandler.tsx","message":"handleResetPasswordUrl called","data":{"url":"exp://192.168.1.28:8081","urlLength":23},"timestamp":1773323882443,"hypothesisId":"H1"}
+{"sessionId":"1f576d","location":"DeepLinkHandler.tsx","message":"isResetPasswordUrl result","data":{"isMatch":false},"timestamp":1773323882449,"hypothesisId":"H2"}
+{"sessionId":"1f576d","location":"DeepLinkHandler.tsx","message":"getInitialURL result","data":{"hasUrl":true,"urlPrefix":"exp://192.168.1.28:8081"},"timestamp":1773323895341,"hypothesisId":"H1"}
+{"sessionId":"1f576d","location":"index.tsx","message":"Index redirect","data":{"to":"onboarding","hasUser":false},"timestamp":1773323895373,"hypothesisId":"H3"}
+{"sessionId":"1f576d","location":"DeepLinkHandler.tsx","message":"getInitialURL result","data":{"hasUrl":true,"urlPrefix":"exp://192.168.1.28:8081"},"timestamp":1773324194334,"hypothesisId":"H1"}
+{"sessionId":"1f576d","location":"index.tsx","message":"Index redirect","data":{"to":"onboarding","hasUser":false},"timestamp":1773324194343,"hypothesisId":"H3"}
+{"sessionId":"1f576d","location":"index.tsx","message":"Index redirect","data":{"to":"onboarding","hasUser":false},"timestamp":1773325062487,"hypothesisId":"H3"}
+{"sessionId":"1f576d","location":"index.tsx","message":"Index redirect","data":{"to":"onboarding","hasUser":false},"timestamp":1773325524783,"hypothesisId":"H3"}

@@ -1,0 +1,6 @@
+{"sessionId":"c10372","runId":"loop-check","hypothesisId":"L1","location":"CalendarAnswersContext:fetchMonth:start","message":"fetchMonth start","data":{"yearMonth":"2026-03","userId":"6fe49f53-9df5-423f-90f3-d25b8d9cf801"},"timestamp":1773434452068}
+{"sessionId":"c10372","runId":"loop-check","hypothesisId":"L4","location":"calendar.tsx:loading-change","message":"calendar loading state changed","data":{"loading":false},"timestamp":1773434452071}
+{"sessionId":"c10372","runId":"loop-check","hypothesisId":"L4","location":"calendar.tsx:loading-change","message":"calendar loading state changed","data":{"loading":true},"timestamp":1773434452124}
+{"sessionId":"c10372","runId":"loop-check","hypothesisId":"L2","location":"CalendarAnswersContext:fetchMonth:resolved","message":"fetchMonth resolved","data":{"yearMonth":"2026-03","mapSize":7,"existingSize":0,"toSetSize":7},"timestamp":1773434452230}
+{"sessionId":"c10372","runId":"loop-check","hypothesisId":"L1","location":"CalendarAnswersContext:fetchMonth:finally","message":"fetchMonth finally setLoading false","data":{"yearMonth":"2026-03"},"timestamp":1773434452233}
+{"sessionId":"c10372","runId":"loop-check","hypothesisId":"L4","location":"calendar.tsx:loading-change","message":"calendar loading state changed","data":{"loading":false},"timestamp":1773434452280}

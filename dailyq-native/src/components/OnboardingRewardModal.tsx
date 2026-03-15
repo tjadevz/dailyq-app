@@ -12,6 +12,7 @@ import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 
 import { COLORS, MODAL, MODAL_CLOSE_MS, MODAL_ENTER_MS } from "@/src/config/constants";
+import { useLanguage } from "@/src/context/LanguageContext";
 
 export function OnboardingRewardModal({
   visible,
@@ -20,6 +21,7 @@ export function OnboardingRewardModal({
   visible: boolean;
   onLetsGo: () => void;
 }) {
+  const { t } = useLanguage();
   const opacity = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(0.9)).current;
 
@@ -69,10 +71,8 @@ export function OnboardingRewardModal({
           <View style={styles.iconWrap}>
             <MaterialCommunityIcons name="crown" size={48} color="#F59E0B" />
           </View>
-          <Text style={styles.title}>You've earned a joker!</Text>
-          <Text style={styles.subtitle}>
-            Use jokers to answer missed days.
-          </Text>
+          <Text style={styles.title}>{t("onboarding_reward_title")}</Text>
+          <Text style={styles.subtitle}>{t("onboarding_reward_subtitle")}</Text>
           <Pressable
             onPress={handleClose}
             style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
@@ -83,7 +83,7 @@ export function OnboardingRewardModal({
               end={{ x: 1, y: 1 }}
               style={styles.buttonGradient}
             >
-              <Text style={styles.buttonText}>Let's go</Text>
+              <Text style={styles.buttonText}>{t("onboarding_reward_lets_go")}</Text>
             </LinearGradient>
           </Pressable>
         </Animated.View>

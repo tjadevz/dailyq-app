@@ -5,9 +5,6 @@ import Feather from "@expo/vector-icons/Feather";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { COLORS, JOKER, MODAL, MODAL_CLOSE_MS } from "@/src/config/constants";
 
-const JOKER_GOLD_BG = "#FDE68A";
-/** Lighter gold for the joker count number (echt goud) */
-const JOKER_NUMBER_GOLD = "#D97706";
 /** Body text: slightly darker than light gray */
 const JOKER_BODY_TEXT = "#4B5563";
 
@@ -23,6 +20,9 @@ export function JokerModal({
   t: (key: string, params?: Record<string, string | number>) => string;
 }) {
   const opacity = useRef(new Animated.Value(0)).current;
+  const crownScale = useRef(new Animated.Value(0)).current;
+  const ringScale = useRef(new Animated.Value(1)).current;
+  const ringOpacity = useRef(new Animated.Value(0.4)).current;
 
   useEffect(() => {
     if (visible) {
@@ -31,6 +31,57 @@ export function JokerModal({
       Animated.timing(opacity, { toValue: 0, duration: MODAL_CLOSE_MS, useNativeDriver: true }).start();
     }
   }, [visible, opacity]);
+
+  useEffect(() => {
+    if (visible) {
+      crownScale.setValue(0);
+      Animated.spring(crownScale, {
+        toValue: 1,
+        useNativeDriver: true,
+        damping: 14,
+        stiffness: 180,
+      }).start();
+    } else {
+      crownScale.setValue(0);
+    }
+  }, [visible, crownScale]);
+
+  useEffect(() => {
+    if (!visible) return;
+    ringScale.setValue(1);
+    ringOpacity.setValue(0.4);
+    const duration = 1750;
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.parallel([
+          Animated.timing(ringScale, {
+            toValue: 1.5,
+            duration,
+            useNativeDriver: true,
+          }),
+          Animated.timing(ringOpacity, {
+            toValue: 0,
+            duration,
+            useNativeDriver: true,
+          }),
+        ]),
+        Animated.parallel([
+          Animated.timing(ringScale, {
+            toValue: 1,
+            duration: 50,
+            useNativeDriver: true,
+          }),
+          Animated.timing(ringOpacity, {
+            toValue: 0.4,
+            duration: 50,
+            useNativeDriver: true,
+          }),
+        ]),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [visible, ringScale, ringOpacity]);
 
   if (!visible) return null;
 
@@ -52,19 +103,31 @@ export function JokerModal({
             <Feather name="x" size={18} color={COLORS.TEXT_SECONDARY} strokeWidth={2.5} />
           </Pressable>
           <View style={styles.iconRow}>
-            <View style={styles.iconCircle}>
-              <MaterialCommunityIcons
-                name="crown"
-                size={28}
-                color="#FFFFFF"
+            <View style={styles.iconWrap}>
+              <Animated.View
+                style={[
+                  styles.pulseRing,
+                  {
+                    opacity: ringOpacity,
+                    transform: [{ scale: ringScale }],
+                  },
+                ]}
               />
+              <Animated.View style={[styles.iconCircle, { transform: [{ scale: crownScale }] }]}>
+                <MaterialCommunityIcons
+                  name="crown"
+                  size={28}
+                  color="#FFFFFF"
+                />
+              </Animated.View>
             </View>
           </View>
-          <Text style={styles.body}>
+          <Text style={styles.title}>
             {before}
             <Text style={styles.bodyNumber}>{jokerBalance}</Text>
             {after}
           </Text>
+          <Text style={styles.subtitle}>{t("joker_modal_subtitle")}</Text>
         </View>
       </Animated.View>
     </Modal>
@@ -89,7 +152,23 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 20,
+    marginBottom: 28,
+  },
+  iconWrap: {
+    position: "relative",
+    width: 64,
+    height: 64,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  pulseRing: {
+    position: "absolute",
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 2,
+    borderColor: JOKER.GOLD_RING,
+    backgroundColor: "transparent",
   },
   iconCircle: {
     width: 64,
@@ -97,18 +176,26 @@ const styles = StyleSheet.create({
     borderRadius: 32,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: JOKER_GOLD_BG,
+    backgroundColor: JOKER.GOLD,
     borderWidth: 1,
-    borderColor: "rgba(251,191,36,0.5)",
+    borderColor: "rgba(240,192,64,0.5)",
   },
-  body: {
+  title: {
     fontSize: 19,
     color: JOKER_BODY_TEXT,
     lineHeight: 26,
     textAlign: "center",
+    marginBottom: 24,
+  },
+  subtitle: {
+    fontSize: 19,
+    color: JOKER_BODY_TEXT,
+    lineHeight: 26,
+    textAlign: "center",
+    marginHorizontal: -12,
   },
   bodyNumber: {
     fontWeight: "800",
-    color: JOKER_NUMBER_GOLD,
+    color: JOKER.GOLD,
   },
 });

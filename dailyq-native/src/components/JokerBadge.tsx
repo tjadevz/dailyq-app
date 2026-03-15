@@ -2,9 +2,7 @@ import React from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
-import { JOKER } from "@/src/config/constants";
-
-/** Crown in 16×16 white circle; PWA match: stroke #FBBF24, fill #FDE68A */
+/** Joker count badge: gradient gold, white crown and count. */
 export function JokerBadge({
   count,
   onPress,
@@ -17,7 +15,7 @@ export function JokerBadge({
   const content = (
     <Pressable onPress={onPress} style={({ pressed }) => [pressed && { opacity: 0.9 }]}>
       <LinearGradient
-        colors={["#FEF3C7", "#FDE68A", "#FBBF24"]}
+        colors={["#FFD84D", "#F5B800"]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.badge}
@@ -26,7 +24,7 @@ export function JokerBadge({
           <MaterialCommunityIcons
             name="crown"
             size={14}
-            color="#FBBF24"
+            color="#F5B800"
             style={styles.crownIcon}
           />
         </View>
@@ -50,13 +48,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 13,
     borderRadius: 9999,
     borderWidth: 1,
-    borderColor: "rgba(251,191,36,0.4)",
+    borderColor: "rgba(245,184,0,0.4)",
   },
   crownCircle: {
     width: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: "rgba(255,255,255,0.9)",
+    backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#000",
@@ -65,12 +63,10 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 1,
   },
-  crownIcon: {
-    // MaterialCommunityIcons crown: use color for stroke; fill may need to be set via icon theme if supported
-  },
+  crownIcon: {},
   count: {
     fontSize: 15,
     fontWeight: "700",
-    color: JOKER.TEXT,
+    color: "#FFFFFF",
   },
 });

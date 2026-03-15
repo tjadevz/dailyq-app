@@ -17,6 +17,7 @@ import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLanguage } from "@/src/context/LanguageContext";
 import { supabase } from "@/src/config/supabase";
+import { JOKER } from "@/src/config/constants";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const MODAL_WIDTH = SCREEN_WIDTH * 0.88;
@@ -24,6 +25,8 @@ const MODAL_WIDTH = SCREEN_WIDTH * 0.88;
 interface JokerOfferModalProps {
   visible: boolean;
   dayKey: string | null;
+  /** When true, yesterday (today - 1) is shown: "Answer" button, purple, no joker deducted. */
+  isYesterday?: boolean;
   jokerCount: number;
   onClose: () => void;
   onUseJoker: (dayKey: string, questionText: string) => void;
@@ -39,6 +42,7 @@ function parseDayKey(dayKey: string | null): Date | null {
 export default function JokerOfferModal({
   visible,
   dayKey,
+  isYesterday = false,
   jokerCount,
   onClose,
   onUseJoker,
@@ -50,6 +54,7 @@ export default function JokerOfferModal({
   const cardScale = useRef(new Animated.Value(0.9)).current;
   const cardOpacity = useRef(new Animated.Value(0)).current;
   const cardY = useRef(new Animated.Value(20)).current;
+  const crownScale = useRef(new Animated.Value(0)).current;
   const dateObj = useMemo(() => parseDayKey(dayKey), [dayKey]);
   const dateLabel =
     dateObj != null
@@ -124,6 +129,20 @@ export default function JokerOfferModal({
     }
   }, [visible, backdropOpacity, cardScale, cardOpacity, cardY]);
 
+  useEffect(() => {
+    if (visible && !isYesterday) {
+      crownScale.setValue(0);
+      Animated.spring(crownScale, {
+        toValue: 1,
+        useNativeDriver: true,
+        damping: 14,
+        stiffness: 180,
+      }).start();
+    } else {
+      crownScale.setValue(0);
+    }
+  }, [visible, isYesterday, crownScale]);
+
   if (!visible || !dayKey || dateObj == null) return null;
 
   return (
@@ -161,13 +180,13 @@ export default function JokerOfferModal({
             ]}
           >
             <View style={styles.card}>
-              {/* Header: amber "Missed Day" badge (left) + close (right) */}
+              {/* Header: "Missed Day" badge (left) + close (right) */}
               <View style={styles.headerRow}>
                 <View style={styles.badge}>
                   <Feather
                     name="star"
                     size={14}
-                    color="#D97706"
+                    color="#FFFFFF"
                     strokeWidth={2}
                   />
                   <Text style={styles.badgeText}>{t("joker_offer_badge")}</Text>
@@ -181,7 +200,7 @@ export default function JokerOfferModal({
                 </TouchableOpacity>
               </View>
 
-              {/* Date */}
+              {/* Date: below badge, left-aligned */}
               <Text style={styles.dateLabel}>{dateLabel}</Text>
 
               {/* Question */}
@@ -195,22 +214,30 @@ export default function JokerOfferModal({
                 </Text>
               )}
 
-              {/* Unlock CTA */}
+              {/* Unlock CTA: yesterday = "Answer" (purple, no icon); else joker flow (gold, crown). */}
               <View style={styles.ctaWrap}>
                 <TouchableOpacity
                   onPress={() => {
-                    if (jokerCount > 0 && dayKey) onUseJoker(dayKey, questionText);
+                    if (dayKey && (isYesterday || jokerCount > 0)) onUseJoker(dayKey, questionText);
                   }}
                   activeOpacity={0.88}
-                  disabled={jokerCount === 0}
+                  disabled={!isYesterday && jokerCount === 0}
                   style={[
                     styles.ctaBtn,
-                    jokerCount === 0 && styles.ctaBtnDisabled,
+                    isYesterday && styles.ctaBtnPurple,
+                    !isYesterday && jokerCount === 0 && styles.ctaBtnDisabled,
                   ]}
                 >
-                  {jokerCount > 0 ? (
+                  {isYesterday ? (
                     <LinearGradient
-                      colors={["#FCD34D", "#FBBF24"]}
+                      colors={["#C4B5FD", "#A78BFA"]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={StyleSheet.absoluteFill}
+                    />
+                  ) : jokerCount > 0 ? (
+                    <LinearGradient
+                      colors={["#F5CC50", JOKER.GOLD]}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 0 }}
                       style={StyleSheet.absoluteFill}
@@ -218,16 +245,28 @@ export default function JokerOfferModal({
                   ) : (
                     <View style={styles.ctaBtnGrayBg} />
                   )}
-                  <MaterialCommunityIcons
-                    name={jokerCount > 0 ? "crown" : "crown-outline"}
-                    size={16}
-                    color="#FFFFFF"
-                  />
+                  {!isYesterday && (
+                    <Animated.View
+                      style={{
+                        transform: [{ scale: crownScale }],
+                      }}
+                    >
+                      <MaterialCommunityIcons
+                        name={jokerCount > 0 ? "crown" : "crown-outline"}
+                        size={16}
+                        color="#FFFFFF"
+                      />
+                    </Animated.View>
+                  )}
                   <Text style={styles.ctaText}>
-                    {jokerCount > 0 ? t("joker_offer_unlock") : t("missed_no_jokers_left_error")}
+                    {isYesterday
+                      ? t("missed_answer_free_btn")
+                      : jokerCount > 0
+                        ? t("joker_offer_unlock")
+                        : t("missed_no_jokers_left_error")}
                   </Text>
                 </TouchableOpacity>
-                {jokerCount === 0 && (
+                {!isYesterday && jokerCount === 0 && (
                   <Text style={styles.ctaHint}>{t("joker_offer_no_jokers_hint")}</Text>
                 )}
               </View>
@@ -272,8 +311,9 @@ const styles = StyleSheet.create({
   badge: {
     flexDirection: "row",
     alignItems: "center",
+    alignSelf: "flex-start",
     gap: 6,
-    backgroundColor: "#FDE68A",
+    backgroundColor: JOKER.GOLD,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,
@@ -287,7 +327,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "700",
     letterSpacing: 2,
-    color: "#D97706",
+    color: "#FFFFFF",
     textTransform: "uppercase",
     fontFamily: Platform.OS === "ios" ? "System" : "sans-serif-medium",
   },
@@ -306,6 +346,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     textTransform: "uppercase",
     marginBottom: 12,
+    alignSelf: "flex-start",
   },
   questionLoader: {
     minHeight: 32,
@@ -339,6 +380,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.35,
     shadowRadius: 24,
     elevation: 8,
+  },
+  ctaBtnPurple: {
+    shadowColor: "#8B5CF6",
   },
   ctaBtnDisabled: {
     opacity: 0.4,

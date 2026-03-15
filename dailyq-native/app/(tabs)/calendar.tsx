@@ -108,6 +108,23 @@ function isBeforeAccountStart(dayKey: string, accountCreatedAt: string | undefin
   return dayKey < createdDate;
 }
 
+/** True when dayKey is strictly older than 30 days before todayKey (local date). */
+function isOlderThan30Days(dayKey: string, todayKey: string): boolean {
+  const d = new Date(todayKey + "T12:00:00");
+  d.setDate(d.getDate() - 30);
+  const thirtyDaysAgoKey = getLocalDayKey(d);
+  return dayKey < thirtyDaysAgoKey;
+}
+
+/** True when day is permanently locked: before account boundary or older than 30 days. Uses accountBoundaryDate (created_at - 7 when onboarding done). */
+function isPermanentlyLockedDay(
+  dayKey: string,
+  todayKey: string,
+  accountBoundaryDate: string | undefined
+): boolean {
+  return isBeforeAccountStart(dayKey, accountBoundaryDate) || isOlderThan30Days(dayKey, todayKey);
+}
+
 function getDaysInMonthGrid(yearMonth: string): { dayKey: string | null; dayNum: number }[] {
   const [y, m] = yearMonth.split("-").map(Number);
   const first = new Date(y, m - 1, 1);
@@ -136,12 +153,12 @@ function getCellState(
   dayKey: string,
   todayKey: string,
   entry: CalendarAnswerEntry | undefined,
-  accountCreatedAt?: string
+  accountBoundaryDate?: string
 ): CellState {
   if (dayKey > todayKey) return "future";
   if (entry) return entry.isJoker ? "joker" : "answered";
   if (dayKey === todayKey) return "today";
-  if (accountCreatedAt && isBeforeAccountStart(dayKey, accountCreatedAt)) return "before";
+  if (isPermanentlyLockedDay(dayKey, todayKey, accountBoundaryDate)) return "before";
   return "missed";
 }
 
@@ -340,6 +357,8 @@ function MissedDayModal({
   jokerCount,
   withinWindow,
   isPermanentlyLocked,
+  /** When locked: "before_account" vs "30_days" — only subtitle differs. */
+  lockedSubtitleKey,
   onClose,
   onUseJoker,
 }: {
@@ -349,6 +368,7 @@ function MissedDayModal({
   jokerCount: number;
   withinWindow: boolean;
   isPermanentlyLocked: boolean;
+  lockedSubtitleKey: string | null;
   onClose: () => void;
   onUseJoker: () => void;
 }) {
@@ -378,13 +398,13 @@ function MissedDayModal({
             <Feather name="x" size={18} color={COLORS.TEXT_SECONDARY} strokeWidth={2.5} />
           </Pressable>
           <View style={styles.modalLockIconWrap}>
-            <Feather name="lock" size={24} color={COLORS.TEXT_SECONDARY} strokeWidth={2} />
+            <Feather name="lock" size={24} color="#6B7280" strokeWidth={2} />
           </View>
           <Text style={[styles.modalTitle, styles.modalTextCenter]}>
             {isPermanentlyLocked ? t("locked_day_title") : t("missed_title")}
           </Text>
-          {isPermanentlyLocked ? (
-            <Text style={[styles.modalSubtitle, styles.modalTextCenter]}>{t("locked_day_subtitle")}</Text>
+          {isPermanentlyLocked && lockedSubtitleKey ? (
+            <Text style={[styles.modalSubtitle, styles.modalTextCenter]}>{t(lockedSubtitleKey)}</Text>
           ) : !withinWindow ? (
             <>
               <Text style={[styles.modalBody, styles.modalTextCenter]}>{t("closed_body")}</Text>
@@ -504,6 +524,11 @@ export default function CalendarScreen() {
   const { showMilestone } = useStreakMilestone();
 
   const todayKey = getLocalDayKey(getNow());
+  const yesterdayKey = useMemo(() => {
+    const d = new Date(todayKey + "T12:00:00");
+    d.setDate(d.getDate() - 1);
+    return getLocalDayKey(d);
+  }, [todayKey]);
   const accountBoundaryDate = useMemo((): string | undefined => {
     if (!effectiveUser?.created_at) return undefined;
     if (profile?.onboarding_completed) {
@@ -550,6 +575,7 @@ export default function CalendarScreen() {
   const [missedDay, setMissedDay] = useState<string | null>(null);
   const [missedAnswerDay, setMissedAnswerDay] = useState<string | null>(null);
   const [missedAnswerQuestionText, setMissedAnswerQuestionText] = useState("");
+  const [missedAnswerRequiresJoker, setMissedAnswerRequiresJoker] = useState(true);
   const [missedAnswerSubmitting, setMissedAnswerSubmitting] = useState(false);
   const [missedAnswerError, setMissedAnswerError] = useState<string | null>(null);
   const [showSubmitSuccess, setShowSubmitSuccess] = useState(false);
@@ -695,10 +721,11 @@ export default function CalendarScreen() {
     (dayKey: string, questionText?: string) => {
       setMissedAnswerDay(dayKey);
       setMissedAnswerQuestionText(questionText ?? "");
+      setMissedAnswerRequiresJoker(dayKey !== yesterdayKey);
       setMissedDay(null);
       setMissedAnswerError(null);
     },
-    []
+    [yesterdayKey]
   );
 
   const handleMissedSaved = useCallback(
@@ -724,6 +751,7 @@ export default function CalendarScreen() {
       const trimmed = answerText.trim();
       if (!trimmed) return;
 
+      const requiresJoker = missedAnswerRequiresJoker;
       setMissedAnswerError(null);
       setMissedAnswerSubmitting(true);
       try {
@@ -743,21 +771,24 @@ export default function CalendarScreen() {
           // ignore
         }
 
-        const { error: rpcErr } = await supabase.rpc("use_joker");
-        if (rpcErr) throw rpcErr;
+        if (requiresJoker) {
+          const { error: rpcErr } = await supabase.rpc("use_joker");
+          if (rpcErr) throw rpcErr;
+        }
 
         const { error: insertErr } = await supabase.from("answers").insert({
           user_id: userId,
           question_date: missedAnswerDay,
           answer_text: trimmed,
-          is_joker: true,
+          is_joker: requiresJoker,
         });
         if (insertErr) {
-          // use_joker already decremented joker_balance — compensate by restoring it.
-          try {
-            await supabase.rpc("restore_joker");
-          } catch (compensateErr: unknown) {
-            console.error("Failed to restore joker after insert failure:", compensateErr);
+          if (requiresJoker) {
+            try {
+              await supabase.rpc("restore_joker");
+            } catch (compensateErr: unknown) {
+              console.error("Failed to restore joker after insert failure:", compensateErr);
+            }
           }
           throw insertErr;
         }
@@ -765,7 +796,7 @@ export default function CalendarScreen() {
         setAnswerForDay(missedAnswerDay, {
           questionText: missedAnswerQuestionText,
           answerText: trimmed,
-          isJoker: true,
+          isJoker: requiresJoker,
         });
         setMissedAnswerDay(null);
         setMissedAnswerQuestionText("");
@@ -785,6 +816,7 @@ export default function CalendarScreen() {
       userId,
       missedAnswerDay,
       missedAnswerQuestionText,
+      missedAnswerRequiresJoker,
       setAnswerForDay,
       handleMissedSaved,
       t,
@@ -1012,6 +1044,7 @@ export default function CalendarScreen() {
         <JokerOfferModal
           visible={!!missedDay}
           dayKey={missedDay}
+          isYesterday={!!missedDay && missedDay === yesterdayKey}
           jokerCount={jokerCount}
           onClose={() => setMissedDay(null)}
           onUseJoker={(dayKey, questionText) =>
@@ -1026,7 +1059,15 @@ export default function CalendarScreen() {
           jokerCount={jokerCount}
           withinWindow={false}
           isPermanentlyLocked={
-            !!missedDay && isBeforeAccountStart(missedDay, accountBoundaryDate)
+            !!missedDay &&
+            isPermanentlyLockedDay(missedDay, todayKey, accountBoundaryDate)
+          }
+          lockedSubtitleKey={
+            missedDay && isPermanentlyLockedDay(missedDay, todayKey, accountBoundaryDate)
+              ? isBeforeAccountStart(missedDay, accountBoundaryDate)
+                ? "locked_day_subtitle_before_account"
+                : "locked_day_subtitle_30_days"
+              : null
           }
           onClose={() => setMissedDay(null)}
           onUseJoker={() => missedDay && openMissedAnswer(missedDay)}
@@ -1571,8 +1612,13 @@ const styles = StyleSheet.create({
     lineHeight: 26,
   },
   modalLockIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(156, 163, 175, 0.15)",
     alignItems: "center",
     justifyContent: "center",
+    alignSelf: "center",
     marginBottom: 12,
   },
   modalTextCenter: { textAlign: "center" as const },

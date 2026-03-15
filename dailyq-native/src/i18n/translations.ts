@@ -24,15 +24,15 @@ export const translations: Record<Lang, Record<string, string>> = {
     joker_modal_title_one: "Joker",
     joker_modal_title_many: "Jokers",
     joker_modal_body:
-      "You have {joker_balance} jokers.\n\nUse a joker to still answer a missed day.",
+      "You have {joker_balance} jokers.\n\nUse a joker to answer a missed day. Up to 30 days back.",
     joker_modal_body_before: "You have ",
-    joker_modal_body_after:
-      " jokers.\n\nUse a joker to still answer a missed day.",
+    joker_modal_body_after: " jokers.",
+    joker_modal_subtitle:
+      "Use a joker to protect your streak or answer a missed day from the past 30 days.",
     joker_modal_body_singular:
-      "You have 1 joker.\n\nUse a joker to still answer a missed day.",
+      "You have 1 joker.\n\nUse a joker to answer a missed day. Up to 30 days back.",
     joker_modal_body_singular_before: "You have ",
-    joker_modal_body_singular_after:
-      " joker.\n\nUse a joker to still answer a missed day.",
+    joker_modal_body_singular_after: " joker.",
     onboarding_email: "Email",
     onboarding_password: "Password",
     onboarding_password_confirm: "Confirm password",
@@ -84,6 +84,9 @@ export const translations: Record<Lang, Record<string, string>> = {
     onboarding_questions_intro_subtitle:
       "Your archive starts here. Your first 7 questions are waiting.",
     onboarding_questions_intro_cta: "Start",
+    onboarding_reward_title: "You've earned a joker!",
+    onboarding_reward_subtitle: "Use jokers to answer missed days.",
+    onboarding_reward_lets_go: "Let's go",
     today_ready: "Ready for today",
     today_edit_answer: "Edit answer",
     today_submit: "Submit",
@@ -103,8 +106,11 @@ export const translations: Record<Lang, Record<string, string>> = {
     missed_use_joker_message:
       "You missed this day.\n\nWith a joker you can still answer it.",
     missed_use_joker_btn: "Use joker",
+    missed_answer_free_btn: "Answer",
     joker_offer_cta: "Answer with a Joker",
     joker_offer_badge: "Missed Day",
+    joker_offer_subtitle:
+      "Use a joker to answer a missed day. You can go back up to 30 days.",
     joker_offer_unlock: "Answer with a Joker",
     missed_no_jokers_body: "You don't have any jokers left.",
     missed_no_jokers_left_error: "No jokers left",
@@ -112,7 +118,8 @@ export const translations: Record<Lang, Record<string, string>> = {
     closed_title: "This day is closed",
     closed_body: "You can only answer questions from the last 30 days.",
     locked_day_title: "This day is locked",
-    locked_day_subtitle: "This day existed before you joined.",
+    locked_day_subtitle_before_account: "This day existed before you joined.",
+    locked_day_subtitle_30_days: "You can answer questions up to 30 days back.",
     missed_answer_question_label: "Question for that day",
     missed_answer_submitting: "Submitting…",
     missed_answer_error_load: "Question could not be loaded.",
@@ -178,6 +185,7 @@ export const translations: Record<Lang, Record<string, string>> = {
     settings_appearance: "Appearance",
     settings_appearance_value: "Light & Airy",
     settings_about: "About DailyQ",
+    settings_account: "Account",
     settings_over: "Over",
     settings_privacy_policy: "Privacy Policy",
     settings_terms_of_service: "Terms of Service",
@@ -218,15 +226,15 @@ export const translations: Record<Lang, Record<string, string>> = {
     joker_modal_title_one: "Joker",
     joker_modal_title_many: "Jokers",
     joker_modal_body:
-      "Je hebt {joker_balance} jokers.\n\nGebruik een joker om een gemiste dag alsnog te beantwoorden.",
+      "Je hebt {joker_balance} jokers.\n\nGebruik een joker om een gemiste dag alsnog te beantwoorden. Tot 30 dagen terug.",
     joker_modal_body_before: "Je hebt ",
-    joker_modal_body_after:
-      " jokers.\n\nGebruik een joker om een gemiste dag alsnog te beantwoorden.",
+    joker_modal_body_after: " jokers.",
+    joker_modal_subtitle:
+      "Gebruik een joker om je streak te beschermen of een gemiste dag uit de afgelopen 30 dagen alsnog te beantwoorden.",
     joker_modal_body_singular:
-      "Je hebt 1 joker.\n\nGebruik een joker om een gemiste dag alsnog te beantwoorden.",
+      "Je hebt 1 joker.\n\nGebruik een joker om een gemiste dag alsnog te beantwoorden. Tot 30 dagen terug.",
     joker_modal_body_singular_before: "Je hebt ",
-    joker_modal_body_singular_after:
-      " joker.\n\nGebruik een joker om een gemiste dag alsnog te beantwoorden.",
+    joker_modal_body_singular_after: " joker.",
     onboarding_email: "Email",
     onboarding_password: "Wachtwoord",
     onboarding_password_confirm: "Bevestig wachtwoord",
@@ -278,6 +286,9 @@ export const translations: Record<Lang, Record<string, string>> = {
     onboarding_questions_intro_subtitle:
       "Hier begint jouw archief. Je eerste 7 vragen wachten op je.",
     onboarding_questions_intro_cta: "Begin",
+    onboarding_reward_title: "Je hebt een joker verdiend!",
+    onboarding_reward_subtitle: "Gebruik jokers om gemiste dagen te beantwoorden.",
+    onboarding_reward_lets_go: "Laten we gaan",
     today_ready: "Klaar voor vandaag",
     today_edit_answer: "Antwoord bewerken",
     today_submit: "Versturen",
@@ -297,8 +308,11 @@ export const translations: Record<Lang, Record<string, string>> = {
     missed_use_joker_message:
       "Je hebt deze dag gemist.\n\nMet een joker kun je de vraag alsnog beantwoorden.",
     missed_use_joker_btn: "Joker inzetten",
+    missed_answer_free_btn: "Beantwoord",
     joker_offer_cta: "Beantwoord met een joker",
     joker_offer_badge: "Gemiste dag",
+    joker_offer_subtitle:
+      "Gebruik een joker om een gemiste dag alsnog te beantwoorden. Dit kan tot 30 dagen terug.",
     joker_offer_unlock: "Beantwoord met een Joker",
     missed_no_jokers_body: "Je hebt geen jokers meer.",
     missed_no_jokers_left_error: "Geen jokers meer",
@@ -306,7 +320,8 @@ export const translations: Record<Lang, Record<string, string>> = {
     closed_title: "Deze dag is gesloten",
     closed_body: "Je kunt alleen vragen van de afgelopen 30 dagen beantwoorden.",
     locked_day_title: "Deze dag is vergrendeld",
-    locked_day_subtitle: "Deze dag was er al voordat jij begon.",
+    locked_day_subtitle_before_account: "Deze dag was er al voordat jij begon.",
+    locked_day_subtitle_30_days: "Je kunt vragen tot 30 dagen terug beantwoorden.",
     missed_answer_question_label: "Vraag van die dag",
     missed_answer_submitting: "Bezig…",
     missed_answer_error_load: "Vraag kon niet worden geladen.",
@@ -373,6 +388,7 @@ export const translations: Record<Lang, Record<string, string>> = {
     settings_appearance: "Weergave",
     settings_appearance_value: "Licht & luchtig",
     settings_about: "Over DailyQ",
+    settings_account: "Account",
     settings_over: "Over",
     settings_privacy_policy: "Privacybeleid",
     settings_terms_of_service: "Algemene voorwaarden",

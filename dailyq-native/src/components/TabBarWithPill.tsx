@@ -12,9 +12,17 @@ export function TabBarWithPill({ state, descriptors, navigation }: BottomTabBarP
   const indexRef = useRef(-1);
 
   const visibleRoutes = state.routes.filter(
-    (r) => r.name !== "index" && r.name !== "onboarding-questions" && r.name !== "over"
+    (r) =>
+      r.name !== "index" &&
+      r.name !== "onboarding-questions" &&
+      r.name !== "over" &&
+      r.name !== "account"
   );
-  const visibleIndex = visibleRoutes.findIndex(r => r.key === state.routes[state.index]?.key);
+  const currentRouteName = state.routes[state.index]?.name;
+  let visibleIndex = visibleRoutes.findIndex(r => r.key === state.routes[state.index]?.key);
+  if (currentRouteName === "over" || currentRouteName === "account") {
+    visibleIndex = visibleRoutes.findIndex(r => r.name === "settings");
+  }
 
   const onLayout = (e: LayoutChangeEvent) => {
     const w = e.nativeEvent.layout.width;
@@ -36,7 +44,6 @@ export function TabBarWithPill({ state, descriptors, navigation }: BottomTabBarP
   }, [visibleIndex, barWidth]);
 
   const pillWidth = barWidth > 0 ? barWidth / visibleRoutes.length - 16 : 80;
-  const currentRouteName = state.routes[state.index]?.name;
   if (currentRouteName === "onboarding-questions") {
     return null;
   }
@@ -71,6 +78,13 @@ export function TabBarWithPill({ state, descriptors, navigation }: BottomTabBarP
               key={route.key}
               style={styles.tab}
               onPress={() => {
+                if (
+                  route.name === "settings" &&
+                  (currentRouteName === "over" || currentRouteName === "account")
+                ) {
+                  navigation.navigate("settings");
+                  return;
+                }
                 const event = navigation.emit({ type: "tabPress", target: route.key, canPreventDefault: true });
                 if (!isFocused && !event.defaultPrevented) navigation.navigate(route.name);
               }}

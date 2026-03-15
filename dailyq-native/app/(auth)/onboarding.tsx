@@ -645,6 +645,7 @@ export default function OnboardingScreen() {
                             secureTextEntry={!showPassword}
                             autoComplete={isLoginMode ? "password" : "new-password"}
                             autoCapitalize="none"
+                            textContentType="oneTimeCode"
                           />
                           <Pressable
                             onPress={() => setShowPassword((s) => !s)}

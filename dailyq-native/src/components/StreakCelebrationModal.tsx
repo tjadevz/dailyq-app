@@ -30,7 +30,7 @@ const JOKER_COUNT_BY_MILESTONE: Record<StreakMilestone, number> = {
   365: 5,
 };
 
-const GOLD_GRADIENT = ["#FEF3C7", "#FDE68A", "#FBBF24"] as const;
+const GOLD_GRADIENT = ["#FEF3C7", JOKER.GOLD, "#D4A830"] as const;
 
 export function StreakCelebrationModal({
   visible,
@@ -434,8 +434,8 @@ const streakModalStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
-    borderColor: "rgba(251,191,36,0.4)",
-    shadowColor: "#FBBF24",
+    borderColor: "rgba(240,192,64,0.4)",
+    shadowColor: JOKER.GOLD,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
     shadowRadius: 12,
@@ -462,7 +462,7 @@ const streakModalStyles = StyleSheet.create({
     gap: 12,
     backgroundColor: "rgba(254,243,199,0.4)",
     borderWidth: 1,
-    borderColor: "rgba(253,230,138,0.5)",
+    borderColor: "rgba(240,192,64,0.5)",
     borderRadius: 20,
     paddingVertical: 16,
     paddingHorizontal: 16,

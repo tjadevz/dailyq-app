@@ -97,72 +97,6 @@ function LanguageModal({
   );
 }
 
-// ----- DeleteAccountModal -----
-function DeleteAccountModal({
-  visible,
-  onClose,
-  onConfirm,
-}: {
-  visible: boolean;
-  onClose: () => void;
-  onConfirm: () => Promise<void>;
-}) {
-  const { t } = useLanguage();
-  const [deleting, setDeleting] = useState(false);
-  const opacity = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    if (visible) {
-      Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: true }).start();
-    } else {
-      Animated.timing(opacity, { toValue: 0, duration: MODAL_CLOSE_MS, useNativeDriver: true }).start();
-    }
-  }, [visible, opacity]);
-
-  const handleConfirm = useCallback(async () => {
-    setDeleting(true);
-    try {
-      await onConfirm();
-      onClose();
-    } finally {
-      setDeleting(false);
-    }
-  }, [onConfirm, onClose]);
-
-  if (!visible) return null;
-  return (
-    <Modal transparent visible={visible} animationType="none">
-      <Animated.View style={[styles.modalBackdrop, { opacity }]}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-        <View style={styles.modalCard}>
-          <Text style={styles.modalTitle}>{t("settings_delete_account")}</Text>
-          <Text style={styles.modalBody}>{t("settings_delete_confirm")}</Text>
-          <View style={styles.modalActions}>
-            <Pressable
-              style={[styles.modalButton, styles.modalButtonSecondary]}
-              onPress={onClose}
-              disabled={deleting}
-            >
-              <Text style={styles.modalButtonSecondaryText}>{t("common_cancel")}</Text>
-            </Pressable>
-            <Pressable
-              style={[styles.modalButton, styles.modalButtonDanger]}
-              onPress={handleConfirm}
-              disabled={deleting}
-            >
-              {deleting ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <Text style={styles.modalButtonDangerText}>{t("common_confirm")}</Text>
-              )}
-            </Pressable>
-          </View>
-        </View>
-      </Animated.View>
-    </Modal>
-  );
-}
-
 function getReminderSubtitle(
   t: (key: string) => string,
   slot: ReminderTime | null
@@ -243,13 +177,12 @@ function ReminderModal({
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const { t, lang, setLang } = useLanguage();
-  const { effectiveUser, signOut, deleteUser } = useAuth();
+  const { effectiveUser, signOut } = useAuth();
   const { refetch: refetchProfile } = useProfileContext();
   const { showMilestone } = useStreakMilestone();
   const router = useRouter();
 
   const [languageModalVisible, setLanguageModalVisible] = useState(false);
-  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [reminderModalVisible, setReminderModalVisible] = useState(false);
   const [reminderTime, setReminderTime] = useState<ReminderTime | null>(null);
   const [replayOnboardingLoading, setReplayOnboardingLoading] = useState(false);
@@ -268,13 +201,6 @@ export default function SettingsScreen() {
     await signOut();
     router.replace("/(auth)/onboarding");
   }, [signOut, router]);
-
-  const handleDeleteAccount = useCallback(async () => {
-    const { error } = await deleteUser();
-    if (!error) {
-      router.replace("/(auth)/onboarding");
-    }
-  }, [deleteUser, router]);
 
   const handleReminderSelect = useCallback(
     async (slot: ReminderTime | null) => {
@@ -301,6 +227,10 @@ export default function SettingsScreen() {
 
   const handleOverDailyQ = useCallback(() => {
     router.push("/(tabs)/over");
+  }, [router]);
+
+  const handleAccount = useCallback(() => {
+    router.push("/(tabs)/account");
   }, [router]);
 
   const handleReplayOnboarding = useCallback(async () => {
@@ -361,27 +291,16 @@ export default function SettingsScreen() {
             </View>
           </Pressable>
 
-          {/* Uitloggen */}
-          <Pressable style={styles.card} onPress={handleSignOut}>
+          {/* Account */}
+          <Pressable style={styles.card} onPress={handleAccount}>
             <View style={styles.cardIconWrap}>
-              <View style={[styles.cardIcon, styles.cardIconRed]}>
-                <Feather name="log-out" size={16} strokeWidth={2} color="#DC2626" />
+              <View style={[styles.cardIcon, styles.cardIconIndigo]}>
+                <Feather name="user" size={16} strokeWidth={2} color="#6366F1" />
               </View>
               <View style={styles.cardTextWrap}>
-                <Text style={styles.cardTitle}>{t("settings_sign_out")}</Text>
+                <Text style={styles.cardTitle}>{t("settings_account")}</Text>
               </View>
-            </View>
-          </Pressable>
-
-          {/* Account verwijderen */}
-          <Pressable style={styles.card} onPress={() => setDeleteModalVisible(true)}>
-            <View style={styles.cardIconWrap}>
-              <View style={[styles.cardIcon, styles.cardIconRedDark]}>
-                <Feather name="trash-2" size={16} strokeWidth={2} color="#B91C1C" />
-              </View>
-              <View style={styles.cardTextWrap}>
-                <Text style={styles.cardTitleDanger}>{t("settings_delete_account")}</Text>
-              </View>
+              <Feather name="chevron-right" size={20} color={COLORS.TEXT_MUTED} />
             </View>
           </Pressable>
 
@@ -395,6 +314,18 @@ export default function SettingsScreen() {
                 <Text style={styles.cardTitle}>{t("settings_about")}</Text>
               </View>
               <Feather name="chevron-right" size={20} color={COLORS.TEXT_MUTED} />
+            </View>
+          </Pressable>
+
+          {/* Uitloggen */}
+          <Pressable style={styles.card} onPress={handleSignOut}>
+            <View style={styles.cardIconWrap}>
+              <View style={[styles.cardIcon, styles.cardIconRed]}>
+                <Feather name="log-out" size={16} strokeWidth={2} color="#DC2626" />
+              </View>
+              <View style={styles.cardTextWrap}>
+                <Text style={styles.cardTitle}>{t("settings_sign_out")}</Text>
+              </View>
             </View>
           </Pressable>
 
@@ -461,11 +392,6 @@ export default function SettingsScreen() {
         currentLang={lang}
         onClose={() => setLanguageModalVisible(false)}
         onSelect={setLang}
-      />
-      <DeleteAccountModal
-        visible={deleteModalVisible}
-        onClose={() => setDeleteModalVisible(false)}
-        onConfirm={handleDeleteAccount}
       />
       </View>
     </GlassCardContainer>

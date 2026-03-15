@@ -5,7 +5,7 @@
 import type { ViewStyle } from "react-native";
 
 /** App version shown in Settings (expo-constants removed for TurboModule isolation). */
-export const APP_VERSION = "1.0.3";
+export const APP_VERSION = "1.1.0";
 
 export const COLORS = {
   BACKGROUND: "#F4F6F9",
@@ -54,18 +54,27 @@ export const CALENDAR = {
   BORDER_RADIUS: "50%",
 } as const;
 
+/** Warm yellow-gold for joker icon backgrounds and accents (rich, not orange). */
+export const JOKER_GOLD = "#F0C040";
+/** Pulsing ring and soft glows: same gold at low opacity. */
+export const JOKER_GOLD_RING = "rgba(240, 192, 64, 0.25)";
+
 export const JOKER = {
-  GRADIENT: "linear-gradient(to bottom right, #FEF3C7, #FDE68A, #FBBF24)",
-  BORDER: "1px solid rgba(251,191,36,0.4)",
+  /** Primary gold for backgrounds (icon circle, badge, buttons) and number accent. */
+  GOLD: JOKER_GOLD,
+  /** Ring/glow at low opacity. */
+  GOLD_RING: JOKER_GOLD_RING,
+  GRADIENT: "linear-gradient(to bottom right, #FEF3C7, #F0C040, #D4A830)",
+  BORDER: "1px solid rgba(240,192,64,0.4)",
   TEXT: "#92400E",
-  SHADOW: "0 4px 12px rgba(251,191,36,0.22)",
+  SHADOW: "0 4px 12px rgba(240,192,64,0.22)",
 } as const;
 
 /** Calendar day cell when filled with a joker (faded gold) */
 export const CALENDAR_JOKER = {
-  BACKGROUND: "rgba(251,191,36,0.55)",
-  BORDER: "1px solid rgba(251,191,36,0.45)",
-  SHADOW: "0 1px 4px rgba(251,191,36,0.2)",
+  BACKGROUND: "rgba(240,192,64,0.55)",
+  BORDER: "1px solid rgba(240,192,64,0.45)",
+  SHADOW: "0 1px 4px rgba(240,192,64,0.2)",
 } as const;
 
 /** Modal enter animation duration (ms) */

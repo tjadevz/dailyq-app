@@ -61,6 +61,10 @@ export default function TabsLayout() {
         name="over"
         options={{ tabBarButton: () => null, headerShown: false }}
       />
+      <Tabs.Screen
+        name="account"
+        options={{ tabBarButton: () => null, headerShown: false }}
+      />
     </Tabs>
   );
 }

@@ -138,6 +138,8 @@ export default function OnboardingQuestionsScreen() {
   const [exiting, setExiting] = useState(false);
   const [showIntro, setShowIntro] = useState(true);
   const [modalDismissed, setModalDismissed] = useState(false);
+  /** Number of questions answered (submitted) in this onboarding run; joker only if this is 7 when finishing. */
+  const [answeredCount, setAnsweredCount] = useState(0);
 
   const dayKeys = useMemo(() => getOnboardingDayKeys(), []);
 
@@ -232,9 +234,6 @@ export default function OnboardingQuestionsScreen() {
 
   const handleComplete = useCallback(
     async (answer: string) => {
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/db237dc3-2932-4821-b603-b2959e85e2e1',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e1c6d8'},body:JSON.stringify({sessionId:'e1c6d8',location:'onboarding-questions.tsx:handleComplete',message:'handleComplete called',data:{currentIndex},timestamp:Date.now(),hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
       const q = questions[currentIndex];
       if (!userId || userId === "dev-user" || !q) return;
       const trimmed = answer.trim();
@@ -252,9 +251,21 @@ export default function OnboardingQuestionsScreen() {
           { onConflict: "user_id,question_date" }
         );
         if (upsertErr) throw upsertErr;
-        if (currentIndex + 1 >= questions.length) {
-          await setOnboardingCompletedAndGoHome(true);
-        } else {
+        const nextIndex = currentIndex + 1;
+        const isLast = nextIndex >= questions.length;
+        setAnsweredCount((prev) => {
+          const next = prev + 1;
+          if (isLast) {
+            if (next === questions.length) {
+              setOnboardingCompletedAndGoHome(true);
+            } else {
+              setModalDismissed(true);
+              requestAnimationFrame(() => setOnboardingCompletedAndGoHome(false));
+            }
+          }
+          return next;
+        });
+        if (!isLast) {
           setCurrentIndex((i) => i + 1);
         }
       } catch (e) {
@@ -267,11 +278,14 @@ export default function OnboardingQuestionsScreen() {
   );
 
   const handleSkip = useCallback(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/db237dc3-2932-4821-b603-b2959e85e2e1',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e1c6d8'},body:JSON.stringify({sessionId:'e1c6d8',location:'onboarding-questions.tsx:handleSkip',message:'handleSkip called',data:{currentIndex},timestamp:Date.now(),hypothesisId:'C'})}).catch(()=>{});
-    // #endregion
-    if (currentIndex + 1 >= questions.length) {
-      setOnboardingCompletedAndGoHome(true);
+    const nextIndex = currentIndex + 1;
+    const isLast = nextIndex >= questions.length;
+    if (isLast) {
+      // Close modal first so blur disappears, then navigate to today (no joker)
+      setModalDismissed(true);
+      requestAnimationFrame(() => {
+        setOnboardingCompletedAndGoHome(false);
+      });
     } else {
       setCurrentIndex((i) => i + 1);
     }
@@ -280,9 +294,6 @@ export default function OnboardingQuestionsScreen() {
   const currentQuestion = questions[currentIndex];
   const total = questions.length;
   const modalOpen = total > 0 && !rewardModalVisible && !modalDismissed;
-  // #region agent log
-  if (total > 0) fetch('http://127.0.0.1:7243/ingest/db237dc3-2932-4821-b603-b2959e85e2e1',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e1c6d8'},body:JSON.stringify({sessionId:'e1c6d8',location:'onboarding-questions.tsx:render',message:'onboarding render',data:{currentIndex,modalOpen,rewardModalVisible,modalDismissed},timestamp:Date.now(),hypothesisId:'B'})}).catch(()=>{});
-  // #endregion
 
   if (!userId || userId === "dev-user") {
     router.replace("/(tabs)/today");
@@ -331,7 +342,6 @@ export default function OnboardingQuestionsScreen() {
   return (
     <View style={styles.container}>
       <AnsweringExperience
-        key={currentIndex}
         isOpen={modalOpen}
         onClose={handleDismiss}
         onComplete={handleComplete}

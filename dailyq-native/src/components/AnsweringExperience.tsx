@@ -98,13 +98,6 @@ export function AnsweringExperience({
   const buttonScale = useSharedValue(1);
   const buttonOpacity = useSharedValue(0.4);
 
-  // #region agent log
-  useEffect(() => {
-    fetch('http://127.0.0.1:7243/ingest/db237dc3-2932-4821-b603-b2959e85e2e1',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e1c6d8'},body:JSON.stringify({sessionId:'e1c6d8',location:'AnsweringExperience.tsx:mount',message:'AnsweringExperience mounted',data:{dayKey:dayKey??null,enterFromRight},timestamp:Date.now(),hypothesisId:'A'})}).catch(()=>{});
-    return () => { fetch('http://127.0.0.1:7243/ingest/db237dc3-2932-4821-b603-b2959e85e2e1',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e1c6d8'},body:JSON.stringify({sessionId:'e1c6d8',location:'AnsweringExperience.tsx:unmount',message:'AnsweringExperience unmounted',data:{dayKey:dayKey??null},timestamp:Date.now(),hypothesisId:'A'})}).catch(()=>{}); };
-  }, []);
-  // #endregion
-
   useEffect(() => {
     if (questionProp) {
       setQuestion(questionProp);
@@ -147,9 +140,6 @@ export function AnsweringExperience({
   }, [isOpen, dayKey, lang, questionProp]);
 
   useEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/db237dc3-2932-4821-b603-b2959e85e2e1',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e1c6d8'},body:JSON.stringify({sessionId:'e1c6d8',location:'AnsweringExperience.tsx:isOpenEffect',message:'isOpen effect ran',data:{isOpen,enterFromRight},timestamp:Date.now(),hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
     if (isOpen) {
       setUserAnswer(initialAnswer);
       if (enterFromRight) {
@@ -175,7 +165,7 @@ export function AnsweringExperience({
       easing: Easing.inOut(Easing.cubic),
     });
     Keyboard.dismiss();
-  }, [isOpen, initialAnswer, slideY, slideX, enterFromRight]);
+  }, [isOpen, initialAnswer, slideY, slideX, enterFromRight, dayKey, questionProp]);
 
   useEffect(() => {
     const hasText =
@@ -192,7 +182,9 @@ export function AnsweringExperience({
       slideY.value = withTiming(
         height,
         { duration: DURATION_SWIPE_MS, easing: Easing.inOut(Easing.cubic) },
-        () => runOnJS(onClose)()
+        () => {
+          runOnJS(onClose)();
+        }
       );
     } else {
       onClose();
@@ -207,9 +199,7 @@ export function AnsweringExperience({
       slideX.value = withTiming(
         -width,
         { duration: DURATION_SWIPE_MS, easing: Easing.out(Easing.cubic) },
-        () => {
-          runOnJS(() => { fetch('http://127.0.0.1:7243/ingest/db237dc3-2932-4821-b603-b2959e85e2e1',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e1c6d8'},body:JSON.stringify({sessionId:'e1c6d8',location:'AnsweringExperience.tsx:slideLeftDone',message:'slide-left animation callback (before onComplete)',data:{},timestamp:Date.now(),hypothesisId:'C'})}).catch(()=>{}); onComplete(answer); })();
-        }
+        () => runOnJS(onComplete)(answer)
       );
     } else {
       onComplete(answer);
@@ -221,7 +211,7 @@ export function AnsweringExperience({
     slideX.value = withTiming(
       -width,
       { duration: DURATION_SWIPE_MS, easing: Easing.out(Easing.cubic) },
-      () => runOnJS(() => { fetch('http://127.0.0.1:7243/ingest/db237dc3-2932-4821-b603-b2959e85e2e1',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e1c6d8'},body:JSON.stringify({sessionId:'e1c6d8',location:'AnsweringExperience.tsx:slideLeftDoneSkip',message:'slide-left animation callback (before onSkip)',data:{},timestamp:Date.now(),hypothesisId:'C'})}).catch(()=>{}); onSkip(); })()
+      () => runOnJS(onSkip)()
     );
   };
 
@@ -242,7 +232,7 @@ export function AnsweringExperience({
       visible={isOpen}
       animationType="none"
       statusBarTranslucent
-      onRequestClose={onClose}
+      onRequestClose={handleCloseWithAnimation}
     >
       <View style={styles.modalRoot}>
         <Pressable style={styles.backdrop} onPress={handleCloseWithAnimation} accessibilityRole="button" accessibilityLabel="Close">

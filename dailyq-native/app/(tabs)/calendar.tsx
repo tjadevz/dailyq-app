@@ -339,6 +339,7 @@ function MissedDayModal({
   canUseJoker,
   jokerCount,
   withinWindow,
+  isPermanentlyLocked,
   onClose,
   onUseJoker,
 }: {
@@ -347,6 +348,7 @@ function MissedDayModal({
   canUseJoker: boolean;
   jokerCount: number;
   withinWindow: boolean;
+  isPermanentlyLocked: boolean;
   onClose: () => void;
   onUseJoker: () => void;
 }) {
@@ -375,17 +377,24 @@ function MissedDayModal({
           <Pressable style={MODAL.CLOSE_BUTTON} onPress={onClose}>
             <Feather name="x" size={18} color={COLORS.TEXT_SECONDARY} strokeWidth={2.5} />
           </Pressable>
-          <Text style={styles.modalTitle}>{t("missed_title")}</Text>
-          {!withinWindow ? (
+          <View style={styles.modalLockIconWrap}>
+            <Feather name="lock" size={24} color={COLORS.TEXT_SECONDARY} strokeWidth={2} />
+          </View>
+          <Text style={[styles.modalTitle, styles.modalTextCenter]}>
+            {isPermanentlyLocked ? t("locked_day_title") : t("missed_title")}
+          </Text>
+          {isPermanentlyLocked ? (
+            <Text style={[styles.modalSubtitle, styles.modalTextCenter]}>{t("locked_day_subtitle")}</Text>
+          ) : !withinWindow ? (
             <>
-              <Text style={styles.modalBody}>{t("closed_body")}</Text>
-              <Text style={styles.modalSubtitle}>{t("closed_title")}</Text>
+              <Text style={[styles.modalBody, styles.modalTextCenter]}>{t("closed_body")}</Text>
+              <Text style={[styles.modalSubtitle, styles.modalTextCenter]}>{t("closed_title")}</Text>
             </>
           ) : !canUseJoker || jokerCount <= 0 ? (
-            <Text style={styles.modalBody}>{t("missed_no_jokers_body")}</Text>
+            <Text style={[styles.modalBody, styles.modalTextCenter]}>{t("missed_no_jokers_body")}</Text>
           ) : (
             <>
-              <Text style={styles.modalBody}>{t("missed_use_joker_message")}</Text>
+              <Text style={[styles.modalBody, styles.modalTextCenter]}>{t("missed_use_joker_message")}</Text>
               <Pressable onPress={onUseJoker} style={styles.primaryBtnWrap}>
                 <LinearGradient
                   colors={["#C4B5FD", "#A78BFA"]}
@@ -1016,6 +1025,9 @@ export default function CalendarScreen() {
           canUseJoker={jokerCount > 0}
           jokerCount={jokerCount}
           withinWindow={false}
+          isPermanentlyLocked={
+            !!missedDay && isBeforeAccountStart(missedDay, accountBoundaryDate)
+          }
           onClose={() => setMissedDay(null)}
           onUseJoker={() => missedDay && openMissedAnswer(missedDay)}
         />
@@ -1558,6 +1570,12 @@ const styles = StyleSheet.create({
     color: "#374151",
     lineHeight: 26,
   },
+  modalLockIconWrap: {
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
+  },
+  modalTextCenter: { textAlign: "center" as const },
   modalTitle: { fontSize: 20, fontWeight: "600", color: COLORS.TEXT_PRIMARY, marginBottom: 12 },
   modalSubtitle: { fontSize: 14, color: COLORS.TEXT_SECONDARY, marginBottom: 8 },
   modalQuestion: { fontSize: 17, fontWeight: "500", color: COLORS.TEXT_PRIMARY, marginBottom: 16 },

@@ -12,7 +12,7 @@ export function TabBarWithPill({ state, descriptors, navigation }: BottomTabBarP
   const indexRef = useRef(-1);
 
   const visibleRoutes = state.routes.filter(
-    (r) => r.name !== "index" && r.name !== "onboarding-questions"
+    (r) => r.name !== "index" && r.name !== "onboarding-questions" && r.name !== "over"
   );
   const visibleIndex = visibleRoutes.findIndex(r => r.key === state.routes[state.index]?.key);
 

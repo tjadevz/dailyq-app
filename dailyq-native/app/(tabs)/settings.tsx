@@ -14,7 +14,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Feather from "@expo/vector-icons/Feather";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import { COLORS, MODAL, MODAL_CLOSE_MS, APP_VERSION } from "@/src/config/constants";
+import { COLORS, MODAL, MODAL_CLOSE_MS } from "@/src/config/constants";
 import { GlassCardContainer } from "@/src/components/GlassCardContainer";
 import { useLanguage } from "@/src/context/LanguageContext";
 import { useAuth } from "@/src/context/AuthContext";
@@ -264,8 +264,6 @@ export default function SettingsScreen() {
     });
   }, []);
 
-  const appVersion = APP_VERSION;
-
   const handleSignOut = useCallback(async () => {
     await signOut();
     router.replace("/(auth)/onboarding");
@@ -300,6 +298,10 @@ export default function SettingsScreen() {
   );
 
   const currentLangLabel = lang === "en" ? t("settings_lang_en") : t("settings_lang_nl");
+
+  const handleOverDailyQ = useCallback(() => {
+    router.push("/(tabs)/over");
+  }, [router]);
 
   const handleReplayOnboarding = useCallback(async () => {
     const userId = effectiveUser?.id;
@@ -384,19 +386,17 @@ export default function SettingsScreen() {
           </Pressable>
 
           {/* Over DailyQ */}
-          <View style={styles.card}>
+          <Pressable style={styles.card} onPress={handleOverDailyQ}>
             <View style={styles.cardIconWrap}>
               <View style={[styles.cardIcon, styles.cardIconIndigo]}>
                 <Feather name="info" size={16} strokeWidth={2} color="#6366F1" />
               </View>
               <View style={styles.cardTextWrap}>
                 <Text style={styles.cardTitle}>{t("settings_about")}</Text>
-                <Text style={styles.cardSubtitle}>
-                  {t("settings_version")} {appVersion}
-                </Text>
               </View>
+              <Feather name="chevron-right" size={20} color={COLORS.TEXT_MUTED} />
             </View>
-          </View>
+          </Pressable>
 
           {/* Replay onboarding (dev only; tap does nothing when logged in as dev-user) */}
           {__DEV__ && (

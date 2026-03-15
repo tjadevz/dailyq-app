@@ -41,7 +41,8 @@
           "project": "react-native",
           "organization": "dailyq"
         }
-      ]
+      ],
+      "@sentry/react-native"
     ],
     "ios": {
       "bundleIdentifier": "com.tjade.dailyq",

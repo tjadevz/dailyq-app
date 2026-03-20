@@ -610,8 +610,7 @@ const styles = StyleSheet.create({
     right: 20,
     fontSize: 10,
     fontWeight: "700",
-    letterSpacing: 0.8,
-    color: "rgba(139,92,246,0.3)",
+    color: "#7C3AED",
   },
   answeredCheckCircleWrap: {
     marginBottom: 14,
@@ -798,8 +797,7 @@ const styles = StyleSheet.create({
     right: 20,
     fontSize: 10,
     fontWeight: "700",
-    letterSpacing: 0.8,
-    color: "rgba(139,92,246,0.3)",
+    color: "#7C3AED",
   },
   questionText: {
     fontSize: 23,

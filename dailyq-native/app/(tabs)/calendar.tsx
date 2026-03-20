@@ -393,18 +393,25 @@ function MissedDayModal({
           pointerEvents="none"
         />
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-        <View style={styles.modalCard}>
+        <View style={[styles.modalCard, isPermanentlyLocked ? styles.lockedModalCard : null]}>
           <Pressable style={MODAL.CLOSE_BUTTON} onPress={onClose}>
             <Feather name="x" size={18} color={COLORS.TEXT_SECONDARY} strokeWidth={2.5} />
           </Pressable>
-          <View style={styles.modalLockIconWrap}>
+          <View
+            style={[styles.modalLockIconWrap, isPermanentlyLocked ? styles.lockedModalLockIconWrap : null]}
+          >
             <Feather name="lock" size={24} color="#6B7280" strokeWidth={2} />
           </View>
-          <Text style={[styles.modalTitle, styles.modalTextCenter]}>
+          <Text
+            style={[
+              isPermanentlyLocked ? styles.lockedModalTitle : styles.modalTitle,
+              styles.modalTextCenter,
+            ]}
+          >
             {isPermanentlyLocked ? t("locked_day_title") : t("missed_title")}
           </Text>
           {isPermanentlyLocked && lockedSubtitleKey ? (
-            <Text style={[styles.modalSubtitle, styles.modalTextCenter]}>{t(lockedSubtitleKey)}</Text>
+            <Text style={[styles.lockedModalSubtitle, styles.modalTextCenter]}>{t(lockedSubtitleKey)}</Text>
           ) : !withinWindow ? (
             <>
               <Text style={[styles.modalBody, styles.modalTextCenter]}>{t("closed_body")}</Text>
@@ -441,6 +448,7 @@ function YearPickerModal({
   month,
   setYearMonth,
   accountStartYearMonth,
+  activeYearMonth,
   t,
   styles: modalStyles,
 }: {
@@ -451,10 +459,13 @@ function YearPickerModal({
   month: number;
   setYearMonth: (ym: string) => void;
   accountStartYearMonth: string | null;
+  activeYearMonth: string;
   t: (key: string) => string;
   styles: Record<string, object>;
 }) {
   const opacity = useRef(new Animated.Value(0)).current;
+  const activeYear = parseInt(activeYearMonth.slice(0, 4), 10);
+  const filteredYearOptions = yearOptions.filter((year) => year <= activeYear);
   const handleClose = useCallback(() => {
     Animated.timing(opacity, {
       toValue: 0,
@@ -483,7 +494,7 @@ function YearPickerModal({
           </Pressable>
           <Text style={modalStyles.yearPickerTitle}>{t("calendar_select_year_title")}</Text>
           <ScrollView style={modalStyles.yearPickerList} keyboardShouldPersistTaps="handled">
-            {yearOptions.map((year) => (
+            {filteredYearOptions.map((year) => (
               <Pressable
                 key={year}
                 style={[
@@ -494,6 +505,9 @@ function YearPickerModal({
                   let ym = `${year}-${String(month).padStart(2, "0")}`;
                   if (accountStartYearMonth && ym < accountStartYearMonth) {
                     ym = accountStartYearMonth;
+                  }
+                  if (ym > activeYearMonth) {
+                    ym = activeYearMonth;
                   }
                   setYearMonth(ym);
                   handleClose();
@@ -524,11 +538,16 @@ export default function CalendarScreen() {
   const { showMilestone } = useStreakMilestone();
 
   const todayKey = getLocalDayKey(getNow());
+  const activeYearMonth = todayKey.slice(0, 7);
   const yesterdayKey = useMemo(() => {
     const d = new Date(todayKey + "T12:00:00");
     d.setDate(d.getDate() - 1);
     return getLocalDayKey(d);
   }, [todayKey]);
+  const createdAtDayKey = useMemo((): string | null => {
+    if (!effectiveUser?.created_at) return null;
+    return getLocalDayKey(new Date(effectiveUser.created_at));
+  }, [effectiveUser?.created_at]);
   const accountBoundaryDate = useMemo((): string | undefined => {
     if (!effectiveUser?.created_at) return undefined;
     if (profile?.onboarding_completed) {
@@ -557,11 +576,14 @@ export default function CalendarScreen() {
   }));
 
   useEffect(() => {
-    if (!accountStartYearMonth) return;
-    if (yearMonth < accountStartYearMonth) {
+    if (accountStartYearMonth && yearMonth < accountStartYearMonth) {
       setYearMonth(accountStartYearMonth);
+      return;
     }
-  }, [accountStartYearMonth, yearMonth]);
+    if (yearMonth > activeYearMonth) {
+      setYearMonth(activeYearMonth);
+    }
+  }, [accountStartYearMonth, activeYearMonth, yearMonth]);
 
   const { answersMap, loading, error, refetch, setAnswerForDay } = useCalendarAnswers(
     userId,
@@ -656,9 +678,10 @@ export default function CalendarScreen() {
 
   const goNext = useCallback(() => {
     const [y, m] = yearMonth.split("-").map(Number);
-    if (m === 12) setYearMonth(`${y + 1}-01`);
-    else setYearMonth(`${y}-${String(m + 1).padStart(2, "0")}`);
-  }, [yearMonth]);
+    const nextYm = m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, "0")}`;
+    if (nextYm > activeYearMonth) return;
+    setYearMonth(nextYm);
+  }, [yearMonth, activeYearMonth]);
 
   const panResponder = useMemo(
     () =>
@@ -701,6 +724,7 @@ export default function CalendarScreen() {
   );
   const isAtAccountStartMonth =
     accountStartYearMonth !== null && yearMonth === accountStartYearMonth;
+  const isAtActiveMonth = yearMonth === activeYearMonth;
   const goToToday = useCallback(() => {
     setYearMonth(todayKey.slice(0, 7));
   }, [todayKey]);
@@ -877,8 +901,12 @@ export default function CalendarScreen() {
             )}
           </View>
         </Pressable>
-        <Pressable style={styles.navBtn} onPress={goNext}>
-          <Text style={styles.navBtnText}>›</Text>
+        <Pressable
+          style={[styles.navBtn, isAtActiveMonth && styles.navBtnDisabled]}
+          onPress={isAtActiveMonth ? undefined : goNext}
+          disabled={isAtActiveMonth}
+        >
+          <Text style={[styles.navBtnText, isAtActiveMonth && styles.navBtnTextDisabled]}>›</Text>
         </Pressable>
       </View>
 
@@ -912,6 +940,15 @@ export default function CalendarScreen() {
                 ? getCellState(cell.dayKey, todayKey, entry, accountBoundaryDate)
                 : "future";
               const isPlaceholder = !cell.dayKey;
+              const isOnboardingWindowDay =
+                !isPlaceholder &&
+                profile?.onboarding_completed === true &&
+                !!accountBoundaryDate &&
+                !!createdAtDayKey &&
+                cell.dayKey! >= accountBoundaryDate &&
+                cell.dayKey! < createdAtDayKey;
+              const isOnboardingAnswered = isOnboardingWindowDay && !!entry;
+              const isOnboardingUnanswered = isOnboardingWindowDay && !entry;
               const isTodayNoAnswer = !isPlaceholder && state === "today" && !entry;
               const isFilled = !isPlaceholder && (state === "today" && entry || state === "answered" || state === "joker");
               return (
@@ -929,6 +966,9 @@ export default function CalendarScreen() {
                     !isPlaceholder && state === "missed" && styles.cellMissed,
                     !isPlaceholder && state === "future" && styles.cellFuture,
                     !isPlaceholder && state === "before" && styles.cellBefore,
+                    // Onboarding styling overrides: only active after `onboarding_completed === true`
+                    isOnboardingAnswered && styles.cellOnboardingAnswered,
+                    isOnboardingUnanswered && styles.cellOnboardingUnanswered,
                   ]}
                   onPress={() => handleCellPress(cell.dayKey, state)}
                 >
@@ -940,6 +980,9 @@ export default function CalendarScreen() {
                         !isFilled && !isTodayNoAnswer && styles.cellNumEmpty,
                         state === "future" && styles.cellNumFuture,
                         state === "before" && styles.cellNumBefore,
+                        // Onboarding text color overrides
+                        isOnboardingAnswered && styles.cellNumOnboardingAnswered,
+                        isOnboardingUnanswered && styles.cellNumOnboardingUnanswered,
                       ]}
                     >
                       {cell.dayNum}
@@ -1028,6 +1071,7 @@ export default function CalendarScreen() {
         month={m}
         setYearMonth={setYearMonth}
         accountStartYearMonth={accountStartYearMonth}
+        activeYearMonth={activeYearMonth}
         t={t}
         styles={styles}
       />
@@ -1275,6 +1319,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(156,163,175,0.3)",
   },
+  // Muted purple onboarding window days: D-7..D-1 (local day keys).
+  cellOnboardingAnswered: {
+    backgroundColor: "rgba(167, 139, 250, 0.35)",
+    borderWidth: 0,
+    // Remove any "answered"/"joker" shadows so the onboarding tint is the only emphasis.
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  cellOnboardingUnanswered: {
+    backgroundColor: "transparent",
+    borderWidth: 2,
+    borderStyle: "dashed",
+    borderColor: "rgba(167, 139, 250, 0.6)",
+  },
   cellFuture: {
     backgroundColor: "rgba(243,244,246,0.5)",
   },
@@ -1289,6 +1347,8 @@ const styles = StyleSheet.create({
   cellNumEmpty: { color: "#6B7280" },
   cellNumFuture: { color: "#D1D5DB" },
   cellNumBefore: { color: "#E5E7EB" },
+  cellNumOnboardingAnswered: { color: "#7C3AED" },
+  cellNumOnboardingUnanswered: { color: "#A78BFA" },
   nextRewardBlock: {
     marginTop: 16,
     borderRadius: 20,
@@ -1429,6 +1489,14 @@ const styles = StyleSheet.create({
   },
   modalCard: {
     ...MODAL.CARD,
+  },
+  lockedModalCard: {
+    // Slightly taller modal for permanently locked days.
+    paddingTop: 36,
+    paddingBottom: 36,
+    // Make it slightly wider so subtitles wrap to fewer lines.
+    paddingHorizontal: 24,
+    maxWidth: 480,
   },
   modalCardViewAnswer: {
     maxHeight: "78%",
@@ -1621,9 +1689,15 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     marginBottom: 12,
   },
+  lockedModalLockIconWrap: {
+    // Matches the slightly increased locked modal spacing.
+    marginBottom: 16,
+  },
   modalTextCenter: { textAlign: "center" as const },
   modalTitle: { fontSize: 20, fontWeight: "600", color: COLORS.TEXT_PRIMARY, marginBottom: 12 },
   modalSubtitle: { fontSize: 14, color: COLORS.TEXT_SECONDARY, marginBottom: 8 },
+  lockedModalTitle: { fontSize: 22, fontWeight: "600", color: COLORS.TEXT_PRIMARY, marginBottom: 14 },
+  lockedModalSubtitle: { fontSize: 16, color: COLORS.TEXT_SECONDARY, marginBottom: 10 },
   modalQuestion: { fontSize: 17, fontWeight: "500", color: COLORS.TEXT_PRIMARY, marginBottom: 16 },
   modalBody: { fontSize: 16, color: COLORS.TEXT_SECONDARY, marginBottom: 16, lineHeight: 24 },
   modalAnswerLabel: { fontSize: 13, fontWeight: "600", color: COLORS.TEXT_SECONDARY, marginBottom: 6 },

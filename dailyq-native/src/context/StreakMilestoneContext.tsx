@@ -141,24 +141,27 @@ export async function grantMilestoneJokersForCrossed(
   newStreak: number
 ): Promise<boolean> {
   const crossed = getMilestonesCrossed(previousStreak, newStreak);
+  // Product rule: grant only one milestone reward per streak update.
+  // `getMilestonesCrossed` returns milestones in ascending order, so the first one
+  // represents the first newly achieved milestone.
+  const milestoneToGrant = crossed[0] ?? null;
+  if (!milestoneToGrant) return true;
 
-  for (const m of crossed) {
-    try {
-      const { error } = await supabase.rpc("grant_milestone_jokers", {
-        p_user_id: userId,
-        p_milestone: m,
-        p_streak_at_grant: newStreak,
-      });
-      if (error) throw error;
-    } catch (e) {
-      console.error("[StreakMilestone] grant_milestone_jokers failed", {
-        userId,
-        milestone: m,
-        newStreak,
-        error: e,
-      });
-      return false;
-    }
+  try {
+    const { error } = await supabase.rpc("grant_milestone_jokers", {
+      p_user_id: userId,
+      p_milestone: milestoneToGrant,
+      p_streak_at_grant: newStreak,
+    });
+    if (error) throw error;
+    return true;
+  } catch (e) {
+    console.error("[StreakMilestone] grant_milestone_jokers failed", {
+      userId,
+      milestone: milestoneToGrant,
+      newStreak,
+      error: e,
+    });
+    return false;
   }
-  return true;
 }

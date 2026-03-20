@@ -260,13 +260,10 @@ export default function TodayScreen() {
             previousStreak,
             newStreak
           );
-          const highest =
-            crossed.length > 0
-              ? getHighestMilestoneCrossed(previousStreak, newStreak)
-              : null;
+          const milestoneToCelebrate = crossed.length > 0 ? crossed[0] : null;
           await new Promise((resolve) => setTimeout(resolve, 300));
-          if (crossed.length > 0 && highest) {
-            setPendingMilestone(highest);
+          if (crossed.length > 0 && milestoneToCelebrate) {
+            setPendingMilestone(milestoneToCelebrate);
           }
           // Run refetch in background so modal can paint; awaiting here blocked the JS thread and prevented the streak popup from showing.
           if (grantSuccess) void refetchProfile();

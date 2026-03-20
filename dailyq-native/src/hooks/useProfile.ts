@@ -1,11 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import { getNow } from "../lib/date";
 import { supabase } from "../config/supabase";
 
 export type Profile = {
   id: string;
   joker_balance: number;
-  last_joker_grant_month: string | null;
   language: string;
 };
 
@@ -21,10 +19,9 @@ export function useProfile(userId: string | null): {
         setProfile({
           id: "dev-user",
           joker_balance: 99,
-          last_joker_grant_month: null,
           language: "nl",
         });
-        return { id: "dev-user", joker_balance: 99, last_joker_grant_month: null, language: "nl" };
+        return { id: "dev-user", joker_balance: 99, language: "nl" };
       }
       setProfile(null);
       return null;
@@ -32,31 +29,13 @@ export function useProfile(userId: string | null): {
 
     const { data: prof, error: fetchErr } = await supabase
       .from("profiles")
-      .select("id, joker_balance, last_joker_grant_month, language")
+      .select("id, joker_balance, language")
       .eq("id", userId)
       .maybeSingle();
 
     if (fetchErr) {
       console.error("Profile fetch error:", fetchErr);
       return null;
-    }
-
-    const currentMonth = getNow().toISOString().slice(0, 7);
-    const lastGrant = (prof as Profile | null)?.last_joker_grant_month ?? null;
-
-    if (lastGrant !== currentMonth) {
-      const { error: rpcErr } = await supabase.rpc("grant_monthly_jokers");
-      if (!rpcErr) {
-        const { data: refetched } = await supabase
-          .from("profiles")
-          .select("id, joker_balance, last_joker_grant_month, language")
-          .eq("id", userId)
-          .single();
-        if (refetched) {
-          setProfile(refetched as Profile);
-          return refetched as Profile;
-        }
-      }
     }
 
     const p = (prof ?? null) as Profile | null;

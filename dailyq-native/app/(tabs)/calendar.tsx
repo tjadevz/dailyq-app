@@ -736,8 +736,8 @@ export default function CalendarScreen() {
       const crossed = getMilestonesCrossed(previousStreak, newStreak);
       await grantMilestoneJokersForCrossed(supabase, userId, previousStreak, newStreak);
       if (crossed.length > 0) {
-        const highest = getHighestMilestoneCrossed(previousStreak, newStreak);
-        if (highest) setPendingMilestone(highest);
+        const milestoneToCelebrate = crossed[0] ?? null;
+        if (milestoneToCelebrate) setPendingMilestone(milestoneToCelebrate);
       }
       // Always refetch profile so joker_balance updates after use_joker (RPC deducts in DB).
       await refetchProfile();

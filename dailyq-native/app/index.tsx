@@ -1,37 +1,26 @@
 import React, { useEffect, useState } from "react";
-import { View, StyleSheet, ActivityIndicator } from "react-native";
 import * as Linking from "expo-linking";
 import { Redirect } from "expo-router";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth } from "@/src/context/AuthContext";
-import { COLORS } from "@/src/config/constants";
-import { BackgroundLayer } from "@/src/components/BackgroundLayer";
+import { useLanguage } from "@/src/context/LanguageContext";
+import DailyQLoadingScreen from "@/src/components/DailyQLoadingScreen";
 import {
   isResetPasswordUrl,
   hasRecoveryTokens,
 } from "@/src/lib/resetPasswordLink";
 import { supabase } from "@/src/config/supabase";
-
-function PostLoginLoadingScreen() {
-  const insets = useSafeAreaInsets();
-
-  return (
-    <View style={[loadingScreenStyles.screen, { paddingTop: insets.top }]}>
-      <BackgroundLayer />
-      <View style={loadingScreenStyles.center}>
-        <ActivityIndicator size="large" color={COLORS.ACCENT} />
-      </View>
-    </View>
-  );
-}
+import { useTodayQuestion } from "@/src/hooks/useTodayQuestion";
 
 export default function Index() {
   const { user, authCheckDone } = useAuth();
+  const { lang } = useLanguage();
   const [initialUrlChecked, setInitialUrlChecked] = useState(false);
   const [pendingResetUrl, setPendingResetUrl] = useState<string | null>(null);
   const [onboardingChecked, setOnboardingChecked] = useState(false);
   const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
+  const userId = user?.id ?? null;
+  const { loading: questionLoading } = useTodayQuestion(lang, userId);
 
   // Step 1: check cold-start deep link before any auth-based routing
   useEffect(() => {
@@ -75,7 +64,7 @@ export default function Index() {
 
   // Wait for initial URL check so we don't redirect to onboarding before we know about a reset link
   if (!initialUrlChecked) {
-    return <PostLoginLoadingScreen />;
+    return <DailyQLoadingScreen />;
   }
 
   // Cold-start reset-password link: redirect with full URL so reset-password can setSession
@@ -88,14 +77,16 @@ export default function Index() {
   }
 
   if (!authCheckDone) {
-    return <PostLoginLoadingScreen />;
+    return <DailyQLoadingScreen />;
   }
 
   if (user) {
     if (!onboardingChecked) {
-      return <PostLoginLoadingScreen />;
+      return <DailyQLoadingScreen />;
     }
     if (onboardingCompleted === true) {
+      // Wait for the daily question so the tab bar doesn't appear mid-loading.
+      if (questionLoading) return <DailyQLoadingScreen />;
       return <Redirect href="/(tabs)/today" />;
     }
     return <Redirect href="/(tabs)/onboarding-questions" />;
@@ -103,14 +94,3 @@ export default function Index() {
 
   return <Redirect href="/(auth)/onboarding" />;
 }
-
-const loadingScreenStyles = StyleSheet.create({
-  screen: {
-    flex: 1,
-  },
-  center: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-});

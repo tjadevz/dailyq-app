@@ -948,6 +948,8 @@ export default function CalendarScreen() {
                 cell.dayKey! >= accountBoundaryDate &&
                 cell.dayKey! < createdAtDayKey;
               const isOnboardingAnswered = isOnboardingWindowDay && !!entry;
+              const isOnboardingJokerAnswered = isOnboardingAnswered && entry?.isJoker === true;
+              const isOnboardingNonJokerAnswered = isOnboardingAnswered && !isOnboardingJokerAnswered;
               const isOnboardingUnanswered = isOnboardingWindowDay && !entry;
               const isTodayNoAnswer = !isPlaceholder && state === "today" && !entry;
               const isFilled = !isPlaceholder && (state === "today" && entry || state === "answered" || state === "joker");
@@ -967,7 +969,8 @@ export default function CalendarScreen() {
                     !isPlaceholder && state === "future" && styles.cellFuture,
                     !isPlaceholder && state === "before" && styles.cellBefore,
                     // Onboarding styling overrides: only active after `onboarding_completed === true`
-                    isOnboardingAnswered && styles.cellOnboardingAnswered,
+                    isOnboardingNonJokerAnswered && styles.cellOnboardingAnswered,
+                    isOnboardingJokerAnswered && styles.cellOnboardingJokerAnswered,
                     isOnboardingUnanswered && styles.cellOnboardingUnanswered,
                   ]}
                   onPress={() => handleCellPress(cell.dayKey, state)}
@@ -981,7 +984,8 @@ export default function CalendarScreen() {
                         state === "future" && styles.cellNumFuture,
                         state === "before" && styles.cellNumBefore,
                         // Onboarding text color overrides
-                        isOnboardingAnswered && styles.cellNumOnboardingAnswered,
+                        isOnboardingNonJokerAnswered && styles.cellNumOnboardingAnswered,
+                        isOnboardingJokerAnswered && styles.cellNumOnboardingJokerAnswered,
                         isOnboardingUnanswered && styles.cellNumOnboardingUnanswered,
                       ]}
                     >
@@ -1048,7 +1052,7 @@ export default function CalendarScreen() {
               <View style={styles.nextRewardBarBg}>
                 <View style={[styles.nextRewardBarFillWrap, { width: `${progressPercent}%` }]}>
                   <LinearGradient
-                    colors={["#FDE68A", "#F59E0B"]}
+                    colors={["#FDE68A", "#FACC15"]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={styles.nextRewardBarFill}
@@ -1322,8 +1326,19 @@ const styles = StyleSheet.create({
   // Muted purple onboarding window days: D-7..D-1 (local day keys).
   cellOnboardingAnswered: {
     backgroundColor: "rgba(167, 139, 250, 0.35)",
-    borderWidth: 0,
+    borderWidth: 2,
+    borderStyle: "dashed",
+    borderColor: "rgba(167, 139, 250, 0.6)",
     // Remove any "answered"/"joker" shadows so the onboarding tint is the only emphasis.
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  cellOnboardingJokerAnswered: {
+    // Gold tint for "joker used", faded compared to normal onboarding/offboarding joker days.
+    backgroundColor: "rgba(251, 191, 36, 0.28)",
+    borderWidth: 2,
+    borderStyle: "dashed",
+    borderColor: "rgba(245, 158, 11, 0.6)",
     shadowOpacity: 0,
     elevation: 0,
   },
@@ -1348,6 +1363,7 @@ const styles = StyleSheet.create({
   cellNumFuture: { color: "#D1D5DB" },
   cellNumBefore: { color: "#E5E7EB" },
   cellNumOnboardingAnswered: { color: "#7C3AED" },
+  cellNumOnboardingJokerAnswered: { color: "#F59E0B" },
   cellNumOnboardingUnanswered: { color: "#A78BFA" },
   nextRewardBlock: {
     marginTop: 16,

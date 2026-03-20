@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TextInput,
   Pressable,
-  ActivityIndicator,
   KeyboardAvoidingView,
   TouchableWithoutFeedback,
   Keyboard,
@@ -31,6 +30,7 @@ import { JokerModal } from "@/src/components/JokerModal";
 import { JokerBadge } from "@/src/components/JokerBadge";
 import { PrimaryButton } from "@/src/components/PrimaryButton";
 import { GlassCardContainer } from "@/src/components/GlassCardContainer";
+import DailyQLoadingScreen from "@/src/components/DailyQLoadingScreen";
 import { AnsweringExperience } from "@/src/components/AnsweringExperience";
 import { SubmitSuccessModal } from "@/src/components/SubmitSuccessModal";
 
@@ -302,12 +302,7 @@ export default function TodayScreen() {
   const hasAnswer = existingAnswer != null && existingAnswer.length > 0;
 
   if (questionLoading) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color={COLORS.ACCENT} />
-        <Text style={styles.loadingText}>{t("loading_question_today")}</Text>
-      </View>
-    );
+    return <DailyQLoadingScreen />;
   }
 
   if (questionError || !question) {
@@ -364,7 +359,7 @@ export default function TodayScreen() {
                         <Text style={styles.answeredDayLabel}>{dayLabel}</Text>
                         <View style={styles.answeredCheckCircleWrap}>
                           <LinearGradient
-                            colors={["#FEF3C7", "#FDE68A", "#FCD34D"]}
+                            colors={["#FEF3C7", "#FACC15", "#FCD34D"]}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 1, y: 1 }}
                             style={styles.answeredCheckCircle}

@@ -3,6 +3,11 @@ import type { Lang } from "../i18n/translations";
 import { getNow, getLocalDayKey } from "../lib/date";
 import { supabase } from "../config/supabase";
 
+type TodayQuestionCacheEntry = { question: TodayQuestion | null; error: string | null };
+
+// Small in-memory cache so rapid route transitions (boot -> today) don't flash a loader.
+const todayQuestionCache = new Map<string, TodayQuestionCacheEntry>();
+
 export type TodayQuestion = {
   id: string;
   text: string;
@@ -17,9 +22,31 @@ export function useTodayQuestion(
   loading: boolean;
   error: string | null;
 } {
-  const [question, setQuestion] = useState<TodayQuestion | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const dayKey = getLocalDayKey(getNow());
+  const cacheKey = userId ? `${lang}:${userId}:${dayKey}` : null;
+
+  const cached = cacheKey ? todayQuestionCache.get(cacheKey) : undefined;
+
+  const [question, setQuestion] = useState<TodayQuestion | null>(() => {
+    if (!userId) return null;
+    if (userId === "dev-user") {
+      return {
+        id: "dev-question-id",
+        text: "Waar heb je vandaag om gelachen?",
+        day: dayKey,
+      };
+    }
+    return cached?.question ?? null;
+  });
+  const [loading, setLoading] = useState<boolean>(() => {
+    if (!userId) return false;
+    if (userId === "dev-user") return false;
+    return cached ? false : true;
+  });
+  const [error, setError] = useState<string | null>(() => {
+    if (!userId || userId === "dev-user") return null;
+    return cached?.error ?? null;
+  });
 
   useEffect(() => {
     if (!userId) {
@@ -28,8 +55,6 @@ export function useTodayQuestion(
       setError(null);
       return;
     }
-
-    const dayKey = getLocalDayKey(getNow());
 
     if (userId === "dev-user") {
       setQuestion({
@@ -42,11 +67,22 @@ export function useTodayQuestion(
       return;
     }
 
+    if (cacheKey) {
+      const hit = todayQuestionCache.get(cacheKey);
+      if (hit) {
+        setQuestion(hit.question);
+        setError(hit.error);
+        setLoading(false);
+        return;
+      }
+    }
+
     let cancelled = false;
     setLoading(true);
     setError(null);
 
     const run = async () => {
+      let cacheToSet: TodayQuestionCacheEntry | null = null;
       try {
         const tableName = lang === "en" ? "daily_questions_en" : "questions";
         const isEn = tableName === "daily_questions_en";
@@ -66,32 +102,41 @@ export function useTodayQuestion(
         if (err) {
           setError(err.message);
           setQuestion(null);
+          cacheToSet = { question: null, error: err.message };
           return;
         }
         if (data) {
-          setQuestion(
-            isEn
-              ? {
-                  id: data.id,
-                  text: (data as { question_text?: string }).question_text ?? "",
-                  day: (data as { question_date?: string }).question_date ?? dayKey,
-                }
-              : {
-                  id: data.id,
-                  text: (data as { text?: string }).text ?? "",
-                  day: (data as { day?: string }).day ?? dayKey,
-                }
-          );
+          const nextQuestion: TodayQuestion = isEn
+            ? {
+                id: data.id,
+                text: (data as { question_text?: string }).question_text ?? "",
+                day: (data as { question_date?: string }).question_date ?? dayKey,
+              }
+            : {
+                id: data.id,
+                text: (data as { text?: string }).text ?? "",
+                day: (data as { day?: string }).day ?? dayKey,
+              };
+
+          setQuestion(nextQuestion);
+          cacheToSet = { question: nextQuestion, error: null };
         } else {
           setQuestion(null);
+          // No question today isn't necessarily an error; cache it so we don't re-fetch immediately.
+          cacheToSet = { question: null, error: null };
         }
       } catch (e) {
         if (!cancelled) {
-          setError(e instanceof Error ? e.message : "Failed to load question");
+          const msg = e instanceof Error ? e.message : "Failed to load question";
+          setError(msg);
           setQuestion(null);
+          cacheToSet = { question: null, error: msg };
         }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          if (cacheKey && cacheToSet) todayQuestionCache.set(cacheKey, cacheToSet);
+          setLoading(false);
+        }
       }
     };
 
@@ -99,7 +144,7 @@ export function useTodayQuestion(
     return () => {
       cancelled = true;
     };
-  }, [lang, userId]);
+  }, [lang, userId, dayKey, cacheKey]);
 
   return { question, loading, error };
 }

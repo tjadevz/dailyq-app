@@ -68,7 +68,7 @@ export function SubmitSuccessModal({ visible }: SubmitSuccessModalProps) {
           style={[styles.checkWrap, { opacity, transform: [{ scale }] }]}
         >
           <LinearGradient
-            colors={["#FEF3C7", "#FDE68A", "#FCD34D"]}
+            colors={["#FEF3C7", "#FACC15", "#FCD34D"]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.checkCircle}

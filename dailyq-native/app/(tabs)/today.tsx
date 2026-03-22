@@ -115,13 +115,13 @@ export default function TodayScreen() {
   const [answerModalOpen, setAnswerModalOpen] = useState(false);
   const [showSubmitSuccess, setShowSubmitSuccess] = useState(false);
   const [pendingStreakMilestone, setPendingStreakMilestone] = useState<ReturnType<typeof getHighestMilestoneCrossed>>(null);
-  const [pendingMilestone, setPendingMilestone] = useState<10 | 30 | 100 | null>(null);
+  const [pendingMilestone, setPendingMilestone] = useState<10 | null>(null);
   const [profileCreatedAtForMilestone, setProfileCreatedAtForMilestone] = useState<string | null>(
     null
   );
   const [milestoneModalVisible, setMilestoneModalVisible] = useState(false);
   const [milestoneAnswers, setMilestoneAnswers] = useState<AccountMilestoneAnswer[]>([]);
-  const [activeAccountMilestone, setActiveAccountMilestone] = useState<10 | 30 | 100 | null>(null);
+  const [activeAccountMilestone, setActiveAccountMilestone] = useState<10 | null>(null);
   const [jokerModalVisible, setJokerModalVisible] = useState(false);
   const [editConfirmVisible, setEditConfirmVisible] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
@@ -249,12 +249,7 @@ export default function TodayScreen() {
     setMilestoneModalVisible(false);
     setActiveAccountMilestone(null);
     if (!userId || userId === "dev-user" || !m) return;
-    const patch =
-      m === 10
-        ? { milestone_10_days_shown: true }
-        : m === 30
-          ? { milestone_30_days_shown: true }
-          : { milestone_100_days_shown: true };
+    const patch = { milestone_10_days_shown: true };
     const { error } = await supabase.from("profiles").update(patch).eq("id", userId);
     if (error) {
       console.error("[Today] Account milestone close profile update:", error);

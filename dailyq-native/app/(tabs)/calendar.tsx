@@ -601,16 +601,16 @@ export default function CalendarScreen() {
   const [missedAnswerSubmitting, setMissedAnswerSubmitting] = useState(false);
   const [missedAnswerError, setMissedAnswerError] = useState<string | null>(null);
   const [showSubmitSuccess, setShowSubmitSuccess] = useState(false);
-  const [pendingMilestone, setPendingMilestone] = useState<ReturnType<typeof getHighestMilestoneCrossed>>(null);
+  const [pendingStreakMilestone, setPendingStreakMilestone] = useState<ReturnType<typeof getHighestMilestoneCrossed>>(null);
   const [jokerModalVisible, setJokerModalVisible] = useState(false);
   const [realStreak, setRealStreak] = useState(0);
   const [showYearPicker, setShowYearPicker] = useState(false);
 
   useEffect(() => {
-    if (showSubmitSuccess || !pendingMilestone) return;
-    showMilestone(pendingMilestone);
-    setPendingMilestone(null);
-  }, [showSubmitSuccess, pendingMilestone, showMilestone]);
+    if (showSubmitSuccess || !pendingStreakMilestone) return;
+    showMilestone(pendingStreakMilestone);
+    setPendingStreakMilestone(null);
+  }, [showSubmitSuccess, pendingStreakMilestone, showMilestone]);
 
   const fetchStreak = useCallback(async (): Promise<number> => {
     if (!userId || userId === "dev-user") {
@@ -761,7 +761,7 @@ export default function CalendarScreen() {
       await grantMilestoneJokersForCrossed(supabase, userId, previousStreak, newStreak);
       if (crossed.length > 0) {
         const milestoneToCelebrate = crossed[0] ?? null;
-        if (milestoneToCelebrate) setPendingMilestone(milestoneToCelebrate);
+        if (milestoneToCelebrate) setPendingStreakMilestone(milestoneToCelebrate);
       }
       // Always refetch profile so joker_balance updates after use_joker (RPC deducts in DB).
       await refetchProfile();

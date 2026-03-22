@@ -24,6 +24,7 @@ import { useCalendarAnswersContext } from "@/src/context/CalendarAnswersContext"
 import { useTodayQuestion } from "@/src/hooks/useTodayQuestion";
 import { useProfileContext } from "@/src/context/ProfileContext";
 import { getDayOfYear } from "@/src/lib/date";
+import { resolveAccountMilestone } from "@/src/lib/accountMilestone";
 import { supabase } from "@/src/config/supabase";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { JokerModal } from "@/src/components/JokerModal";
@@ -33,8 +34,67 @@ import { GlassCardContainer } from "@/src/components/GlassCardContainer";
 import DailyQLoadingScreen from "@/src/components/DailyQLoadingScreen";
 import { AnsweringExperience } from "@/src/components/AnsweringExperience";
 import { SubmitSuccessModal } from "@/src/components/SubmitSuccessModal";
+import AccountMilestoneModal, {
+  type AccountMilestoneAnswer,
+} from "@/src/components/modals/AccountMilestoneModal";
 
 const MAX_ANSWER_LENGTH = 280;
+
+/** Answers + question text for AccountMilestoneModal (same as post-submit milestone flow). */
+async function fetchAccountMilestoneAnswersForModal(
+  userId: string,
+  lang: string
+): Promise<AccountMilestoneAnswer[] | null> {
+  try {
+    const { data: answersData, error } = await supabase
+      .from("answers")
+      .select("question_date, answer_text")
+      .eq("user_id", userId)
+      .order("question_date", { ascending: true });
+    if (error) {
+      console.error("[Today] Account milestone answers fetch:", error);
+      return null;
+    }
+    const rows =
+      (answersData as { question_date: string; answer_text: string | null }[] | null) ?? [];
+    const questionDates = [...new Set(rows.map((r) => r.question_date).filter(Boolean))];
+
+    const questionTable = lang === "en" ? "daily_questions_en" : "questions";
+    const questionDateCol = lang === "en" ? "question_date" : "day";
+    const questionTextCol = lang === "en" ? "question_text" : "text";
+
+    const dayToText = new Map<string, string>();
+    if (questionDates.length > 0) {
+      const { data: questionsData, error: qErr } = await supabase
+        .from(questionTable)
+        .select(`${questionDateCol}, ${questionTextCol}`)
+        .in(questionDateCol, questionDates);
+      if (qErr) {
+        console.error("[Today] Account milestone questions lookup:", qErr);
+      } else if (questionsData) {
+        for (const row of questionsData as {
+          question_date?: string;
+          day?: string;
+          question_text?: string;
+          text?: string;
+        }[]) {
+          const day = questionDateCol === "question_date" ? row.question_date : row.day;
+          const text = questionTextCol === "question_text" ? row.question_text : row.text;
+          if (day) dayToText.set(day, text ?? "");
+        }
+      }
+    }
+
+    return rows.map((row) => ({
+      date: row.question_date,
+      questionText: dayToText.get(row.question_date) ?? "",
+      answerText: row.answer_text ?? "",
+    }));
+  } catch (e) {
+    console.error("[Today] Account milestone answers fetch:", e);
+    return null;
+  }
+}
 
 export default function TodayScreen() {
   const insets = useSafeAreaInsets();
@@ -45,7 +105,7 @@ export default function TodayScreen() {
   const { setAnswerForDay } = useCalendarAnswersContext();
   const { question, loading: questionLoading, error: questionError } = useTodayQuestion(lang, userId);
   const { profile, refetch: refetchProfile } = useProfileContext();
-  const { showMilestone } = useStreakMilestone();
+  const { showMilestone, open: streakCelebrationOpen } = useStreakMilestone();
 
   const [answerText, setAnswerText] = useState("");
   const [existingAnswer, setExistingAnswer] = useState<string | null>(null);
@@ -54,7 +114,14 @@ export default function TodayScreen() {
 
   const [answerModalOpen, setAnswerModalOpen] = useState(false);
   const [showSubmitSuccess, setShowSubmitSuccess] = useState(false);
-  const [pendingMilestone, setPendingMilestone] = useState<ReturnType<typeof getHighestMilestoneCrossed>>(null);
+  const [pendingStreakMilestone, setPendingStreakMilestone] = useState<ReturnType<typeof getHighestMilestoneCrossed>>(null);
+  const [pendingMilestone, setPendingMilestone] = useState<10 | 30 | 100 | null>(null);
+  const [profileCreatedAtForMilestone, setProfileCreatedAtForMilestone] = useState<string | null>(
+    null
+  );
+  const [milestoneModalVisible, setMilestoneModalVisible] = useState(false);
+  const [milestoneAnswers, setMilestoneAnswers] = useState<AccountMilestoneAnswer[]>([]);
+  const [activeAccountMilestone, setActiveAccountMilestone] = useState<10 | 30 | 100 | null>(null);
   const [jokerModalVisible, setJokerModalVisible] = useState(false);
   const [editConfirmVisible, setEditConfirmVisible] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
@@ -128,10 +195,73 @@ export default function TodayScreen() {
   }, []);
 
   useEffect(() => {
-    if (showSubmitSuccess || !pendingMilestone) return;
-    showMilestone(pendingMilestone);
-    setPendingMilestone(null);
-  }, [showSubmitSuccess, pendingMilestone, showMilestone]);
+    if (showSubmitSuccess || !pendingStreakMilestone) return;
+    showMilestone(pendingStreakMilestone);
+    setPendingStreakMilestone(null);
+  }, [showSubmitSuccess, pendingStreakMilestone, showMilestone]);
+
+  useEffect(() => {
+    if (
+      showSubmitSuccess ||
+      pendingMilestone == null ||
+      pendingStreakMilestone !== null ||
+      streakCelebrationOpen
+    ) {
+      return;
+    }
+    if (!userId || userId === "dev-user") {
+      setPendingMilestone(null);
+      return;
+    }
+    const milestone = pendingMilestone;
+    let cancelled = false;
+    (async () => {
+      const mapped = await fetchAccountMilestoneAnswersForModal(userId, lang);
+      if (cancelled) return;
+      if (mapped == null) {
+        setPendingMilestone(null);
+        return;
+      }
+      setActiveAccountMilestone(milestone);
+      setMilestoneAnswers(mapped);
+      setMilestoneModalVisible(true);
+      setPendingMilestone(null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [showSubmitSuccess, pendingMilestone, pendingStreakMilestone, streakCelebrationOpen, userId, lang]);
+
+  const handleDevReplayAccountMilestoneModal = useCallback(async () => {
+    if (!__DEV__) return;
+    if (!userId || userId === "dev-user") return;
+    const mapped = await fetchAccountMilestoneAnswersForModal(userId, lang);
+    if (mapped == null) return;
+    const { data: prof } = await supabase.from("profiles").select("created_at").eq("id", userId).maybeSingle();
+    if (prof?.created_at) setProfileCreatedAtForMilestone(prof.created_at);
+    setActiveAccountMilestone(10);
+    setMilestoneAnswers(mapped);
+    setMilestoneModalVisible(true);
+  }, [userId, lang]);
+
+  const handleMilestoneClose = useCallback(async () => {
+    const m = activeAccountMilestone;
+    setMilestoneModalVisible(false);
+    setActiveAccountMilestone(null);
+    if (!userId || userId === "dev-user" || !m) return;
+    const patch =
+      m === 10
+        ? { milestone_10_days_shown: true }
+        : m === 30
+          ? { milestone_30_days_shown: true }
+          : { milestone_100_days_shown: true };
+    const { error } = await supabase.from("profiles").update(patch).eq("id", userId);
+    if (error) {
+      console.error("[Today] Account milestone close profile update:", error);
+    } else {
+      void refetchProfile();
+    }
+  }, [userId, activeAccountMilestone, refetchProfile]);
 
   // Clear leftover Monday recap keys (feature removed); they are not read anywhere.
   useEffect(() => {
@@ -220,6 +350,24 @@ export default function TodayScreen() {
           );
         if (error) throw error;
 
+        try {
+          const { data, error: profileErr } = await supabase
+            .from("profiles")
+            .select(
+              "created_at, milestone_10_days_shown, milestone_30_days_shown, milestone_100_days_shown"
+            )
+            .eq("id", userId)
+            .maybeSingle();
+          if (profileErr) {
+            console.error("[Today submit] Account milestone profile fetch:", profileErr);
+          } else if (data) {
+            if (data.created_at) setProfileCreatedAtForMilestone(data.created_at);
+            setPendingMilestone(resolveAccountMilestone(data.created_at, data));
+          }
+        } catch (e) {
+          console.error("[Today submit] Account milestone profile fetch:", e);
+        }
+
         setAnswerForDay(dayKey, {
           questionText: question.text,
           answerText: trimmed,
@@ -263,7 +411,7 @@ export default function TodayScreen() {
           const milestoneToCelebrate = crossed.length > 0 ? crossed[0] : null;
           await new Promise((resolve) => setTimeout(resolve, 300));
           if (crossed.length > 0 && milestoneToCelebrate) {
-            setPendingMilestone(milestoneToCelebrate);
+            setPendingStreakMilestone(milestoneToCelebrate);
           }
           // Run refetch in background so modal can paint; awaiting here blocked the JS thread and prevented the streak popup from showing.
           if (grantSuccess) void refetchProfile();
@@ -321,7 +469,17 @@ export default function TodayScreen() {
       <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
         <View style={[styles.container, { paddingTop: insets.top }]}>
           <View style={styles.header}>
-            <View style={styles.headerSpacer} />
+            {__DEV__ ? (
+              <Pressable
+                onPress={handleDevReplayAccountMilestoneModal}
+                style={styles.devReplayMilestone}
+                hitSlop={8}
+              >
+                <Text style={styles.devReplayMilestoneText}>Replay milestone</Text>
+              </Pressable>
+            ) : (
+              <View style={styles.headerSpacer} />
+            )}
             <View style={styles.headerRight}>
               <JokerBadge
                 count={profile?.joker_balance ?? 0}
@@ -450,6 +608,18 @@ export default function TodayScreen() {
             t={t}
           />
           <SubmitSuccessModal visible={showSubmitSuccess} />
+          <AccountMilestoneModal
+            visible={milestoneModalVisible}
+            daysSinceCreation={
+              profileCreatedAtForMilestone
+                ? Math.floor(
+                    (Date.now() - new Date(profileCreatedAtForMilestone).getTime()) / 86400000
+                  )
+                : 0
+            }
+            answers={milestoneAnswers}
+            onClose={handleMilestoneClose}
+          />
           <EditConfirmModal visible={editConfirmVisible} message={t("today_answer_changed")} />
         </View>
       </TouchableWithoutFeedback>
@@ -714,6 +884,15 @@ const styles = StyleSheet.create({
   },
   headerSpacer: {
     flex: 1,
+  },
+  devReplayMilestone: {
+    flex: 1,
+    justifyContent: "center",
+  },
+  devReplayMilestoneText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: COLORS.ACCENT,
   },
   headerRight: {
     flex: 1,

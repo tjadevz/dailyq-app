@@ -8,6 +8,7 @@ import {
   Modal,
   Animated,
   ActivityIndicator,
+  TextInput,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -29,6 +30,7 @@ import {
 } from "@/src/lib/pushSubscription";
 import { getExpoPushTokenAsync } from "@/src/native/notifications";
 import { useStreakMilestone, STREAK_MILESTONES } from "@/src/context/StreakMilestoneContext";
+import { setPendingReferralCode } from "@/src/lib/referralPending";
 
 const REMINDER_TIME_KEY = "dailyq-reminder-time";
 
@@ -186,6 +188,10 @@ export default function SettingsScreen() {
   const [reminderModalVisible, setReminderModalVisible] = useState(false);
   const [reminderTime, setReminderTime] = useState<ReminderTime | null>(null);
   const [replayOnboardingLoading, setReplayOnboardingLoading] = useState(false);
+  const [referralModalVisible, setReferralModalVisible] = useState(false);
+  const [referralCodeInput, setReferralCodeInput] = useState("");
+  const [startReferralLoading, setStartReferralLoading] = useState(false);
+  const [startReferralError, setStartReferralError] = useState<string | null>(null);
 
   useEffect(() => {
     AsyncStorage.getItem(REMINDER_TIME_KEY).then((value) => {
@@ -251,6 +257,46 @@ export default function SettingsScreen() {
       setReplayOnboardingLoading(false);
     }
   }, [effectiveUser?.id, refetchProfile, router]);
+
+  const handleOpenReferralDevModal = useCallback(() => {
+    setStartReferralError(null);
+    setReferralModalVisible(true);
+  }, []);
+
+  const handleCloseReferralDevModal = useCallback(() => {
+    if (startReferralLoading) return;
+    setReferralModalVisible(false);
+    setStartReferralError(null);
+  }, [startReferralLoading]);
+
+  const handleStartReferralOnboarding = useCallback(async () => {
+    const userId = effectiveUser?.id;
+    if (!userId || userId === "dev-user") return;
+    const normalizedCode = referralCodeInput.trim();
+    if (!normalizedCode) {
+      setStartReferralError("Voer een referral code in.");
+      return;
+    }
+
+    setStartReferralLoading(true);
+    setStartReferralError(null);
+    try {
+      await setPendingReferralCode(normalizedCode);
+      const { error } = await supabase
+        .from("profiles")
+        .update({ onboarding_completed: false })
+        .eq("id", userId);
+      if (error) throw error;
+      await refetchProfile();
+      setReferralModalVisible(false);
+      router.replace("/(auth)/referral-claim");
+    } catch (e) {
+      console.error("[Settings] Start referral onboarding failed:", e);
+      setStartReferralError("Kon referral flow niet starten. Probeer opnieuw.");
+    } finally {
+      setStartReferralLoading(false);
+    }
+  }, [effectiveUser?.id, referralCodeInput, refetchProfile, router]);
 
   return (
     <GlassCardContainer>
@@ -355,6 +401,26 @@ export default function SettingsScreen() {
             </Pressable>
           )}
 
+          {/* Start referral onboarding (dev only; hidden for dev-user) */}
+          {__DEV__ && effectiveUser?.id && effectiveUser.id !== "dev-user" && (
+            <Pressable
+              style={[styles.card, startReferralLoading && styles.cardDisabled]}
+              onPress={handleOpenReferralDevModal}
+              disabled={startReferralLoading}
+            >
+              <View style={styles.cardIconWrap}>
+                <View style={[styles.cardIcon, styles.cardIconPurple]}>
+                  <Feather name="gift" size={16} strokeWidth={2} color={COLORS.ACCENT} />
+                </View>
+                <View style={styles.cardTextWrap}>
+                  <Text style={styles.cardTitle}>Start referral onboarding (dev)</Text>
+                  <Text style={styles.cardSubtitle}>Set code + open referral claim flow</Text>
+                </View>
+                <Feather name="chevron-right" size={20} color={COLORS.TEXT_MUTED} />
+              </View>
+            </Pressable>
+          )}
+
           {/* Debug modals (only when npm start with EXPO_PUBLIC_DEBUG_MODALS=true) */}
           {showDebugModals && (
             <>
@@ -393,6 +459,55 @@ export default function SettingsScreen() {
         onClose={() => setLanguageModalVisible(false)}
         onSelect={setLang}
       />
+      <Modal
+        transparent
+        visible={referralModalVisible}
+        animationType="fade"
+        onRequestClose={handleCloseReferralDevModal}
+      >
+        <View style={styles.modalBackdrop}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={handleCloseReferralDevModal} />
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Start referral onboarding (dev)</Text>
+            <Text style={styles.modalBody}>
+              Voer een referral code in. We bewaren de code, zetten onboarding opnieuw aan, en openen
+              de referral claim flow.
+            </Text>
+
+            <TextInput
+              value={referralCodeInput}
+              onChangeText={setReferralCodeInput}
+              placeholder="Referral code"
+              autoCapitalize="none"
+              autoCorrect={false}
+              editable={!startReferralLoading}
+              style={styles.modalInput}
+            />
+            {startReferralError ? <Text style={styles.modalErrorText}>{startReferralError}</Text> : null}
+
+            <View style={styles.modalActions}>
+              <Pressable
+                style={[styles.modalButton, styles.modalButtonSecondary]}
+                onPress={handleCloseReferralDevModal}
+                disabled={startReferralLoading}
+              >
+                <Text style={styles.modalButtonSecondaryText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.modalButton, styles.modalButtonPrimary]}
+                onPress={handleStartReferralOnboarding}
+                disabled={startReferralLoading}
+              >
+                {startReferralLoading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.modalButtonPrimaryText}>Start</Text>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
       </View>
     </GlassCardContainer>
   );
@@ -534,6 +649,9 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: COLORS.TEXT_PRIMARY,
   },
+  modalButtonPrimary: {
+    backgroundColor: COLORS.ACCENT,
+  },
   modalButtonDanger: {
     backgroundColor: "#DC2626",
   },
@@ -546,5 +664,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: "#fff",
+  },
+  modalInput: {
+    width: "100%",
+    borderWidth: 1,
+    borderColor: "rgba(139,92,246,0.25)",
+    backgroundColor: "rgba(255,255,255,0.9)",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 16,
+    color: COLORS.TEXT_PRIMARY,
+    marginBottom: 8,
+  },
+  modalErrorText: {
+    fontSize: 13,
+    color: "#B91C1C",
+    marginBottom: 2,
   },
 });

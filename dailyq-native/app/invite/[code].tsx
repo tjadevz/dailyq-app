@@ -16,7 +16,7 @@ function normalizeCodeParam(codeParam: unknown): string | null {
 export default function InviteCodeRoute() {
   const router = useRouter();
   const params = useLocalSearchParams<{ code?: string | string[] }>();
-  const { effectiveUser, authCheckDone } = useAuth();
+  const { user, authCheckDone } = useAuth();
   const { profile } = useProfileContext();
 
   const code = useMemo(() => normalizeCodeParam(params.code), [params.code]);
@@ -41,19 +41,19 @@ export default function InviteCodeRoute() {
 
     if (!code) {
       // If no code, just proceed to onboarding/today based on auth.
-      router.replace(effectiveUser ? "/(tabs)/today" : "/(auth)/onboarding");
+      router.replace(user ? "/(tabs)/today" : "/(auth)/onboarding");
       return;
     }
 
-    if (!effectiveUser) {
-      router.replace("/(auth)/onboarding");
+    if (!user) {
+      router.replace(`/(auth)/onboarding?ref=${encodeURIComponent(code)}`);
       return;
     }
 
     // ProfileProvider should already fetch onboarding_completed for the current user.
     const onboardingCompleted = profile?.onboarding_completed === true;
     router.replace(onboardingCompleted ? "/(tabs)/today" : "/(tabs)/onboarding-questions");
-  }, [authCheckDone, pendingSaved, code, effectiveUser, profile, router]);
+  }, [authCheckDone, pendingSaved, code, user, profile, router]);
 
   // While we wait for Auth/Profile to be ready, render a minimal loader.
   if (!authCheckDone || (code && !pendingSaved)) {
@@ -68,7 +68,7 @@ export default function InviteCodeRoute() {
 
   // For the case we ended up redirecting above, return null/Redirect-friendly.
   // (Expo Router will replace before the user sees anything.)
-  return <Redirect href={effectiveUser ? "/(tabs)/today" : "/(auth)/onboarding"} />;
+  return <Redirect href={user ? "/(tabs)/today" : "/(auth)/onboarding"} />;
 }
 
 const styles = StyleSheet.create({

@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
   Animated,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 
@@ -122,6 +122,7 @@ function getOnboardingDayKeys(): string[] {
 
 export default function OnboardingQuestionsScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ skipIntro?: string | string[] }>();
   const insets = useSafeAreaInsets();
   const { effectiveUser } = useAuth();
   const { profile, refetch: refetchProfile } = useProfileContext();
@@ -136,12 +137,21 @@ export default function OnboardingQuestionsScreen() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [rewardModalVisible, setRewardModalVisible] = useState(false);
   const [exiting, setExiting] = useState(false);
-  const [showIntro, setShowIntro] = useState(true);
+  const skipIntro = useMemo(() => {
+    const raw = params.skipIntro;
+    const value = Array.isArray(raw) ? raw[0] : raw;
+    return value === "1";
+  }, [params.skipIntro]);
+  const [showIntro, setShowIntro] = useState(!skipIntro);
   const [modalDismissed, setModalDismissed] = useState(false);
   /** Number of questions answered (submitted) in this onboarding run; joker only if this is 7 when finishing. */
   const [answeredCount, setAnsweredCount] = useState(0);
 
   const dayKeys = useMemo(() => getOnboardingDayKeys(), []);
+
+  useEffect(() => {
+    if (skipIntro) setShowIntro(false);
+  }, [skipIntro]);
 
   useEffect(() => {
     if (!userId || userId === "dev-user") {

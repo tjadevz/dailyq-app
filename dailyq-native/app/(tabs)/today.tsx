@@ -472,7 +472,14 @@ export default function TodayScreen() {
       <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
         <View style={[styles.container, { paddingTop: insets.top }]}>
           <View style={styles.header}>
-            <View style={styles.headerSpacer} />
+            <View style={styles.headerLeft}>
+              <Pressable
+                onPress={() => void handleInvite()}
+                style={({ pressed }) => [styles.inviteIconButton, pressed && styles.inviteIconButtonPressed]}
+              >
+                <Feather name="user-plus" size={18} color="#FFFFFF" strokeWidth={6} />
+              </Pressable>
+            </View>
             <View style={styles.headerRight}>
               <JokerBadge
                 count={profile?.joker_balance ?? 0}
@@ -573,13 +580,6 @@ export default function TodayScreen() {
                   </PrimaryButton>
                 )}
               </Animated.View>
-              <Pressable
-                onPress={() => void handleInvite()}
-                style={({ pressed }) => [styles.inviteButton, pressed && styles.inviteButtonPressed]}
-              >
-                <Feather name="user-plus" size={13} color="#7C3AED" />
-                <Text style={styles.inviteButtonText}>Invite a friend</Text>
-              </Pressable>
             </Animated.View>
           </View>
 
@@ -677,27 +677,18 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     marginTop: 16,
   },
-  inviteButton: {
-    flexDirection: "row",
+  inviteIconButton: {
     alignItems: "center",
     justifyContent: "center",
-    gap: 6,
-    marginTop: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
+    paddingVertical: 6,
+    paddingHorizontal: 15,
     borderRadius: 9999,
     borderWidth: 1,
-    borderColor: "rgba(139, 92, 246, 0.3)",
-    backgroundColor: "rgba(237, 233, 254, 0.5)",
-    alignSelf: "center",
+    borderColor: "rgba(109, 40, 217, 0.55)",
+    backgroundColor: "#7C3AED",
   },
-  inviteButtonPressed: {
+  inviteIconButtonPressed: {
     opacity: 0.7,
-  },
-  inviteButtonText: {
-    fontSize: 13,
-    fontWeight: "500",
-    color: "#7C3AED",
   },
   tabBarSpacer: {
     height: 92,
@@ -898,8 +889,11 @@ const styles = StyleSheet.create({
     marginTop: 4,
     minHeight: 32,
   },
-  headerSpacer: {
+  headerLeft: {
     flex: 1,
+    flexDirection: "row",
+    justifyContent: "flex-start",
+    alignItems: "center",
   },
   headerRight: {
     flex: 1,

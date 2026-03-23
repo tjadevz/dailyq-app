@@ -3,41 +3,38 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  SafeAreaView,
+  Image,
+  Pressable,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import { COLORS } from "@/src/config/constants";
+import { BackgroundLayer } from "@/src/components/BackgroundLayer";
 import { useAuth } from "@/src/context/AuthContext";
+import { useLanguage } from "@/src/context/LanguageContext";
 import { supabase } from "@/src/config/supabase";
-import { PrimaryButton } from "@/src/components/PrimaryButton";
 import {
   clearPendingReferralCode,
   getPendingReferralCode,
 } from "@/src/lib/referralPending";
 
-async function getOnboardingCompletedForUser(userId: string): Promise<boolean> {
-  const { data } = await supabase
-    .from("profiles")
-    .select("onboarding_completed")
-    .eq("id", userId)
-    .maybeSingle();
-  return data?.onboarding_completed === true;
-}
+const LOGO_SIZE = 110;
 
 export default function ReferralClaimScreen() {
   const router = useRouter();
-  const { effectiveUser, authCheckDone } = useAuth();
+  const { user, authCheckDone } = useAuth();
+  const { t } = useLanguage();
 
-  const userId = useMemo(() => effectiveUser?.id ?? null, [effectiveUser?.id]);
+  const userId = useMemo(() => user?.id ?? null, [user?.id]);
   const didNavigateRef = useRef(false);
 
   const [processing, setProcessing] = useState(true);
-  const [rpcSuccess, setRpcSuccess] = useState<boolean | null>(null);
+  const [navigating, setNavigating] = useState(false);
 
   useEffect(() => {
     if (!authCheckDone) return;
@@ -65,12 +62,11 @@ export default function ReferralClaimScreen() {
         await clearPendingReferralCode();
 
         if (cancelled) return;
-        const success = data === true && !error;
-        setRpcSuccess(success);
+        void data;
+        void error;
       } catch (e) {
         await clearPendingReferralCode();
         if (cancelled) return;
-        setRpcSuccess(false);
       } finally {
         if (cancelled) return;
         setProcessing(false);
@@ -82,88 +78,118 @@ export default function ReferralClaimScreen() {
     };
   }, [authCheckDone, userId, router]);
 
-  useEffect(() => {
-    if (!authCheckDone || !userId) return;
-    if (processing) return;
-    if (didNavigateRef.current) return;
-
+  const goNext = async () => {
+    if (!userId || navigating || didNavigateRef.current) return;
     didNavigateRef.current = true;
-
-    const goNext = async () => {
-      const onboardingCompleted = await getOnboardingCompletedForUser(userId);
-      router.replace(onboardingCompleted ? "/(tabs)/today" : "/(tabs)/onboarding-questions");
-    };
-
-    if (rpcSuccess) {
-      // Show success UI for exactly 1000ms.
-      setTimeout(() => {
-        void goNext();
-      }, 1000);
-      return;
+    setNavigating(true);
+    try {
+      router.replace("/(tabs)/onboarding-questions?skipIntro=1");
+    } finally {
+      setNavigating(false);
     }
-
-    // If RPC returned false (or no pending code), skip success UI and navigate immediately.
-    void goNext();
-  }, [authCheckDone, userId, processing, rpcSuccess, router]);
-
-  const showSuccessUi = !processing && rpcSuccess === true;
+  };
 
   if (processing) {
     return (
-      <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
-        <View style={styles.loadingWrap}>
-          <ActivityIndicator size="large" color={COLORS.ACCENT} />
-          <Text style={styles.loadingText}>Claiming your free joker…</Text>
-        </View>
-      </SafeAreaView>
+      <View style={styles.safe}>
+        <BackgroundLayer />
+        <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
+          <View style={styles.loadingWrap}>
+            <ActivityIndicator size="large" color={COLORS.ACCENT} />
+            <Text style={styles.loadingText}>Claiming your free joker…</Text>
+          </View>
+        </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
-      <View style={styles.center}>
-        {showSuccessUi ? (
-          <>
-            <LinearGradient
-              colors={["rgba(167,139,250,0.45)", "rgba(139,92,246,0.25)"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.iconWrap}
-            >
-              <Text style={styles.iconText}>👑</Text>
-            </LinearGradient>
-
-            <Text style={styles.title}>You got a free joker! 👑</Text>
-            <Text style={styles.subtitle}>One question a day — starting now.</Text>
-
-            {/* Decorative button to match app styling; navigation is automatic. */}
-            <View style={{ width: "100%", marginTop: 18 }}>
-              <PrimaryButton onPress={() => {}} disabled>
-                Continue
-              </PrimaryButton>
+    <View style={styles.safe}>
+      <BackgroundLayer />
+      <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
+        <View style={styles.introContent}>
+          <View style={styles.introGroup}>
+            <View style={styles.introLogoWrap}>
+              <View style={styles.introHaloOuter} />
+              <View style={styles.introHaloInner} />
+              <View>
+                <Image
+                  source={require("@/assets/images/logo.nobg.png")}
+                  style={styles.introLogoImage}
+                  resizeMode="contain"
+                />
+              </View>
             </View>
-          </>
-        ) : (
-          <View style={styles.loadingWrap}>
-            <ActivityIndicator size="large" color={COLORS.ACCENT} />
-            <Text style={styles.loadingText}>Loading…</Text>
+            <Text style={styles.introTitle}>{t("onboarding_intro_title")}</Text>
+            <Text style={styles.introSubtitle}>Je eerste 7 vragen wachten op je.</Text>
+            <Pressable
+              onPress={() => void goNext()}
+              disabled={navigating}
+              style={({ pressed }) => [styles.introCtaWrap, pressed && styles.introCtaPressed]}
+            >
+              <LinearGradient
+                colors={navigating ? ["#9CA3AF", "#9CA3AF"] : ["#FCD34D", "#F59E0B"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={[styles.introCtaGradient, navigating && styles.introCtaDisabled]}
+              >
+                {navigating ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.introCtaText}>{t("referral_claim_cta")}</Text>
+                )}
+              </LinearGradient>
+            </Pressable>
           </View>
-        )}
-      </View>
-    </SafeAreaView>
+        </View>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: "#FAFAFF",
   },
-  center: {
+  safeArea: {
     flex: 1,
+  },
+  introContent: {
+    flex: 1,
+    paddingHorizontal: 32,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  introGroup: {
+    alignItems: "center",
+    width: "100%",
+  },
+  introLogoWrap: {
+    position: "relative",
+    width: 160,
+    height: 160,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 24,
+    marginBottom: 24,
+  },
+  introHaloOuter: {
+    position: "absolute",
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    backgroundColor: "rgba(139,92,246,0.12)",
+  },
+  introHaloInner: {
+    position: "absolute",
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    backgroundColor: "rgba(167,139,250,0.15)",
+  },
+  introLogoImage: {
+    width: LOGO_SIZE,
+    height: LOGO_SIZE,
+    marginTop: 16,
   },
   loadingWrap: {
     flex: 1,
@@ -173,43 +199,54 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   loadingText: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: COLORS.TEXT_SECONDARY,
-    textAlign: "center",
-  },
-  iconWrap: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "rgba(139,92,246,0.18)",
-    shadowColor: "#8B5CF6",
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.10,
-    shadowRadius: 26,
-    elevation: 4,
-    marginBottom: 16,
-  },
-  iconText: {
-    fontSize: 28,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: "800",
-    color: COLORS.TEXT_PRIMARY,
-    textAlign: "center",
-    lineHeight: 28,
-    marginBottom: 8,
-  },
-  subtitle: {
     fontSize: 15,
     fontWeight: "700",
     color: COLORS.TEXT_SECONDARY,
     textAlign: "center",
-    lineHeight: 22,
+  },
+  introTitle: {
+    fontSize: 32,
+    fontWeight: "700",
+    color: COLORS.TEXT_PRIMARY,
+    textAlign: "center",
+    marginBottom: 12,
+  },
+  introSubtitle: {
+    fontSize: 16,
+    color: COLORS.TEXT_SECONDARY,
+    textAlign: "center",
+    lineHeight: 24,
+    marginTop: 0,
+    marginBottom: 32,
+  },
+  introCtaWrap: {
+    width: "100%",
+    minHeight: 56,
+    borderRadius: 9999,
+    overflow: "hidden",
+    shadowColor: "rgba(245,158,11,0.35)",
+    shadowOffset: { width: 0, height: 20 },
+    shadowOpacity: 1,
+    shadowRadius: 56,
+    elevation: 8,
+  },
+  introCtaPressed: {
+    opacity: 0.9,
+  },
+  introCtaGradient: {
+    paddingVertical: 18,
+    paddingHorizontal: 40,
+    minHeight: 56,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  introCtaDisabled: {
+    shadowOpacity: 0,
+  },
+  introCtaText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#fff",
   },
 });
 

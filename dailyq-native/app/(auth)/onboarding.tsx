@@ -1,7 +1,8 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
+  Image,
   Pressable,
   TextInput,
   StyleSheet,
@@ -13,7 +14,7 @@ import {
   Keyboard,
   LayoutAnimation,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import Feather from "@expo/vector-icons/Feather";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
@@ -33,7 +34,7 @@ import {
   upsertPushSubscription,
 } from "@/src/lib/pushSubscription";
 import { registerForPushNotificationsAsync } from "@/src/native/notifications";
-import { getPendingReferralCode } from "@/src/lib/referralPending";
+import { getPendingReferralCode, setPendingReferralCode } from "@/src/lib/referralPending";
 
 const REMINDER_TIME_KEY = "dailyq-reminder-time";
 
@@ -140,6 +141,14 @@ export default function OnboardingScreen() {
   useAuth();
   const { signInWithApple, loading: appleLoading, error: appleError, clearError: clearAppleError } = useAppleSignIn();
   const router = useRouter();
+  const params = useLocalSearchParams<{ ref?: string | string[] }>();
+  const referralCodeFromParams = useMemo(() => {
+    const rawRef = params.ref;
+    if (!rawRef) return null;
+    const refCode = Array.isArray(rawRef) ? rawRef[0] : rawRef;
+    const normalized = (refCode ?? "").trim();
+    return normalized.length > 0 ? normalized : null;
+  }, [params.ref]);
 
   const [step, setStep] = useState<Step>("intro");
   const [appleAuthAvailable, setAppleAuthAvailable] = useState(false);
@@ -159,6 +168,12 @@ export default function OnboardingScreen() {
     if (Platform.OS !== "ios") return;
     AppleAuthentication.isAvailableAsync().then(setAppleAuthAvailable);
   }, []);
+
+  useEffect(() => {
+    if (!referralCodeFromParams) return;
+    // Reinforce pending referral when onboarding is opened from /invite/[code].
+    setPendingReferralCode(referralCodeFromParams).catch(() => {});
+  }, [referralCodeFromParams]);
 
   const goNext = useCallback((next: Step) => {
     setStep(next);
@@ -182,7 +197,7 @@ export default function OnboardingScreen() {
   }, [notificationTime, goNext]);
 
   const performPostAuthPushUpsertAndNavigate = useCallback(
-    async (userId: string) => {
+    async (userId: string, options?: { isSignup?: boolean }) => {
       const token = await getStoredExpoPushToken();
       const stored =
         notificationTime ??
@@ -197,9 +212,13 @@ export default function OnboardingScreen() {
       const { error: upsertErr } = await upsertPushSubscription(userId, token, reminderTime);
       if (upsertErr) console.error("[onboarding] Push subscription upsert failed:", upsertErr);
 
+      if (referralCodeFromParams) {
+        await setPendingReferralCode(referralCodeFromParams);
+      }
+
       // If the user opened the app from a referral link, we store a pending code in AsyncStorage.
       // Claim happens in a dedicated screen after auth, then we go to regular onboarding.
-      const pendingReferralCode = await getPendingReferralCode();
+      const pendingReferralCode = referralCodeFromParams ?? (await getPendingReferralCode());
       if (pendingReferralCode) {
         router.replace("/(auth)/referral-claim");
         return;
@@ -213,7 +232,7 @@ export default function OnboardingScreen() {
       const completed = profileRow?.onboarding_completed === true;
       router.replace(completed ? "/(tabs)/today" : "/(tabs)/onboarding-questions");
     },
-    [notificationTime, router]
+    [notificationTime, referralCodeFromParams, router]
   );
 
   const handleAuthSubmit = useCallback(async () => {
@@ -242,7 +261,7 @@ export default function OnboardingScreen() {
       }
       const authUser = data?.user;
       if (authUser?.id) {
-        await performPostAuthPushUpsertAndNavigate(authUser.id);
+        await performPostAuthPushUpsertAndNavigate(authUser.id, { isSignup: !isLoginMode });
       } else {
         router.replace("/(tabs)/today");
       }
@@ -283,7 +302,7 @@ export default function OnboardingScreen() {
     } = await supabase.auth.getSession();
     const authUser = session?.user;
     if (authUser?.id) {
-      await performPostAuthPushUpsertAndNavigate(authUser.id);
+      await performPostAuthPushUpsertAndNavigate(authUser.id, { isSignup: true });
     } else {
       router.replace("/(tabs)/today");
     }
@@ -351,12 +370,11 @@ export default function OnboardingScreen() {
                 <StepTransitionView style={[styles.step, styles.introStepWrap]}>
                   <View style={[styles.contentWrapper, styles.contentWrapperIntro]}>
                       <View style={[styles.introHeader, styles.introHeaderIntro]}>
-                        <View style={styles.logoCircleIntro}>
-                          <Feather
-                            name="sun"
-                            size={48}
-                            color={COLORS.ACCENT}
-                            strokeWidth={2}
+                        <View style={styles.introLogoWrap}>
+                          <Image
+                            source={require("@/assets/images/logo.nobg.png")}
+                            style={styles.introLogoImage}
+                            resizeMode="contain"
                           />
                         </View>
                         <Text style={[styles.introTitle, styles.introTitleIntro]}>
@@ -418,9 +436,9 @@ export default function OnboardingScreen() {
                   <View style={styles.contentWrapper}>
                       <View style={styles.jokersHeader}>
                         <LinearGradient
-                          colors={["#FEF3C7", "#FDE68A", "#FBBF24"]}
+                          colors={["#FDE68A", "#FBBF24"]}
                           start={{ x: 0, y: 0 }}
-                          end={{ x: 1, y: 1 }}
+                          end={{ x: 1, y: 0 }}
                           style={[styles.logoCircle, styles.jokerCircleGradient]}
                         >
                           <MaterialCommunityIcons
@@ -429,11 +447,13 @@ export default function OnboardingScreen() {
                             color="#FFFFFF"
                           />
                         </LinearGradient>
-                        <Text style={styles.introTitle}>
+                        <Text
+                          style={[styles.introTitle, styles.jokersTitle]}
+                          numberOfLines={1}
+                          adjustsFontSizeToFit
+                          minimumFontScale={0.9}
+                        >
                           {t("onboarding_jokers_title")}
-                        </Text>
-                        <Text style={styles.introTagline}>
-                          {t("onboarding_jokers_subtitle")}
                         </Text>
                       </View>
                       <View style={styles.bulletList}>
@@ -470,6 +490,24 @@ export default function OnboardingScreen() {
                             </Text>
                             <Text style={styles.bulletDesc}>
                               {t("onboarding_jokers_earn_streaks_desc")}
+                            </Text>
+                          </View>
+                        </View>
+                        <View style={styles.bulletRow}>
+                          <View style={[styles.bulletIcon, styles.bulletPurple]}>
+                            <Feather
+                              name="user-plus"
+                              size={18}
+                              color="#8B5CF6"
+                              strokeWidth={2.5}
+                            />
+                          </View>
+                          <View style={styles.bulletText}>
+                            <Text style={styles.bulletTitle}>
+                              {t("onboarding_jokers_refer")}
+                            </Text>
+                            <Text style={styles.bulletDesc}>
+                              {t("onboarding_jokers_refer_desc")}
                             </Text>
                           </View>
                         </View>
@@ -896,6 +934,18 @@ const styles = StyleSheet.create({
     shadowRadius: 24,
     elevation: 6,
   },
+  introLogoWrap: {
+    position: "relative",
+    width: 110,
+    height: 110,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 18,
+  },
+  introLogoImage: {
+    width: 110,
+    height: 110,
+  },
   jokerCircle: {
     backgroundColor: "#FDE68A",
   },
@@ -1111,6 +1161,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 32,
   },
+  jokersTitle: {
+    fontSize: 26,
+  },
   bulletList: {
     gap: 20,
     marginBottom: 32,
@@ -1248,13 +1301,17 @@ const styles = StyleSheet.create({
   input: {
     width: "100%",
     minHeight: 52,
+    height: 52,
     paddingHorizontal: 20,
+    paddingVertical: 0,
+    paddingBottom: 2,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: "rgba(229,231,235,0.8)",
     backgroundColor: "#fff",
     fontSize: 15,
     color: COLORS.TEXT_PRIMARY,
+    textAlignVertical: "center",
   },
   passwordInputWrap: {
     flexDirection: "row",

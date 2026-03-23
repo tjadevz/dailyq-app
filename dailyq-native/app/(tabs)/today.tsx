@@ -11,6 +11,7 @@ import {
   Platform,
   Modal,
   Animated,
+  Share,
 } from "react-native";
 import Feather from "@expo/vector-icons/Feather";
 import { LinearGradient } from "expo-linear-gradient";
@@ -438,6 +439,18 @@ export default function TodayScreen() {
 
   const dayLabel = question ? `#${String(getDayOfYear(question.day)).padStart(3, "0")}` : "";
   const hasAnswer = existingAnswer != null && existingAnswer.length > 0;
+  const handleInvite = useCallback(async () => {
+    if (!profile?.referral_code) return;
+    const link = `https://dailyqapp.com/invite/${profile.referral_code}`;
+    try {
+      await Share.share({
+        message: `Answer one question a day — and see who you were a year from now. Join me on DailyQ: ${link}`,
+        url: link,
+      });
+    } catch (e) {
+      console.error("[Today] Share error:", e);
+    }
+  }, [profile?.referral_code]);
 
   if (questionLoading) {
     return <DailyQLoadingScreen />;
@@ -560,6 +573,13 @@ export default function TodayScreen() {
                   </PrimaryButton>
                 )}
               </Animated.View>
+              <Pressable
+                onPress={() => void handleInvite()}
+                style={({ pressed }) => [styles.inviteButton, pressed && styles.inviteButtonPressed]}
+              >
+                <Feather name="user-plus" size={13} color="#7C3AED" />
+                <Text style={styles.inviteButtonText}>Invite a friend</Text>
+              </Pressable>
             </Animated.View>
           </View>
 
@@ -656,6 +676,28 @@ const styles = StyleSheet.create({
     width: "100%",
     alignSelf: "center",
     marginTop: 16,
+  },
+  inviteButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    marginTop: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 9999,
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.3)",
+    backgroundColor: "rgba(237, 233, 254, 0.5)",
+    alignSelf: "center",
+  },
+  inviteButtonPressed: {
+    opacity: 0.7,
+  },
+  inviteButtonText: {
+    fontSize: 13,
+    fontWeight: "500",
+    color: "#7C3AED",
   },
   tabBarSpacer: {
     height: 92,

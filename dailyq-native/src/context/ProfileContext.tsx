@@ -7,6 +7,7 @@ export type Profile = {
   joker_balance: number;
   language: string;
   onboarding_completed: boolean;
+  referral_code?: string | null;
   /** From profiles.created_at — used for account-age UI (e.g. milestone modal). */
   created_at?: string | null;
 };
@@ -31,8 +32,15 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
           joker_balance: 99,
           language: "nl",
           onboarding_completed: true,
+          referral_code: "devref01",
         });
-        return { id: "dev-user", joker_balance: 99, language: "nl", onboarding_completed: true };
+        return {
+          id: "dev-user",
+          joker_balance: 99,
+          language: "nl",
+          onboarding_completed: true,
+          referral_code: "devref01",
+        };
       }
       setProfile(null);
       return null;
@@ -40,7 +48,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
 
     const { data: prof, error: fetchErr } = await supabase
       .from("profiles")
-      .select("id, joker_balance, language, onboarding_completed, created_at")
+      .select("id, joker_balance, language, onboarding_completed, referral_code, created_at")
       .eq("id", userId)
       .maybeSingle();
 

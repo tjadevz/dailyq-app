@@ -1,5 +1,6 @@
 import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { Image, View } from "react-native";
 import { TabBarWithPill } from "@/src/components/TabBarWithPill";
 import { useLanguage } from "@/src/context/LanguageContext";
 
@@ -28,10 +29,22 @@ export default function TabsLayout() {
         name="today"
         options={{
           title: t("tabs_today"),
-          tabBarLabel: t("tabs_today"),
+          tabBarLabel: "",
           headerShown: false,
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="help-circle-outline" size={size ?? 22} color={color} />
+          tabBarIcon: ({ size }) => (
+            <View
+              style={{
+                width: Math.round((size ?? 22) * 1.872),
+                height: Math.round((size ?? 22) * 1.872),
+                transform: [{ translateY: Math.round((size ?? 22) * 0.1) }],
+              }}
+            >
+              <Image
+                source={require("@/assets/images/logo.nobg.png")}
+                style={{ width: "100%", height: "100%" }}
+                resizeMode="contain"
+              />
+            </View>
           ),
         }}
       />
@@ -39,7 +52,7 @@ export default function TabsLayout() {
         name="calendar"
         options={{
           title: t("tabs_calendar"),
-          tabBarLabel: t("tabs_calendar"),
+          tabBarLabel: "",
           headerShown: false,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="calendar-outline" size={size ?? 22} color={color} />
@@ -50,7 +63,7 @@ export default function TabsLayout() {
         name="settings"
         options={{
           title: t("tabs_settings"),
-          tabBarLabel: t("tabs_settings"),
+          tabBarLabel: "",
           headerShown: false,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="settings-outline" size={size ?? 22} color={color} />

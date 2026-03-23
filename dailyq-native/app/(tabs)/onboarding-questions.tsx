@@ -125,7 +125,7 @@ export default function OnboardingQuestionsScreen() {
   const params = useLocalSearchParams<{ skipIntro?: string | string[] }>();
   const insets = useSafeAreaInsets();
   const { effectiveUser } = useAuth();
-  const { profile, refetch: refetchProfile } = useProfileContext();
+  const { refetch: refetchProfile } = useProfileContext();
   const { t, lang } = useLanguage();
 
   const userId = effectiveUser?.id ?? null;
@@ -197,39 +197,26 @@ export default function OnboardingQuestionsScreen() {
         router.replace("/(tabs)/today");
         return;
       }
-      if (!grantJoker) {
-        router.replace("/(tabs)/today");
-        supabase
-          .from("profiles")
-          .update({
-            onboarding_completed: true,
-            onboarding_completed_at: new Date().toISOString(),
-          })
-          .eq("id", userId)
-          .then(() => refetchProfile())
-          .catch((e) => console.error("[onboarding-questions] Failed to update profile:", e));
-        return;
-      }
       setExiting(true);
       try {
-        const currentBalance = profile?.joker_balance ?? 0;
-        await supabase
-          .from("profiles")
-          .update({
-            onboarding_completed: true,
-            onboarding_completed_at: new Date().toISOString(),
-            joker_balance: currentBalance + 1,
-          })
-          .eq("id", userId);
+        const { error: completeErr } = await supabase.rpc("complete_onboarding_with_reward", {
+          p_grant_joker: grantJoker,
+        });
+        if (completeErr) throw completeErr;
         await refetchProfile();
-        setRewardModalVisible(true);
+        if (grantJoker) {
+          setRewardModalVisible(true);
+        } else {
+          router.replace("/(tabs)/today");
+        }
       } catch (e) {
         console.error("[onboarding-questions] Failed to update profile:", e);
+        setSaveError(e instanceof Error ? e.message : "Failed to complete onboarding");
       } finally {
         setExiting(false);
       }
     },
-    [userId, profile?.joker_balance, refetchProfile, router]
+    [userId, refetchProfile, router]
   );
 
   const handleDismiss = useCallback(() => {

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { View, Text, StyleSheet, Pressable, Animated, Platform, type LayoutChangeEvent } from "react-native";
+import { View, StyleSheet, Pressable, Animated, Platform, type LayoutChangeEvent } from "react-native";
 import { BlurView } from "expo-blur";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 
@@ -71,8 +71,11 @@ export function TabBarWithPill({ state, descriptors, navigation }: BottomTabBarP
           {visibleRoutes.map((route, index) => {
           const { options } = descriptors[route.key] ?? {};
           const isFocused = visibleIndex === index;
-          const label = options?.tabBarLabel ?? route.name;
-          const icon = options?.tabBarIcon?.({ focused: isFocused, color: isFocused ? ACTIVE_COLOR : INACTIVE_COLOR, size: 24 });
+          const icon = options?.tabBarIcon?.({
+            focused: isFocused,
+            color: isFocused ? ACTIVE_COLOR : INACTIVE_COLOR,
+            size: 26.4,
+          });
           return (
             <Pressable
               key={route.key}
@@ -91,9 +94,6 @@ export function TabBarWithPill({ state, descriptors, navigation }: BottomTabBarP
               accessibilityRole="button"
             >
               {icon}
-              <Text style={[styles.label, { color: isFocused ? ACTIVE_COLOR : INACTIVE_COLOR, fontWeight: isFocused ? "600" : "500" }]} numberOfLines={1}>
-                {typeof label === "string" ? label : route.name}
-              </Text>
             </Pressable>
           );
         })}
@@ -126,9 +126,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 0,
   },
   tabBarGlass: {
-    backgroundColor: "rgba(255, 255, 255, 0.72)",
+    backgroundColor: "rgba(255, 255, 255, 0.62)",
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.6)",
+    borderColor: "rgba(255, 255, 255, 0.72)",
   },
   tabBarGlassContent: {
     flex: 1,
@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
   },
   tabBarGlassOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(255, 255, 255, 0.72)",
+    backgroundColor: "rgba(255, 255, 255, 0.62)",
   },
   pill: {
     position: "absolute",
@@ -145,24 +145,20 @@ const styles = StyleSheet.create({
     top: 8,
     bottom: 8,
     borderRadius: 9999,
-    backgroundColor: "rgba(255,255,255,0.75)",
+    backgroundColor: "rgba(255,255,255,0.9)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.95)",
+    borderColor: "rgba(255,255,255,1)",
     shadowColor: "#7C3AED",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    elevation: 4,
+    shadowOpacity: 0.2,
+    shadowRadius: 18,
+    elevation: 6,
   },
   tab: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 10,
+    paddingVertical: 0,
     zIndex: 1,
-  },
-  label: {
-    fontSize: 10,
-    marginTop: 3,
   },
 });

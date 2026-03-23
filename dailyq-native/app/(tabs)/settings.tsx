@@ -31,6 +31,7 @@ import {
 import { getExpoPushTokenAsync } from "@/src/native/notifications";
 import { useStreakMilestone, STREAK_MILESTONES } from "@/src/context/StreakMilestoneContext";
 import { setPendingReferralCode } from "@/src/lib/referralPending";
+import { setReferralGivenDevTrigger } from "@/src/lib/referralGivenDevTrigger";
 
 const REMINDER_TIME_KEY = "dailyq-reminder-time";
 
@@ -192,6 +193,7 @@ export default function SettingsScreen() {
   const [referralCodeInput, setReferralCodeInput] = useState("");
   const [startReferralLoading, setStartReferralLoading] = useState(false);
   const [startReferralError, setStartReferralError] = useState<string | null>(null);
+  const [triggerReferralGivenModalLoading, setTriggerReferralGivenModalLoading] = useState(false);
 
   useEffect(() => {
     AsyncStorage.getItem(REMINDER_TIME_KEY).then((value) => {
@@ -297,6 +299,19 @@ export default function SettingsScreen() {
       setStartReferralLoading(false);
     }
   }, [effectiveUser?.id, referralCodeInput, refetchProfile, router]);
+
+  const handleTriggerReferralGivenModal = useCallback(async () => {
+    if (!__DEV__) return;
+    setTriggerReferralGivenModalLoading(true);
+    try {
+      await setReferralGivenDevTrigger();
+      router.replace("/");
+    } catch (e) {
+      console.error("[Settings] Trigger referral_given modal failed:", e);
+    } finally {
+      setTriggerReferralGivenModalLoading(false);
+    }
+  }, [router]);
 
   return (
     <GlassCardContainer>
@@ -417,6 +432,30 @@ export default function SettingsScreen() {
                   <Text style={styles.cardSubtitle}>Set code + open referral claim flow</Text>
                 </View>
                 <Feather name="chevron-right" size={20} color={COLORS.TEXT_MUTED} />
+              </View>
+            </Pressable>
+          )}
+
+          {/* Trigger referral_given app-open modal (dev only) */}
+          {__DEV__ && (
+            <Pressable
+              style={[styles.card, triggerReferralGivenModalLoading && styles.cardDisabled]}
+              onPress={handleTriggerReferralGivenModal}
+              disabled={triggerReferralGivenModalLoading}
+            >
+              <View style={styles.cardIconWrap}>
+                <View style={[styles.cardIcon, styles.cardIconPurple]}>
+                  <Feather name="bell" size={16} strokeWidth={2} color={COLORS.ACCENT} />
+                </View>
+                <View style={styles.cardTextWrap}>
+                  <Text style={styles.cardTitle}>Trigger referral_given modal (dev)</Text>
+                  <Text style={styles.cardSubtitle}>Show one-time referral reward modal on app open</Text>
+                </View>
+                {triggerReferralGivenModalLoading ? (
+                  <ActivityIndicator size="small" color={COLORS.ACCENT} />
+                ) : (
+                  <Feather name="chevron-right" size={20} color={COLORS.TEXT_MUTED} />
+                )}
               </View>
             </Pressable>
           )}

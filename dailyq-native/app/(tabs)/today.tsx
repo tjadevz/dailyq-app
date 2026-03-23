@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -24,7 +24,7 @@ import { useCalendarAnswersContext } from "@/src/context/CalendarAnswersContext"
 import { useTodayQuestion } from "@/src/hooks/useTodayQuestion";
 import { useProfileContext } from "@/src/context/ProfileContext";
 import { getDayOfYear } from "@/src/lib/date";
-import { resolveAccountMilestone } from "@/src/lib/accountMilestone";
+import { daysSinceAccountCreated, resolveAccountMilestone } from "@/src/lib/accountMilestone";
 import { supabase } from "@/src/config/supabase";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { JokerModal } from "@/src/components/JokerModal";
@@ -119,6 +119,13 @@ export default function TodayScreen() {
   const [profileCreatedAtForMilestone, setProfileCreatedAtForMilestone] = useState<string | null>(
     null
   );
+
+  const accountMilestoneDaysSinceCreation = useMemo(() => {
+    const iso =
+      profileCreatedAtForMilestone ?? profile?.created_at ?? effectiveUser?.created_at ?? null;
+    return daysSinceAccountCreated(iso);
+  }, [profileCreatedAtForMilestone, profile?.created_at, effectiveUser?.created_at]);
+
   const [milestoneModalVisible, setMilestoneModalVisible] = useState(false);
   const [milestoneAnswers, setMilestoneAnswers] = useState<AccountMilestoneAnswer[]>([]);
   const [activeAccountMilestone, setActiveAccountMilestone] = useState<10 | null>(null);
@@ -231,18 +238,6 @@ export default function TodayScreen() {
       cancelled = true;
     };
   }, [showSubmitSuccess, pendingMilestone, pendingStreakMilestone, streakCelebrationOpen, userId, lang]);
-
-  const handleDevReplayAccountMilestoneModal = useCallback(async () => {
-    if (!__DEV__) return;
-    if (!userId || userId === "dev-user") return;
-    const mapped = await fetchAccountMilestoneAnswersForModal(userId, lang);
-    if (mapped == null) return;
-    const { data: prof } = await supabase.from("profiles").select("created_at").eq("id", userId).maybeSingle();
-    if (prof?.created_at) setProfileCreatedAtForMilestone(prof.created_at);
-    setActiveAccountMilestone(10);
-    setMilestoneAnswers(mapped);
-    setMilestoneModalVisible(true);
-  }, [userId, lang]);
 
   const handleMilestoneClose = useCallback(async () => {
     const m = activeAccountMilestone;
@@ -464,17 +459,7 @@ export default function TodayScreen() {
       <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
         <View style={[styles.container, { paddingTop: insets.top }]}>
           <View style={styles.header}>
-            {__DEV__ ? (
-              <Pressable
-                onPress={handleDevReplayAccountMilestoneModal}
-                style={styles.devReplayMilestone}
-                hitSlop={8}
-              >
-                <Text style={styles.devReplayMilestoneText}>Replay milestone</Text>
-              </Pressable>
-            ) : (
-              <View style={styles.headerSpacer} />
-            )}
+            <View style={styles.headerSpacer} />
             <View style={styles.headerRight}>
               <JokerBadge
                 count={profile?.joker_balance ?? 0}
@@ -605,13 +590,7 @@ export default function TodayScreen() {
           <SubmitSuccessModal visible={showSubmitSuccess} />
           <AccountMilestoneModal
             visible={milestoneModalVisible}
-            daysSinceCreation={
-              profileCreatedAtForMilestone
-                ? Math.floor(
-                    (Date.now() - new Date(profileCreatedAtForMilestone).getTime()) / 86400000
-                  )
-                : 0
-            }
+            daysSinceCreation={accountMilestoneDaysSinceCreation}
             answers={milestoneAnswers}
             onClose={handleMilestoneClose}
           />
@@ -879,15 +858,6 @@ const styles = StyleSheet.create({
   },
   headerSpacer: {
     flex: 1,
-  },
-  devReplayMilestone: {
-    flex: 1,
-    justifyContent: "center",
-  },
-  devReplayMilestoneText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: COLORS.ACCENT,
   },
   headerRight: {
     flex: 1,

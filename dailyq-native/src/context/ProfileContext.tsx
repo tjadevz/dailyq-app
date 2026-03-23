@@ -7,6 +7,8 @@ export type Profile = {
   joker_balance: number;
   language: string;
   onboarding_completed: boolean;
+  /** From profiles.created_at — used for account-age UI (e.g. milestone modal). */
+  created_at?: string | null;
 };
 
 type ProfileContextValue = {
@@ -38,7 +40,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
 
     const { data: prof, error: fetchErr } = await supabase
       .from("profiles")
-      .select("id, joker_balance, language, onboarding_completed")
+      .select("id, joker_balance, language, onboarding_completed, created_at")
       .eq("id", userId)
       .maybeSingle();
 

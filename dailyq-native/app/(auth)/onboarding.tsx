@@ -33,6 +33,7 @@ import {
   upsertPushSubscription,
 } from "@/src/lib/pushSubscription";
 import { registerForPushNotificationsAsync } from "@/src/native/notifications";
+import { getPendingReferralCode } from "@/src/lib/referralPending";
 
 const REMINDER_TIME_KEY = "dailyq-reminder-time";
 
@@ -195,6 +196,15 @@ export default function OnboardingScreen() {
       });
       const { error: upsertErr } = await upsertPushSubscription(userId, token, reminderTime);
       if (upsertErr) console.error("[onboarding] Push subscription upsert failed:", upsertErr);
+
+      // If the user opened the app from a referral link, we store a pending code in AsyncStorage.
+      // Claim happens in a dedicated screen after auth, then we go to regular onboarding.
+      const pendingReferralCode = await getPendingReferralCode();
+      if (pendingReferralCode) {
+        router.replace("/(auth)/referral-claim");
+        return;
+      }
+
       const { data: profileRow } = await supabase
         .from("profiles")
         .select("onboarding_completed")

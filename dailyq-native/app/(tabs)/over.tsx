@@ -1,5 +1,5 @@
-import React from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, Linking } from "react-native";
+import React, { useMemo } from "react";
+import { View, Text, StyleSheet, ScrollView, Pressable, Linking, PanResponder } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Feather from "@expo/vector-icons/Feather";
@@ -17,10 +17,26 @@ export default function OverScreen() {
   const router = useRouter();
   const { t } = useLanguage();
   const appVersion = Constants.expoConfig?.version ?? APP_VERSION;
+  const swipeBackResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_, gestureState) =>
+          gestureState.dx > 14 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.2,
+        onPanResponderRelease: (_, gestureState) => {
+          if (gestureState.dx > 70 && gestureState.vx > 0.15) {
+            router.replace("/(tabs)/settings");
+          }
+        },
+      }),
+    [router]
+  );
 
   return (
     <GlassCardContainer>
-      <View style={[styles.container, { paddingTop: insets.top }]}>
+      <View
+        style={[styles.container, { paddingTop: insets.top }]}
+        {...swipeBackResponder.panHandlers}
+      >
         <View style={styles.header}>
           <Pressable
             style={styles.backButton}

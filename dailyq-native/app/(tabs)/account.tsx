@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   Modal,
   Animated,
   ActivityIndicator,
+  PanResponder,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -90,6 +91,19 @@ export default function AccountScreen() {
   const { t } = useLanguage();
   const { deleteUser } = useAuth();
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const swipeBackResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_, gestureState) =>
+          gestureState.dx > 14 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.2,
+        onPanResponderRelease: (_, gestureState) => {
+          if (gestureState.dx > 70 && gestureState.vx > 0.15) {
+            router.replace("/(tabs)/settings");
+          }
+        },
+      }),
+    [router]
+  );
 
   const handleDeleteAccount = useCallback(async () => {
     const { error } = await deleteUser();
@@ -100,7 +114,10 @@ export default function AccountScreen() {
 
   return (
     <GlassCardContainer>
-      <View style={[accountStyles.container, { paddingTop: insets.top }]}>
+      <View
+        style={[accountStyles.container, { paddingTop: insets.top }]}
+        {...swipeBackResponder.panHandlers}
+      >
         <View style={accountStyles.header}>
           <Pressable
             style={accountStyles.backButton}

@@ -14,6 +14,7 @@ import {
   Share,
 } from "react-native";
 import Feather from "@expo/vector-icons/Feather";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -40,6 +41,7 @@ import AccountMilestoneModal, {
 } from "@/src/components/modals/AccountMilestoneModal";
 
 const MAX_ANSWER_LENGTH = 280;
+const TODAY_PRIMARY_GRADIENT = ["rgba(139,92,246,0.96)", "rgba(124,58,237,0.96)"] as const;
 
 /** Answers + question text for AccountMilestoneModal (same as post-submit milestone flow). */
 async function fetchAccountMilestoneAnswersForModal(
@@ -477,7 +479,14 @@ export default function TodayScreen() {
                 onPress={() => void handleInvite()}
                 style={({ pressed }) => [styles.inviteIconButton, pressed && styles.inviteIconButtonPressed]}
               >
-                <Feather name="user-plus" size={18} color="#FFFFFF" strokeWidth={6} />
+                <LinearGradient
+                  colors={["rgba(139,92,246,0.96)", "rgba(124,58,237,0.96)"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.inviteIconGradient}
+                >
+                  <MaterialCommunityIcons name="account-plus" size={20} color="#FFFFFF" />
+                </LinearGradient>
               </Pressable>
             </View>
             <View style={styles.headerRight}>
@@ -568,6 +577,7 @@ export default function TodayScreen() {
                 {hasAnswer ? (
                   <PrimaryButton
                     onPress={() => setAnswerModalOpen(true)}
+                    gradientColors={TODAY_PRIMARY_GRADIENT}
                   >
                     {t("today_edit_answer")}
                   </PrimaryButton>
@@ -575,6 +585,7 @@ export default function TodayScreen() {
                   <PrimaryButton
                     fullWidth
                     onPress={() => setAnswerModalOpen(true)}
+                    gradientColors={TODAY_PRIMARY_GRADIENT}
                   >
                     {t("today_answer_question")}
                   </PrimaryButton>
@@ -680,12 +691,19 @@ const styles = StyleSheet.create({
   inviteIconButton: {
     alignItems: "center",
     justifyContent: "center",
+    borderRadius: 9999,
+    overflow: "hidden",
+  },
+  inviteIconGradient: {
+    minHeight: 30,
+    minWidth: 56,
     paddingVertical: 6,
     paddingHorizontal: 15,
     borderRadius: 9999,
     borderWidth: 1,
     borderColor: "rgba(109, 40, 217, 0.55)",
-    backgroundColor: "#7C3AED",
+    alignItems: "center",
+    justifyContent: "center",
   },
   inviteIconButtonPressed: {
     opacity: 0.7,

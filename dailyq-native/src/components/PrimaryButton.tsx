@@ -12,6 +12,7 @@ export function PrimaryButton({
   style,
   textStyle,
   fullWidth,
+  gradientColors,
 }: {
   onPress: () => void;
   disabled?: boolean;
@@ -20,6 +21,7 @@ export function PrimaryButton({
   style?: ViewStyle;
   textStyle?: object;
   fullWidth?: boolean;
+  gradientColors?: readonly [string, string];
 }) {
   return (
     <Pressable
@@ -33,7 +35,7 @@ export function PrimaryButton({
     >
       <View style={styles.gradientWrap}>
         <LinearGradient
-          colors={disabled ? ["#9CA3AF", "#9CA3AF"] : GRADIENT_COLORS}
+          colors={disabled ? ["#9CA3AF", "#9CA3AF"] : gradientColors ?? GRADIENT_COLORS}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={[styles.gradient, disabled && styles.gradientDisabled]}

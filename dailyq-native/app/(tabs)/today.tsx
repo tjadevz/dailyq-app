@@ -29,7 +29,7 @@ import { getDayOfYear } from "@/src/lib/date";
 import { daysSinceAccountCreated, resolveAccountMilestone } from "@/src/lib/accountMilestone";
 import { supabase } from "@/src/config/supabase";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { JokerModal } from "@/src/components/JokerModal";
+import { JokerModalBottomSheet } from "@/src/components/JokerModalBottomSheet";
 import { JokerBadge } from "@/src/components/JokerBadge";
 import { PrimaryButton } from "@/src/components/PrimaryButton";
 import { GlassCardContainer } from "@/src/components/GlassCardContainer";
@@ -612,7 +612,7 @@ export default function TodayScreen() {
             submitting={submitting}
           />
 
-          <JokerModal
+          <JokerModalBottomSheet
             visible={jokerModalVisible}
             onClose={() => setJokerModalVisible(false)}
             jokerBalance={profile?.joker_balance ?? 0}

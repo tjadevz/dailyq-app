@@ -5,7 +5,7 @@
 import type { ViewStyle } from "react-native";
 
 /** App version shown in Settings (expo-constants removed for TurboModule isolation). */
-export const APP_VERSION = "1.3.0";
+export const APP_VERSION = "1.3.1";
 
 export const COLORS = {
   BACKGROUND: "#F4F6F9",

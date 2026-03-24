@@ -41,7 +41,7 @@ import {
 } from "@/src/context/CalendarAnswersContext";
 import { getNow, getLocalDayKey } from "@/src/lib/date";
 import { supabase } from "@/src/config/supabase";
-import { JokerModal } from "@/src/components/JokerModal";
+import { JokerModalBottomSheet } from "@/src/components/JokerModalBottomSheet";
 import JokerOfferModal from "@/src/components/JokerOfferModal";
 import { JokerBadge } from "@/src/components/JokerBadge";
 import { GlassCardContainer } from "@/src/components/GlassCardContainer";
@@ -1139,7 +1139,7 @@ export default function CalendarScreen() {
           submitting={missedAnswerSubmitting}
         />
       )}
-      <JokerModal
+      <JokerModalBottomSheet
         visible={jokerModalVisible}
         onClose={() => setJokerModalVisible(false)}
         jokerBalance={jokerCount}

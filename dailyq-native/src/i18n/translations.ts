@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Localization from "expo-localization";
 
 export type Lang = "en" | "nl";
 
@@ -419,12 +420,27 @@ export const translations: Record<Lang, Record<string, string>> = {
 
 const LANG_STORAGE_KEY = "dailyq-lang";
 
-export async function getStoredLanguage(): Promise<Lang> {
+export function mapLocaleToLanguage(localeTag?: string | null): Lang {
+  const normalized = localeTag?.toLowerCase() ?? "";
+  return normalized.startsWith("nl") ? "nl" : "en";
+}
+
+export function getDeviceDefaultLanguage(): Lang {
+  try {
+    const firstLocale = Localization.getLocales?.()?.[0];
+    const localeTag = firstLocale?.languageTag ?? firstLocale?.languageCode ?? null;
+    return mapLocaleToLanguage(localeTag);
+  } catch {
+    return "en";
+  }
+}
+
+export async function getStoredLanguage(fallbackLang: Lang = "nl"): Promise<Lang> {
   try {
     const stored = (await AsyncStorage.getItem(LANG_STORAGE_KEY)) as Lang | null;
-    return stored === "en" || stored === "nl" ? stored : "nl";
+    return stored === "en" || stored === "nl" ? stored : fallbackLang;
   } catch {
-    return "nl";
+    return fallbackLang;
   }
 }
 

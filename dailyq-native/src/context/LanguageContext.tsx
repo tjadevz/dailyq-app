@@ -9,14 +9,13 @@ import {
 } from "react";
 import type { Lang } from "../i18n/translations";
 import {
+  getDeviceDefaultLanguage,
   getStoredLanguage,
   setStoredLanguage,
   t as translate,
 } from "../i18n/translations";
 import { supabase } from "../config/supabase";
 import { useAuth } from "./AuthContext";
-
-const LANG_STORAGE_KEY = "dailyq-lang";
 
 type TFunction = (
   key: string,
@@ -52,7 +51,7 @@ const LanguageContext = createContext<LanguageContextValue | null>(null);
 
 export function LanguageProvider({
   children,
-  initialLang = "nl",
+  initialLang = getDeviceDefaultLanguage(),
 }: {
   children: React.ReactNode;
   initialLang?: Lang;
@@ -64,7 +63,8 @@ export function LanguageProvider({
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const stored = await getStoredLanguage();
+      const deviceDefaultLang = getDeviceDefaultLanguage();
+      const stored = await getStoredLanguage(deviceDefaultLang);
       if (cancelled) return;
       if (userId) {
         const { data } = await supabase

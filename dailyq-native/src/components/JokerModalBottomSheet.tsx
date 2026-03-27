@@ -5,11 +5,12 @@ import {
   StyleSheet,
   Dimensions,
   Animated,
+  Modal,
+  Pressable,
 } from "react-native";
 import Feather from "@expo/vector-icons/Feather";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { LinearGradient } from "expo-linear-gradient";
-import RBSheet from "react-native-raw-bottom-sheet";
 import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
 import AnimatedReanimated, {
   Easing,
@@ -38,22 +39,26 @@ export function JokerModalBottomSheet({
   onClose,
   t,
 }: JokerModalBottomSheetProps) {
-  const sheetRef = useRef<RBSheet | null>(null);
   const crownTranslateY = useRef(new Animated.Value(20)).current;
   const crownEntryScale = useRef(new Animated.Value(0.9)).current;
   const crownPulseScale = useRef(new Animated.Value(1)).current;
   const crownEntryOpacity = useRef(new Animated.Value(0)).current;
   const crownPulseLoopRef = useRef<Animated.CompositeAnimation | null>(null);
+  const slideY = useSharedValue(SHEET_HEIGHT);
+  const backdropOpacity = useSharedValue(0);
   const dragY = useSharedValue(0);
 
   useEffect(() => {
     if (visible) {
-      sheetRef.current?.open();
+      slideY.value = SHEET_HEIGHT;
+      backdropOpacity.value = 0;
       dragY.value = 0;
       crownTranslateY.setValue(20);
       crownEntryScale.setValue(0.9);
       crownPulseScale.setValue(1);
       crownEntryOpacity.setValue(0);
+      slideY.value = withSpring(0, { damping: 22, stiffness: 140, mass: 0.8 });
+      backdropOpacity.value = withTiming(1, { duration: 200 });
 
       Animated.parallel([
         Animated.timing(crownEntryOpacity, {
@@ -96,10 +101,16 @@ export function JokerModalBottomSheet({
     crownPulseLoopRef.current?.stop();
     crownPulseLoopRef.current = null;
     crownPulseScale.setValue(1);
-    if (sheetRef.current) {
-      sheetRef.current.close();
-    }
-  }, [visible, crownEntryOpacity, crownEntryScale, crownPulseScale, crownTranslateY, dragY]);
+  }, [
+    visible,
+    crownEntryOpacity,
+    crownEntryScale,
+    crownPulseScale,
+    crownTranslateY,
+    dragY,
+    slideY,
+    backdropOpacity,
+  ]);
 
   useEffect(() => {
     return () => {
@@ -108,8 +119,20 @@ export function JokerModalBottomSheet({
     };
   }, []);
 
-  const closeSheet = () => {
-    sheetRef.current?.close();
+  const closeSheet = () => onClose();
+
+  const handleClose = () => {
+    backdropOpacity.value = withTiming(0, { duration: 180 });
+    slideY.value = withTiming(
+      SHEET_HEIGHT,
+      { duration: 220, easing: Easing.inOut(Easing.cubic) },
+      (finished) => {
+        if (finished) {
+          dragY.value = 0;
+          runOnJS(closeSheet)();
+        }
+      }
+    );
   };
 
   const panGesture = Gesture.Pan()
@@ -124,39 +147,39 @@ export function JokerModalBottomSheet({
       const velocityThreshold = 400;
       const shouldDismiss = dragY.value > threshold || e.velocityY > velocityThreshold;
       if (shouldDismiss) {
-        runOnJS(closeSheet)();
+        const currentY = slideY.value + dragY.value;
+        slideY.value = currentY;
+        dragY.value = 0;
+        backdropOpacity.value = withTiming(0, { duration: 180 });
+        slideY.value = withTiming(
+          SHEET_HEIGHT,
+          { duration: 220, easing: Easing.inOut(Easing.cubic) },
+          (finished) => {
+            if (finished) runOnJS(closeSheet)();
+          }
+        );
       } else {
         dragY.value = withSpring(0, { damping: 20, stiffness: 300 });
       }
     });
 
-  const dragAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: dragY.value }],
+  const backdropStyle = useAnimatedStyle(() => ({
+    opacity: backdropOpacity.value,
   }));
 
+  const dragAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: slideY.value + dragY.value }],
+  }));
+
+  if (!visible) return null;
+
   return (
-    <RBSheet
-      ref={sheetRef}
-      height={SHEET_HEIGHT}
-      closeOnPressMask={true}
-      closeOnPressBack={true}
-      closeOnDragDown={false}
-      dragFromTopOnly={true}
-      animationType="slide"
-      openDuration={240}
-      closeDuration={200}
-      onClose={() => {
-        dragY.value = 0;
-        onClose();
-      }}
-      customStyles={{
-        wrapper: styles.wrapper,
-        container: styles.sheetContainer,
-      }}
-    >
-      <GestureHandlerRootView style={styles.sheetBody}>
-        <GestureDetector gesture={panGesture}>
-          <AnimatedReanimated.View style={[styles.draggableSurface, dragAnimatedStyle]}>
+    <Modal transparent visible={visible} animationType="none" onRequestClose={handleClose}>
+      <GestureHandlerRootView style={StyleSheet.absoluteFill}>
+        <AnimatedReanimated.View style={[styles.modalBackdrop, backdropStyle]}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
+          <GestureDetector gesture={panGesture}>
+            <AnimatedReanimated.View style={[styles.draggableSurface, dragAnimatedStyle]}>
         <View style={styles.backgroundLayer} pointerEvents="none">
           <BackgroundLayer />
         </View>
@@ -223,15 +246,17 @@ export function JokerModalBottomSheet({
             </View>
           </View>
         </View>
-          </AnimatedReanimated.View>
-        </GestureDetector>
+            </AnimatedReanimated.View>
+          </GestureDetector>
+        </AnimatedReanimated.View>
       </GestureHandlerRootView>
-    </RBSheet>
+    </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  wrapper: {
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(76,29,149,0.32)",
   },
   topHandleWrap: {
@@ -246,19 +271,12 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: "rgba(156,163,175,0.7)",
   },
-  sheetContainer: {
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    backgroundColor: "transparent",
-    minHeight: 520,
-    overflow: "hidden",
-  },
-  sheetBody: {
-    flex: 1,
-    paddingBottom: 0,
-  },
   draggableSurface: {
-    flex: 1,
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: SHEET_HEIGHT,
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     overflow: "hidden",

@@ -99,6 +99,19 @@ async function fetchAccountMilestoneAnswersForModal(
   }
 }
 
+async function markAccountMilestoneShown(userId: string): Promise<void> {
+  const patch = { milestone_10_days_shown: true };
+  const shownKey = "milestone_10_days_shown";
+  const { error } = await supabase
+    .from("profiles")
+    .update(patch)
+    .eq("id", userId)
+    .eq(shownKey, false);
+  if (error) {
+    console.error("[Today] Account milestone profile update:", error);
+  }
+}
+
 export default function TodayScreen() {
   const insets = useSafeAreaInsets();
   const { lang, t } = useLanguage();
@@ -247,13 +260,8 @@ export default function TodayScreen() {
     setMilestoneModalVisible(false);
     setActiveAccountMilestone(null);
     if (!userId || userId === "dev-user" || !m) return;
-    const patch = { milestone_10_days_shown: true };
-    const { error } = await supabase.from("profiles").update(patch).eq("id", userId);
-    if (error) {
-      console.error("[Today] Account milestone close profile update:", error);
-    } else {
-      void refetchProfile();
-    }
+    await markAccountMilestoneShown(userId);
+    void refetchProfile();
   }, [userId, activeAccountMilestone, refetchProfile]);
 
   // Clear leftover Monday recap keys (feature removed); they are not read anywhere.
@@ -354,8 +362,18 @@ export default function TodayScreen() {
           if (profileErr) {
             console.error("[Today submit] Account milestone profile fetch:", profileErr);
           } else if (data) {
-            if (data.created_at) setProfileCreatedAtForMilestone(data.created_at);
-            setPendingMilestone(resolveAccountMilestone(data.created_at, data));
+            const createdAtForMilestone = data.created_at ?? effectiveUser?.created_at ?? null;
+            if (createdAtForMilestone) {
+              setProfileCreatedAtForMilestone(createdAtForMilestone);
+            }
+            const milestoneToShow = resolveAccountMilestone(createdAtForMilestone, data);
+            setPendingMilestone(milestoneToShow);
+            // Persist the shown flag as soon as eligibility is hit so users do not get stuck
+            // on false when modal close/update is interrupted.
+            if (milestoneToShow === 10) {
+              await markAccountMilestoneShown(userId);
+              void refetchProfile();
+            }
           }
         } catch (e) {
           console.error("[Today submit] Account milestone profile fetch:", e);
@@ -436,6 +454,7 @@ export default function TodayScreen() {
       setAnswerForDay,
       refetchProfile,
       showMilestone,
+      effectiveUser?.created_at,
     ]
   );
 

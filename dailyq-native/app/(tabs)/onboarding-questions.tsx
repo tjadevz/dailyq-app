@@ -239,15 +239,26 @@ export default function OnboardingQuestionsScreen() {
       setSaveError(null);
       setSaving(true);
       try {
+        const { error: useJokerErr } = await supabase.rpc("use_joker");
+        if (useJokerErr) throw useJokerErr;
+
         const { error: upsertErr } = await supabase.from("answers").upsert(
           {
             user_id: userId,
             question_date: q.question_date,
             answer_text: trimmed,
+            is_joker: true,
           },
           { onConflict: "user_id,question_date" }
         );
-        if (upsertErr) throw upsertErr;
+        if (upsertErr) {
+          try {
+            await supabase.rpc("restore_joker");
+          } catch (restoreErr) {
+            console.error("[onboarding-questions] Failed to restore joker:", restoreErr);
+          }
+          throw upsertErr;
+        }
         const nextIndex = currentIndex + 1;
         const isLast = nextIndex >= questions.length;
         setAnsweredCount((prev) => {

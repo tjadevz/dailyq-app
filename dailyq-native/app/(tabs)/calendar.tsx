@@ -539,11 +539,6 @@ export default function CalendarScreen() {
 
   const todayKey = getLocalDayKey(getNow());
   const activeYearMonth = todayKey.slice(0, 7);
-  const yesterdayKey = useMemo(() => {
-    const d = new Date(todayKey + "T12:00:00");
-    d.setDate(d.getDate() - 1);
-    return getLocalDayKey(d);
-  }, [todayKey]);
   const createdAtDayKey = useMemo((): string | null => {
     if (!effectiveUser?.created_at) return null;
     return getLocalDayKey(new Date(effectiveUser.created_at));
@@ -745,11 +740,11 @@ export default function CalendarScreen() {
     (dayKey: string, questionText?: string) => {
       setMissedAnswerDay(dayKey);
       setMissedAnswerQuestionText(questionText ?? "");
-      setMissedAnswerRequiresJoker(dayKey !== yesterdayKey);
+      setMissedAnswerRequiresJoker(true);
       setMissedDay(null);
       setMissedAnswerError(null);
     },
-    [yesterdayKey]
+    []
   );
 
   const handleMissedSaved = useCallback(
@@ -1092,7 +1087,6 @@ export default function CalendarScreen() {
         <JokerOfferModal
           visible={!!missedDay}
           dayKey={missedDay}
-          isYesterday={!!missedDay && missedDay === yesterdayKey}
           jokerCount={jokerCount}
           onClose={() => setMissedDay(null)}
           onUseJoker={(dayKey, questionText) =>

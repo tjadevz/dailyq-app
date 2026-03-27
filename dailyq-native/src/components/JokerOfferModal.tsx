@@ -25,8 +25,6 @@ const MODAL_WIDTH = SCREEN_WIDTH * 0.88;
 interface JokerOfferModalProps {
   visible: boolean;
   dayKey: string | null;
-  /** When true, yesterday (today - 1) is shown: "Answer" button, purple, no joker deducted. */
-  isYesterday?: boolean;
   jokerCount: number;
   onClose: () => void;
   onUseJoker: (dayKey: string, questionText: string) => void;
@@ -42,7 +40,6 @@ function parseDayKey(dayKey: string | null): Date | null {
 export default function JokerOfferModal({
   visible,
   dayKey,
-  isYesterday = false,
   jokerCount,
   onClose,
   onUseJoker,
@@ -130,7 +127,7 @@ export default function JokerOfferModal({
   }, [visible, backdropOpacity, cardScale, cardOpacity, cardY]);
 
   useEffect(() => {
-    if (visible && !isYesterday) {
+    if (visible) {
       crownScale.setValue(0);
       Animated.spring(crownScale, {
         toValue: 1,
@@ -141,7 +138,7 @@ export default function JokerOfferModal({
     } else {
       crownScale.setValue(0);
     }
-  }, [visible, isYesterday, crownScale]);
+  }, [visible, crownScale]);
 
   if (!visible || !dayKey || dateObj == null) return null;
 
@@ -214,28 +211,20 @@ export default function JokerOfferModal({
                 </Text>
               )}
 
-              {/* Unlock CTA: yesterday = "Answer" (purple, no icon); else joker flow (gold, crown). */}
+              {/* Unlock CTA: always joker flow for non-today answers. */}
               <View style={styles.ctaWrap}>
                 <TouchableOpacity
                   onPress={() => {
-                    if (dayKey && (isYesterday || jokerCount > 0)) onUseJoker(dayKey, questionText);
+                    if (dayKey && jokerCount > 0) onUseJoker(dayKey, questionText);
                   }}
                   activeOpacity={0.88}
-                  disabled={!isYesterday && jokerCount === 0}
+                  disabled={jokerCount === 0}
                   style={[
                     styles.ctaBtn,
-                    isYesterday && styles.ctaBtnPurple,
-                    !isYesterday && jokerCount === 0 && styles.ctaBtnDisabled,
+                    jokerCount === 0 && styles.ctaBtnDisabled,
                   ]}
                 >
-                  {isYesterday ? (
-                    <LinearGradient
-                      colors={["#C4B5FD", "#A78BFA"]}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={StyleSheet.absoluteFill}
-                    />
-                  ) : jokerCount > 0 ? (
+                  {jokerCount > 0 ? (
                     <LinearGradient
                       colors={["#F5CC50", JOKER.GOLD]}
                       start={{ x: 0, y: 0 }}
@@ -245,28 +234,24 @@ export default function JokerOfferModal({
                   ) : (
                     <View style={styles.ctaBtnGrayBg} />
                   )}
-                  {!isYesterday && (
-                    <Animated.View
-                      style={{
-                        transform: [{ scale: crownScale }],
-                      }}
-                    >
-                      <MaterialCommunityIcons
-                        name={jokerCount > 0 ? "crown" : "crown-outline"}
-                        size={16}
-                        color="#FFFFFF"
-                      />
-                    </Animated.View>
-                  )}
+                  <Animated.View
+                    style={{
+                      transform: [{ scale: crownScale }],
+                    }}
+                  >
+                    <MaterialCommunityIcons
+                      name={jokerCount > 0 ? "crown" : "crown-outline"}
+                      size={16}
+                      color="#FFFFFF"
+                    />
+                  </Animated.View>
                   <Text style={styles.ctaText}>
-                    {isYesterday
-                      ? t("missed_answer_free_btn")
-                      : jokerCount > 0
-                        ? t("joker_offer_unlock")
-                        : t("missed_no_jokers_left_error")}
+                    {jokerCount > 0
+                      ? t("joker_offer_unlock")
+                      : t("missed_no_jokers_left_error")}
                   </Text>
                 </TouchableOpacity>
-                {!isYesterday && jokerCount === 0 && (
+                {jokerCount === 0 && (
                   <Text style={styles.ctaHint}>{t("joker_offer_no_jokers_hint")}</Text>
                 )}
               </View>
@@ -380,9 +365,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.35,
     shadowRadius: 24,
     elevation: 8,
-  },
-  ctaBtnPurple: {
-    shadowColor: "#8B5CF6",
   },
   ctaBtnDisabled: {
     opacity: 0.4,

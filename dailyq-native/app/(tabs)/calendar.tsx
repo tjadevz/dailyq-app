@@ -116,7 +116,7 @@ function isOlderThan30Days(dayKey: string, todayKey: string): boolean {
   return dayKey < thirtyDaysAgoKey;
 }
 
-/** True when day is permanently locked: before account boundary or older than 30 days. Uses accountBoundaryDate (created_at - 7 when onboarding done). */
+/** True when day is permanently locked: before account boundary or older than 30 days. Uses accountBoundaryDate (created_at - 4 when onboarding done). */
 function isPermanentlyLockedDay(
   dayKey: string,
   todayKey: string,
@@ -547,7 +547,7 @@ export default function CalendarScreen() {
     if (!effectiveUser?.created_at) return undefined;
     if (profile?.onboarding_completed) {
       const d = new Date(effectiveUser.created_at);
-      d.setDate(d.getDate() - 7);
+      d.setDate(d.getDate() - 4);
       return getLocalDayKey(d);
     }
     return getLocalDayKey(new Date(effectiveUser.created_at));

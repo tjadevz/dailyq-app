@@ -470,6 +470,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#7C3AED",
     marginLeft: 12,
+    opacity: 0.78,
   },
   questionText: {
     fontSize: 25,

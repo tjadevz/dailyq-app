@@ -27,7 +27,7 @@ type OnboardingQuestion = {
   question_text: string;
 };
 
-const ONBOARDING_DAYS = 7;
+const ONBOARDING_DAYS = 5;
 
 const LOGO_SIZE = 110;
 
@@ -112,7 +112,7 @@ function OnboardingQuestionsIntroScreen({
 function getOnboardingDayKeys(): string[] {
   const today = getNow();
   const keys: string[] = [];
-  for (let i = ONBOARDING_DAYS; i >= 1; i--) {
+  for (let i = ONBOARDING_DAYS - 1; i >= 0; i--) {
     const d = new Date(today);
     d.setDate(d.getDate() - i);
     keys.push(getLocalDayKey(d));
@@ -144,7 +144,7 @@ export default function OnboardingQuestionsScreen() {
   }, [params.skipIntro]);
   const [showIntro, setShowIntro] = useState(!skipIntro);
   const [modalDismissed, setModalDismissed] = useState(false);
-  /** Number of questions answered (submitted) in this onboarding run; joker only if this is 7 when finishing. */
+  /** Number of questions answered (submitted) in this onboarding run; reward joker granted only if all 5 are answered (no skips). */
   const [answeredCount, setAnsweredCount] = useState(0);
 
   const dayKeys = useMemo(() => getOnboardingDayKeys(), []);
@@ -239,24 +239,16 @@ export default function OnboardingQuestionsScreen() {
       setSaveError(null);
       setSaving(true);
       try {
-        const { error: useJokerErr } = await supabase.rpc("use_joker");
-        if (useJokerErr) throw useJokerErr;
-
         const { error: upsertErr } = await supabase.from("answers").upsert(
           {
             user_id: userId,
             question_date: q.question_date,
             answer_text: trimmed,
-            is_joker: true,
+            is_joker: false,
           },
           { onConflict: "user_id,question_date" }
         );
         if (upsertErr) {
-          try {
-            await supabase.rpc("restore_joker");
-          } catch (restoreErr) {
-            console.error("[onboarding-questions] Failed to restore joker:", restoreErr);
-          }
           throw upsertErr;
         }
         const nextIndex = currentIndex + 1;
@@ -264,7 +256,7 @@ export default function OnboardingQuestionsScreen() {
         setAnsweredCount((prev) => {
           const next = prev + 1;
           if (isLast) {
-            if (next === questions.length) {
+            if (next === ONBOARDING_DAYS) {
               setOnboardingCompletedAndGoHome(true);
             } else {
               setModalDismissed(true);
@@ -298,6 +290,16 @@ export default function OnboardingQuestionsScreen() {
       setCurrentIndex((i) => i + 1);
     }
   }, [currentIndex, questions.length, setOnboardingCompletedAndGoHome]);
+
+  const handleStart = useCallback(() => {
+    if (userId && userId !== "dev-user") {
+      supabase.rpc("complete_onboarding_with_reward", { p_grant_joker: false }).then(({ error }) => {
+        if (error) console.error("[onboarding-questions] Failed to mark onboarding started:", error);
+        else refetchProfile();
+      });
+    }
+    setShowIntro(false);
+  }, [userId, refetchProfile]);
 
   const currentQuestion = questions[currentIndex];
   const total = questions.length;
@@ -339,7 +341,7 @@ export default function OnboardingQuestionsScreen() {
         <BackgroundLayer />
         <SafeAreaView style={styles.introSafe} edges={["top", "bottom"]}>
           <OnboardingQuestionsIntroScreen
-            onStart={() => setShowIntro(false)}
+            onStart={handleStart}
             t={t}
           />
         </SafeAreaView>

@@ -894,6 +894,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: "700",
     color: "#7C3AED",
+    opacity: 0.78,
   },
   answeredCheckCircleWrap: {
     marginBottom: 14,
@@ -1084,6 +1085,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: "700",
     color: "#7C3AED",
+    opacity: 0.78,
   },
   questionText: {
     fontSize: 23,

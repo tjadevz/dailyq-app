@@ -39,6 +39,7 @@ import { SubmitSuccessModal } from "@/src/components/SubmitSuccessModal";
 import AccountMilestoneModal, {
   type AccountMilestoneAnswer,
 } from "@/src/components/modals/AccountMilestoneModal";
+import PreviousYearModal from "@/src/components/modals/PreviousYearModal";
 
 const MAX_ANSWER_LENGTH = 280;
 const TODAY_PRIMARY_GRADIENT = ["rgba(139,92,246,0.96)", "rgba(124,58,237,0.96)"] as const;
@@ -109,6 +110,39 @@ async function markAccountMilestoneShown(userId: string): Promise<void> {
   }
 }
 
+const PREVIOUS_YEAR_LOOKBACK = 25;
+
+async function fetchPreviousYearSameDayAnswers(
+  userId: string,
+  dayKey: string
+): Promise<{ question_date: string; answer_text: string }[]> {
+  const parts = dayKey.split("-").map(Number);
+  if (parts.length !== 3) return [];
+  const [y, m, d] = parts;
+  if (!y || !m || !d) return [];
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const dates: string[] = [];
+  for (let i = 1; i <= PREVIOUS_YEAR_LOOKBACK; i++) {
+    const py = y - i;
+    if (py < 1970) break;
+    dates.push(`${py}-${pad(m)}-${pad(d)}`);
+  }
+  if (dates.length === 0) return [];
+  const { data, error } = await supabase
+    .from("answers")
+    .select("question_date, answer_text")
+    .eq("user_id", userId)
+    .in("question_date", dates);
+  if (error) {
+    console.error("[Today] Previous year answers fetch:", error);
+    return [];
+  }
+  const rows = (data as { question_date: string; answer_text: string | null }[]) ?? [];
+  return rows
+    .filter((r) => r.answer_text != null && String(r.answer_text).trim().length > 0)
+    .map((r) => ({ question_date: r.question_date, answer_text: String(r.answer_text).trim() }));
+}
+
 export default function TodayScreen() {
   const insets = useSafeAreaInsets();
   const { lang, t } = useLanguage();
@@ -144,6 +178,12 @@ export default function TodayScreen() {
   const [activeAccountMilestone, setActiveAccountMilestone] = useState<10 | null>(null);
   const [jokerModalVisible, setJokerModalVisible] = useState(false);
   const [editConfirmVisible, setEditConfirmVisible] = useState(false);
+  const [previousYearQueue, setPreviousYearQueue] = useState<{
+    items: { question_date: string; answer_text: string }[];
+    current: { question_date: string; answer_text: string };
+    questionText: string;
+  } | null>(null);
+  const [previousYearModalVisible, setPreviousYearModalVisible] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const inputRef = useRef<TextInput>(null);
@@ -251,6 +291,26 @@ export default function TodayScreen() {
       cancelled = true;
     };
   }, [showSubmitSuccess, pendingMilestone, pendingStreakMilestone, streakCelebrationOpen, userId, lang]);
+
+  useEffect(() => {
+    if (!previousYearQueue || previousYearQueue.items.length === 0) return;
+    if (showSubmitSuccess) return;
+    if (milestoneModalVisible) return;
+    if (streakCelebrationOpen) return;
+    if (pendingStreakMilestone !== null) return;
+    setPreviousYearModalVisible(true);
+  }, [
+    previousYearQueue,
+    showSubmitSuccess,
+    milestoneModalVisible,
+    streakCelebrationOpen,
+    pendingStreakMilestone,
+  ]);
+
+  const handlePreviousYearClose = useCallback(() => {
+    setPreviousYearModalVisible(false);
+    setPreviousYearQueue(null);
+  }, []);
 
   const handleMilestoneClose = useCallback(async () => {
     const m = activeAccountMilestone;
@@ -396,6 +456,16 @@ export default function TodayScreen() {
           setEditConfirmVisible(true);
           setTimeout(() => setEditConfirmVisible(false), 2500);
         }
+        void (async () => {
+          const prior = await fetchPreviousYearSameDayAnswers(userId, dayKey);
+          if (prior.length > 0) {
+            setPreviousYearQueue({
+              items: prior,
+              current: { question_date: dayKey, answer_text: trimmed },
+              questionText: question.text,
+            });
+          }
+        })();
 
         const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
         const { data: streaks } = await supabase.rpc("get_user_streaks", {
@@ -640,6 +710,13 @@ export default function TodayScreen() {
             daysSinceCreation={accountMilestoneDaysSinceCreation}
             answers={milestoneAnswers}
             onClose={handleMilestoneClose}
+          />
+          <PreviousYearModal
+            visible={previousYearModalVisible}
+            items={previousYearQueue?.items ?? []}
+            currentAnswer={previousYearQueue?.current ?? null}
+            questionText={previousYearQueue?.questionText ?? ""}
+            onClose={handlePreviousYearClose}
           />
           <EditConfirmModal visible={editConfirmVisible} message={t("today_answer_changed")} />
         </View>

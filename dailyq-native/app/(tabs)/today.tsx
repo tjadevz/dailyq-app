@@ -100,13 +100,10 @@ async function fetchAccountMilestoneAnswersForModal(
 }
 
 async function markAccountMilestoneShown(userId: string): Promise<void> {
-  const patch = { milestone_10_days_shown: true };
-  const shownKey = "milestone_10_days_shown";
   const { error } = await supabase
     .from("profiles")
-    .update(patch)
-    .eq("id", userId)
-    .eq(shownKey, false);
+    .update({ milestone_10_days_shown: true })
+    .eq("id", userId);
   if (error) {
     console.error("[Today] Account milestone profile update:", error);
   }

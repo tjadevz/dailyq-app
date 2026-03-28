@@ -22,14 +22,6 @@ import AnimatedReanimated, {
   withTiming,
 } from "react-native-reanimated";
 
-import {
-  useFonts,
-  Poppins_300Light,
-  Poppins_400Regular,
-  Poppins_500Medium,
-  Poppins_700Bold,
-} from "@expo-google-fonts/poppins";
-
 import { BackgroundLayer } from "@/src/components/BackgroundLayer";
 import { COLORS } from "@/src/config/constants";
 import { useLanguage } from "@/src/context/LanguageContext";
@@ -65,12 +57,6 @@ export default function AccountMilestoneModal({
   answers,
   onClose,
 }: Props) {
-  const [fontsLoaded] = useFonts({
-    Poppins_300Light,
-    Poppins_400Regular,
-    Poppins_500Medium,
-    Poppins_700Bold,
-  });
   const insets = useSafeAreaInsets();
   const { lang } = useLanguage();
   const backdropOpacity = useSharedValue(0);
@@ -178,7 +164,7 @@ export default function AccountMilestoneModal({
                         justifyContent: "space-between",
                       }}
                     >
-                      <Text style={{ fontSize: 14, color: "#C4B5FD", fontFamily: "Poppins_500Medium" }}>
+                      <Text style={{ fontSize: 14, color: "#C4B5FD", fontWeight: "500" }}>
                         This is
                       </Text>
                       <Text
@@ -186,7 +172,6 @@ export default function AccountMilestoneModal({
                           fontSize: 44,
                           fontWeight: "700",
                           color: "#FFFFFF",
-                          fontFamily: "Poppins_700Bold",
                         }}
                       >
                         {daysSinceCreation}
@@ -196,7 +181,6 @@ export default function AccountMilestoneModal({
                           fontSize: 20,
                           fontWeight: "600",
                           color: "#EDE9FE",
-                          fontFamily: "Poppins_700Bold",
                         }}
                       >
                         days of you.
@@ -308,7 +292,6 @@ const styles = StyleSheet.create({
   },
   cardDate: {
     fontSize: 12,
-    fontFamily: "Poppins_500Medium",
     fontWeight: "500",
     color: "#7C3AED",
     marginBottom: 6,
@@ -316,14 +299,12 @@ const styles = StyleSheet.create({
   cardQuestion: {
     fontSize: 13,
     lineHeight: 13 * 1.4,
-    fontFamily: "Poppins_400Regular",
     color: COLORS.TEXT_SECONDARY,
     marginBottom: 8,
   },
   cardAnswer: {
     fontSize: 15,
     lineHeight: 15 * 1.5,
-    fontFamily: "Poppins_400Regular",
     color: COLORS.TEXT_PRIMARY,
   },
 });

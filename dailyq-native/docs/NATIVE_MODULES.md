@@ -59,7 +59,7 @@ Deze packages zijn in één keer uit `package.json` gehaald; code die ze gebruik
 |--------|--------|-----------|
 | **expo-blur** | Verwijderd | Geen: werd nergens geïmporteerd. |
 | **react-native-webview** | Verwijderd | Geen: werd nergens geïmporteerd. |
-| **expo-constants** | Verwijderd; versie uit `@/src/config/constants` (APP_VERSION) | Settings toont vaste "1.0.0"; wijzig bij release handmatig in `constants.ts`. |
+| **expo-constants** | Verwijderd; versie uit `@/src/config/constants` (APP_VERSION) | Settings toont vaste "1.3.2"; wijzig bij release handmatig in `constants.ts`. |
 | **expo-linking** | Verwijderd | Geen: werd nergens geïmporteerd. Deep links werken niet tot we weer linken. |
 | **expo-status-bar** | Verwijderd | Geen expliciete StatusBar in onze code; systeem statusbalk blijft standaard. |
 

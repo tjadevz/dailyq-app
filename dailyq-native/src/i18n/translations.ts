@@ -83,7 +83,7 @@ export const translations: Record<Lang, Record<string, string>> = {
     onboarding_skip: "Skip",
     onboarding_questions_intro_title: "Welcome to DailyQ",
     onboarding_questions_intro_subtitle:
-      "Your archive starts here. Your first 7 questions are waiting.",
+      "Your archive starts here. Your first 5 questions are waiting.",
     onboarding_questions_intro_cta: "Start",
     referral_claim_cta: "Claim your Joker",
     onboarding_reward_title: "You've earned a joker!",
@@ -289,7 +289,7 @@ export const translations: Record<Lang, Record<string, string>> = {
     onboarding_skip: "Overslaan",
     onboarding_questions_intro_title: "Welkom bij DailyQ",
     onboarding_questions_intro_subtitle:
-      "Hier begint jouw archief. Je eerste 7 vragen wachten op je.",
+      "Hier begint jouw archief. Je eerste 5 vragen wachten op je.",
     onboarding_questions_intro_cta: "Begin",
     referral_claim_cta: "Claim je Joker",
     onboarding_reward_title: "Je hebt een joker verdiend!",

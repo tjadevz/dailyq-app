@@ -9,13 +9,16 @@ import {
   Animated,
   ActivityIndicator,
   TextInput,
+  Linking,
+  Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Feather from "@expo/vector-icons/Feather";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import { COLORS, MODAL, MODAL_CLOSE_MS } from "@/src/config/constants";
+import { APP_VERSION, COLORS, MODAL, MODAL_CLOSE_MS } from "@/src/config/constants";
 import { GlassCardContainer } from "@/src/components/GlassCardContainer";
 import { useLanguage } from "@/src/context/LanguageContext";
 import { useAuth } from "@/src/context/AuthContext";
@@ -34,6 +37,7 @@ import { setPendingReferralCode } from "@/src/lib/referralPending";
 import { setReferralGivenDevTrigger } from "@/src/lib/referralGivenDevTrigger";
 
 const REMINDER_TIME_KEY = "dailyq-reminder-time";
+const FEEDBACK_EMAIL = "info@dailyqapp.com";
 
 const showDebugModals = __DEV__ && process.env.EXPO_PUBLIC_DEBUG_MODALS === "true";
 
@@ -313,6 +317,19 @@ export default function SettingsScreen() {
     }
   }, [router]);
 
+  const handleSendFeedback = useCallback(async () => {
+    const subject = encodeURIComponent(`DailyQ Feedback (v${APP_VERSION})`);
+    const url = `mailto:${FEEDBACK_EMAIL}?subject=${subject}`;
+    try {
+      await Linking.openURL(url);
+    } catch {
+      Alert.alert(
+        t("settings_feedback_mail_error_title"),
+        t("settings_feedback_mail_error_body", { email: FEEDBACK_EMAIL })
+      );
+    }
+  }, [t]);
+
   return (
     <GlassCardContainer>
       <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -373,6 +390,19 @@ export default function SettingsScreen() {
               </View>
               <View style={styles.cardTextWrap}>
                 <Text style={styles.cardTitle}>{t("settings_about")}</Text>
+              </View>
+              <Feather name="chevron-right" size={20} color={COLORS.TEXT_MUTED} />
+            </View>
+          </Pressable>
+
+          {/* Send Feedback */}
+          <Pressable style={styles.card} onPress={handleSendFeedback}>
+            <View style={styles.cardIconWrap}>
+              <View style={[styles.cardIcon, styles.cardIconBlue]}>
+                <MaterialCommunityIcons name="email-outline" size={18} color="#3B82F6" />
+              </View>
+              <View style={styles.cardTextWrap}>
+                <Text style={styles.cardTitle}>{t("settings_send_feedback")}</Text>
               </View>
               <Feather name="chevron-right" size={20} color={COLORS.TEXT_MUTED} />
             </View>

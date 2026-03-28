@@ -191,6 +191,10 @@ export const translations: Record<Lang, Record<string, string>> = {
     settings_appearance_value: "Light & Airy",
     settings_about: "About DailyQ",
     settings_account: "Account",
+    settings_send_feedback: "Send Feedback",
+    settings_feedback_mail_error_title: "Could not open mail",
+    settings_feedback_mail_error_body:
+      "Copy this address to send feedback manually:\n\n{email}",
     settings_over: "Over",
     settings_privacy_policy: "Privacy Policy",
     settings_terms_of_service: "Terms of Service",
@@ -398,6 +402,10 @@ export const translations: Record<Lang, Record<string, string>> = {
     settings_appearance_value: "Licht & luchtig",
     settings_about: "Over DailyQ",
     settings_account: "Account",
+    settings_send_feedback: "Feedback versturen",
+    settings_feedback_mail_error_title: "E-mail kan niet worden geopend",
+    settings_feedback_mail_error_body:
+      "Kopieer dit adres om handmatig feedback te sturen:\n\n{email}",
     settings_over: "Over",
     settings_privacy_policy: "Privacybeleid",
     settings_terms_of_service: "Algemene voorwaarden",

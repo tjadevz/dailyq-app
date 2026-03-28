@@ -897,7 +897,7 @@ const styles = StyleSheet.create({
     opacity: 0.78,
   },
   answeredCheckCircleWrap: {
-    marginBottom: 14,
+    marginBottom: 28,
   },
   answeredCheckCircle: {
     width: 51,

@@ -8,7 +8,7 @@ const EXPO_TOKEN_KEY = "dailyq_expo_push_token";
 export type ReminderTime = "morning" | "afternoon" | "evening";
 
 /**
- * Upsert push_subscriptions for the current user with expo_push_token and reminder_time.
+ * Upsert push_subscriptions for the current user with expo_push_token, reminder_time, and timezone.
  * Call after successful auth (onboarding) or on app open to keep token/choice in sync.
  *
  * Before upserting, clears expo_push_token from any other user who had the same token
@@ -22,6 +22,8 @@ export async function upsertPushSubscription(
   if (userId === "dev-user") return { error: null };
 
   try {
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
     // Clear this token from any other user's row first, so the token is never present for more than one user.
     if (expoPushToken?.trim()) {
       const { error: clearError } = await supabase.rpc("clear_expo_push_token_from_other_users", {
@@ -39,6 +41,7 @@ export async function upsertPushSubscription(
       subscription: {},
       expo_push_token: expoPushToken,
       reminder_time: reminderTime,
+      timezone: timezone,
     };
 
     console.log("push_subscriptions upsert call", {

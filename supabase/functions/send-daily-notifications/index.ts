@@ -1,6 +1,7 @@
 // supabase/functions/send-daily-notifications/index.ts
-// Sends daily Expo push notifications. Call with ?time_slot=morning|afternoon|evening
-// Env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+// Runs every 30 min via cron. Sends push notifications to users whose local time
+// matches their chosen slot: morning=08:30, afternoon=13:00, evening=20:00.
+// Saves Expo ticket IDs to push_tickets for receipt verification.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -11,10 +12,36 @@ const corsHeaders = {
 };
 
 const EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
-const VALID_SLOTS = ["morning", "afternoon", "evening"] as const;
 
-function getTodayInTimezone(timeZone: string): string {
-  return new Date().toLocaleDateString("en-CA", { timeZone: timeZone || "Europe/Amsterdam" });
+const SLOTS: Record<string, { hour: number; minute: number }> = {
+  morning:   { hour: 8,  minute: 30 },
+  afternoon:   { hour: 13, minute: 0  },
+  evening:   { hour: 20, minute: 0  },
+};
+
+function getLocalHourMinute(timezone: string): { hour: number; minute: number; dateStr: string } {
+  const now = new Date();
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone,
+    hour: "numeric",
+    minute: "numeric",
+    hour12: false,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(now);
+
+  const get = (type: string) => parts.find(p => p.type === type)?.value ?? "0";
+  const dateStr = `${get("year")}-${get("month")}-${get("day")}`;
+  const hour = parseInt(get("hour"), 10);
+  const minute = parseInt(get("minute"), 10);
+  return { hour, minute, dateStr };
+}
+
+function isInSlotWindow(localHour: number, localMinute: number, slot: { hour: number; minute: number }): boolean {
+  const nowMinutes = localHour * 60 + localMinute;
+  const slotMinutes = slot.hour * 60 + slot.minute;
+  return nowMinutes >= slotMinutes && nowMinutes < slotMinutes + 30;
 }
 
 function getBody(lang: string | null): string {
@@ -26,34 +53,22 @@ serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
-  const url = new URL(req.url);
-  const timeSlot = url.searchParams.get("time_slot");
-  const timezone = url.searchParams.get("timezone") ?? "Europe/Amsterdam";
-  if (!timeSlot || !VALID_SLOTS.includes(timeSlot as (typeof VALID_SLOTS)[number])) {
-    return new Response(
-      JSON.stringify({ error: "Missing or invalid time_slot (use morning, afternoon, or evening)" }),
-      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  }
-
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if (!supabaseUrl || !serviceRoleKey) {
     return new Response(
-      JSON.stringify({ error: "Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY" }),
+      JSON.stringify({ error: "Missing env vars" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 
   const supabase = createClient(supabaseUrl, serviceRoleKey);
-  const today = getTodayInTimezone(timezone);
 
-  // 1) Subscriptions with expo_push_token and reminder_time = time_slot
   const { data: subs, error: subsErr } = await supabase
     .from("push_subscriptions")
-    .select("user_id, expo_push_token")
+    .select("user_id, expo_push_token, reminder_time, timezone, last_notified_date")
     .not("expo_push_token", "is", null)
-    .eq("reminder_time", timeSlot);
+    .not("reminder_time", "is", null);
 
   if (subsErr) {
     return new Response(
@@ -63,78 +78,142 @@ serve(async (req) => {
   }
   if (!subs?.length) {
     return new Response(
-      JSON.stringify({ sent: 0, message: "No subscriptions for this slot" }),
+      JSON.stringify({ sent: 0, message: "No subscriptions" }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 
-  // 2) Language per user from profiles
-  const userIds = [...new Set(subs.map((s) => s.user_id))];
+  const eligibleSubs: (typeof subs[0] & { _dateStr: string })[] = [];
+  for (const sub of subs) {
+    const tz = sub.timezone ?? "Europe/Amsterdam";
+    const slot = SLOTS[sub.reminder_time];
+    if (!slot) continue;
+    const { hour, minute, dateStr } = getLocalHourMinute(tz);
+    if (sub.last_notified_date === dateStr) continue;
+    if (!isInSlotWindow(hour, minute, slot)) continue;
+    eligibleSubs.push({ ...sub, _dateStr: dateStr });
+  }
+
+  if (!eligibleSubs.length) {
+    return new Response(
+      JSON.stringify({ sent: 0, message: "No users in slot window right now" }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  const userIds = [...new Set(eligibleSubs.map(s => s.user_id))];
+
   const { data: profs } = await supabase
     .from("profiles")
     .select("id, language")
     .in("id", userIds);
   const langByUser: Record<string, string> = {};
-  for (const p of profs ?? []) {
-    langByUser[p.id] = p.language ?? "en";
-  }
+  for (const p of profs ?? []) langByUser[p.id] = p.language ?? "en";
 
-  // 3) User ids who already answered today (answers.question_date = today)
   const { data: answered } = await supabase
     .from("answers")
-    .select("user_id")
-    .eq("question_date", today)
+    .select("user_id, question_date")
     .in("user_id", userIds);
-  const answeredSet = new Set((answered ?? []).map((a) => a.user_id));
+  const answeredDates: Record<string, Set<string>> = {};
+  for (const a of answered ?? []) {
+    if (!answeredDates[a.user_id]) answeredDates[a.user_id] = new Set();
+    answeredDates[a.user_id].add(a.question_date);
+  }
 
-  // 4) Build messages for users who have not answered
-  const messages: { to: string; title: string; body: string }[] = [];
-  for (const row of subs) {
-    if (answeredSet.has(row.user_id)) continue;
-    const token = row.expo_push_token;
-    if (!token) continue;
-    const lang = langByUser[row.user_id] ?? "en";
+  const messages: { to: string; title: string; body: string; userId: string; dateStr: string; token: string }[] = [];
+  for (const sub of eligibleSubs) {
+    const dateStr = sub._dateStr;
+    if (answeredDates[sub.user_id]?.has(dateStr)) continue;
+    const lang = langByUser[sub.user_id] ?? "en";
     messages.push({
-      to: token,
+      to: sub.expo_push_token,
       title: "DailyQ",
       body: getBody(lang),
+      userId: sub.user_id,
+      dateStr,
+      token: sub.expo_push_token,
     });
   }
 
-  // 5) Send to Expo (batch up to 100 per request)
-  const results: { to: string; ok: boolean; error?: string }[] = [];
+  if (!messages.length) {
+    return new Response(
+      JSON.stringify({ sent: 0, message: "All eligible users already answered today" }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  const successfulUserIds: string[] = [];
+  const ticketRows: { user_id: string; expo_push_token: string; ticket_id: string | null; status: string; error_type: string | null }[] = [];
+
   for (let i = 0; i < messages.length; i += 100) {
     const chunk = messages.slice(i, i + 100);
     try {
       const res = await fetch(EXPO_PUSH_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify(chunk),
+        body: JSON.stringify(chunk.map(m => ({ to: m.to, title: m.title, body: m.body }))),
       });
       const data = await res.json();
-      if (!res.ok) {
-        for (const m of chunk) {
-          results.push({ to: m.to, ok: false, error: data?.message ?? res.statusText });
-        }
-        continue;
-      }
-      // Expo returns { data: [ { status: 'ok', id: '...' }, ... ] }
       const tickets = Array.isArray(data?.data) ? data.data : [];
+
       chunk.forEach((m, j) => {
         const t = tickets[j];
         const ok = t?.status === "ok";
-        results.push({ to: m.to, ok, error: ok ? undefined : (t?.message ?? "Unknown") });
+        if (ok) {
+          successfulUserIds.push(m.userId);
+          ticketRows.push({
+            user_id: m.userId,
+            expo_push_token: m.token,
+            ticket_id: t.id ?? null,
+            status: "pending",
+            error_type: null,
+          });
+        } else {
+          ticketRows.push({
+            user_id: m.userId,
+            expo_push_token: m.token,
+            ticket_id: null,
+            status: "error",
+            error_type: t?.details?.error ?? t?.message ?? "unknown",
+          });
+        }
       });
     } catch (e) {
       for (const m of chunk) {
-        results.push({ to: m.to, ok: false, error: e instanceof Error ? e.message : String(e) });
+        ticketRows.push({
+          user_id: m.userId,
+          expo_push_token: m.token,
+          ticket_id: null,
+          status: "error",
+          error_type: e instanceof Error ? e.message : String(e),
+        });
       }
     }
   }
 
-  const sent = results.filter((r) => r.ok).length;
+  if (ticketRows.length > 0) {
+    await supabase.from("push_tickets").insert(ticketRows);
+  }
+
+  if (successfulUserIds.length > 0) {
+    const byDate: Record<string, string[]> = {};
+    for (const m of messages) {
+      if (successfulUserIds.includes(m.userId)) {
+        if (!byDate[m.dateStr]) byDate[m.dateStr] = [];
+        byDate[m.dateStr].push(m.userId);
+      }
+    }
+    for (const [dateStr, ids] of Object.entries(byDate)) {
+      await supabase
+        .from("push_subscriptions")
+        .update({ last_notified_date: dateStr })
+        .in("user_id", ids);
+    }
+  }
+
+  const sent = successfulUserIds.length;
   return new Response(
-    JSON.stringify({ sent, total: messages.length, results }),
+    JSON.stringify({ sent, total: messages.length }),
     { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
   );
 });

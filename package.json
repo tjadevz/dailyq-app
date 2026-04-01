@@ -1,6 +1,11 @@
 {
   "name": "dailyq-app-scripts",
   "private": true,
+  "expo": {
+    "install": {
+      "exclude": ["react-native"]
+    }
+  },
   "dependencies": {
     "jsonwebtoken": "^9.0.2"
   }

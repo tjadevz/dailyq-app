@@ -44,10 +44,6 @@ function isInSlotWindow(localHour: number, localMinute: number, slot: { hour: nu
   return nowMinutes >= slotMinutes && nowMinutes < slotMinutes + 30;
 }
 
-function getBody(lang: string | null): string {
-  return lang === "nl" ? "Je DailyQ staat klaar!" : "Your DailyQ is ready!";
-}
-
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -110,6 +106,33 @@ serve(async (req) => {
   const langByUser: Record<string, string> = {};
   for (const p of profs ?? []) langByUser[p.id] = p.language ?? "en";
 
+  const dateStrForTeasers = eligibleSubs[0]._dateStr;
+
+  const [nlTeaserRes, enTeaserRes] = await Promise.all([
+    supabase
+      .from("questions")
+      .select("notification_teaser")
+      .eq("day", dateStrForTeasers)
+      .maybeSingle(),
+    supabase
+      .from("daily_questions_en")
+      .select("notification_teaser")
+      .eq("question_date", dateStrForTeasers)
+      .maybeSingle(),
+  ]);
+
+  const nlTeaser: string | null =
+    typeof nlTeaserRes.data?.notification_teaser === "string" &&
+    nlTeaserRes.data.notification_teaser.trim().length > 0
+      ? nlTeaserRes.data.notification_teaser
+      : null;
+
+  const enTeaser: string | null =
+    typeof enTeaserRes.data?.notification_teaser === "string" &&
+    enTeaserRes.data.notification_teaser.trim().length > 0
+      ? enTeaserRes.data.notification_teaser
+      : null;
+
   const { data: answered } = await supabase
     .from("answers")
     .select("user_id, question_date")
@@ -125,10 +148,20 @@ serve(async (req) => {
     const dateStr = sub._dateStr;
     if (answeredDates[sub.user_id]?.has(dateStr)) continue;
     const lang = langByUser[sub.user_id] ?? "en";
+
+    const body =
+      lang === "nl" && nlTeaser
+        ? nlTeaser
+        : lang === "en" && enTeaser
+          ? enTeaser
+          : lang === "nl"
+            ? "Je DailyQ staat klaar!"
+            : "Your DailyQ is ready!";
+
     messages.push({
       to: sub.expo_push_token,
       title: "DailyQ",
-      body: getBody(lang),
+      body: body,
       userId: sub.user_id,
       dateStr,
       token: sub.expo_push_token,

@@ -946,48 +946,53 @@ export default function CalendarScreen() {
               const isOnboardingJokerAnswered = isOnboardingAnswered && entry?.isJoker === true;
               const isOnboardingNonJokerAnswered = isOnboardingAnswered && !isOnboardingJokerAnswered;
               const isOnboardingUnanswered = isOnboardingWindowDay && !entry;
+              const isAccountStartDay = !isPlaceholder && cell.dayKey === createdAtDayKey;
               const isTodayNoAnswer = !isPlaceholder && state === "today" && !entry;
               const isFilled = !isPlaceholder && (state === "today" && entry || state === "answered" || state === "joker");
               return (
-                <Pressable
-                  key={i}
-                  style={[
-                    styles.cell,
-                    isPlaceholder && styles.cellEmpty,
-                    !isPlaceholder && isTodayNoAnswer && styles.cellTodayNoAnswer,
-                    !isPlaceholder && state === "today" && entry && styles.cellTodayAnswered,
-                    !isPlaceholder && state === "answered" && cell.dayKey === todayKey && styles.cellTodayAnswered,
-                    !isPlaceholder && state === "answered" && cell.dayKey !== todayKey && styles.cellAnswered,
-                    !isPlaceholder && state === "joker" && cell.dayKey === todayKey && styles.cellTodayJoker,
-                    !isPlaceholder && state === "joker" && cell.dayKey !== todayKey && styles.cellJoker,
-                    !isPlaceholder && state === "missed" && styles.cellMissed,
-                    !isPlaceholder && state === "future" && styles.cellFuture,
-                    !isPlaceholder && state === "before" && styles.cellBefore,
-                    // Onboarding styling overrides: only active after `onboarding_completed === true`
-                    isOnboardingNonJokerAnswered && styles.cellOnboardingAnswered,
-                    isOnboardingJokerAnswered && styles.cellOnboardingJokerAnswered,
-                    isOnboardingUnanswered && styles.cellOnboardingUnanswered,
-                  ]}
-                  onPress={() => handleCellPress(cell.dayKey, state)}
-                >
-                  {cell.dayNum > 0 && (
-                    <Text
-                      style={[
-                        styles.cellNum,
-                        isFilled && styles.cellNumFilled,
-                        !isFilled && !isTodayNoAnswer && styles.cellNumEmpty,
-                        state === "future" && styles.cellNumFuture,
-                        state === "before" && styles.cellNumBefore,
-                        // Onboarding text color overrides
-                        isOnboardingNonJokerAnswered && styles.cellNumOnboardingAnswered,
-                        isOnboardingJokerAnswered && styles.cellNumOnboardingJokerAnswered,
-                        isOnboardingUnanswered && styles.cellNumOnboardingUnanswered,
-                      ]}
-                    >
-                      {cell.dayNum}
-                    </Text>
+                <View key={i} style={styles.cellWrap}>
+                  {isAccountStartDay && (
+                    <View style={styles.cellStartDayRing} pointerEvents="none" />
                   )}
-                </Pressable>
+                  <Pressable
+                    style={[
+                      styles.cell,
+                      isPlaceholder && styles.cellEmpty,
+                      !isPlaceholder && isTodayNoAnswer && styles.cellTodayNoAnswer,
+                      !isPlaceholder && state === "today" && entry && styles.cellTodayAnswered,
+                      !isPlaceholder && state === "answered" && cell.dayKey === todayKey && styles.cellTodayAnswered,
+                      !isPlaceholder && state === "answered" && cell.dayKey !== todayKey && styles.cellAnswered,
+                      !isPlaceholder && state === "joker" && cell.dayKey === todayKey && styles.cellTodayJoker,
+                      !isPlaceholder && state === "joker" && cell.dayKey !== todayKey && styles.cellJoker,
+                      !isPlaceholder && state === "missed" && styles.cellMissed,
+                      !isPlaceholder && state === "future" && styles.cellFuture,
+                      !isPlaceholder && state === "before" && styles.cellBefore,
+                      // Onboarding styling overrides: only active after `onboarding_completed === true`
+                      isOnboardingNonJokerAnswered && styles.cellOnboardingAnswered,
+                      isOnboardingJokerAnswered && styles.cellOnboardingJokerAnswered,
+                      isOnboardingUnanswered && styles.cellOnboardingUnanswered,
+                    ]}
+                    onPress={() => handleCellPress(cell.dayKey, state)}
+                  >
+                    {cell.dayNum > 0 && (
+                      <Text
+                        style={[
+                          styles.cellNum,
+                          isFilled && styles.cellNumFilled,
+                          !isFilled && !isTodayNoAnswer && styles.cellNumEmpty,
+                          state === "future" && styles.cellNumFuture,
+                          state === "before" && styles.cellNumBefore,
+                          // Onboarding text color overrides
+                          isOnboardingNonJokerAnswered && styles.cellNumOnboardingAnswered,
+                          isOnboardingJokerAnswered && styles.cellNumOnboardingJokerAnswered,
+                          isOnboardingUnanswered && styles.cellNumOnboardingUnanswered,
+                        ]}
+                      >
+                        {cell.dayNum}
+                      </Text>
+                    )}
+                  </Pressable>
+                </View>
               );
             })}
           </View>
@@ -1347,6 +1352,25 @@ const styles = StyleSheet.create({
   },
   cellBefore: {
     backgroundColor: "rgba(243,244,246,0.3)",
+  },
+  cellWrap: {
+    width: CELL_SIZE,
+    height: CELL_SIZE,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "visible",
+  },
+  cellStartDayRing: {
+    position: "absolute",
+    width: CELL_SIZE + 8,
+    height: CELL_SIZE + 8,
+    borderRadius: (CELL_SIZE + 8) / 2,
+    borderWidth: 2,
+    borderColor: "#F59E0B",
+    shadowColor: "#F59E0B",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.35,
+    shadowRadius: 5,
   },
   cellNum: {
     fontSize: 13,

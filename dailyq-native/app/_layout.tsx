@@ -32,60 +32,18 @@ type ReferralGivenEvent = {
 function SyncProfileAppVersionGate() {
   const { user, authCheckDone } = useAuth();
 
-  console.log(
-    "[SyncProfileAppVersion] component mounted, authCheckDone:",
-    authCheckDone,
-    "user:",
-    user?.id
-  );
-
   useEffect(() => {
-    if (!authCheckDone) return;
-    const userId = user?.id ?? null;
-    if (!userId || userId === "dev-user") return;
+    if (!authCheckDone || !user?.id || user.id === "dev-user") return;
 
-    const currentVersion = Constants.nativeAppVersion;
-    console.log("[SyncProfileAppVersion] nativeAppVersion value:", currentVersion);
-    if (currentVersion == null || currentVersion === "") return;
+    const version = Constants.nativeAppVersion ?? Constants.expoConfig?.version ?? "unknown";
 
-    const handle = InteractionManager.runAfterInteractions(() => {
-      void (async () => {
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("app_version")
-          .eq("id", userId)
-          .maybeSingle();
-
-        if (error) {
-          console.error("[SyncProfileAppVersion] fetch failed:", error);
-          return;
-        }
-
-        const stored = data?.app_version ?? null;
-        console.log(
-          "[SyncProfileAppVersion] stored version:",
-          stored,
-          "current:",
-          currentVersion
-        );
-        if (stored === currentVersion) return;
-
-        console.log("[SyncProfileAppVersion] updating...");
-        {
-          const { error } = await supabase
-            .from("profiles")
-            .update({ app_version: currentVersion })
-            .eq("id", userId);
-
-          console.log("[SyncProfileAppVersion] update result:", error);
-          if (error) {
-            console.error("[SyncProfileAppVersion] update failed:", error);
-          }
-        }
-      })();
-    });
-
-    return () => handle.cancel();
+    supabase
+      .from("profiles")
+      .update({ app_version: version })
+      .eq("id", user.id)
+      .then(({ error }) => {
+        if (error) console.error("[SyncProfileAppVersion] failed:", error);
+      });
   }, [authCheckDone, user?.id]);
 
   return null;

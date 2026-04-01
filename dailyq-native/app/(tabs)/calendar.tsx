@@ -48,7 +48,7 @@ import { GlassCardContainer } from "@/src/components/GlassCardContainer";
 import { PrimaryButton } from "@/src/components/PrimaryButton";
 import { AnsweringExperience } from "@/src/components/AnsweringExperience";
 import { SubmitSuccessModal } from "@/src/components/SubmitSuccessModal";
-import { useStreakMilestone, getHighestMilestoneCrossed, getMilestonesCrossed, grantMilestoneJokersForCrossed } from "@/src/context/StreakMilestoneContext";
+import { useStreakMilestone, getAlreadyGranted, getHighestMilestoneCrossed, getMilestonesCrossed, grantMilestoneJokersForCrossed } from "@/src/context/StreakMilestoneContext";
 import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
 import AnimatedReanimated, {
   FadeInUp,
@@ -600,6 +600,7 @@ export default function CalendarScreen() {
   const [jokerModalVisible, setJokerModalVisible] = useState(false);
   const [realStreak, setRealStreak] = useState(0);
   const [showYearPicker, setShowYearPicker] = useState(false);
+  const [alreadyGrantedMilestones, setAlreadyGrantedMilestones] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     if (showSubmitSuccess || !pendingStreakMilestone) return;
@@ -622,15 +623,26 @@ export default function CalendarScreen() {
     return value;
   }, [userId]);
 
+  const fetchAlreadyGrantedMilestones = useCallback(async () => {
+    if (!userId || userId === "dev-user") {
+      setAlreadyGrantedMilestones(new Set());
+      return;
+    }
+    const grants = await getAlreadyGranted(supabase, userId);
+    setAlreadyGrantedMilestones(grants);
+  }, [userId]);
+
   useEffect(() => {
     fetchStreak();
-  }, [fetchStreak]);
+    fetchAlreadyGrantedMilestones();
+  }, [fetchStreak, fetchAlreadyGrantedMilestones]);
 
   // Refetch streak when Calendar tab gains focus (e.g. after submitting answer on Today).
   useFocusEffect(
     useCallback(() => {
       fetchStreak();
-    }, [fetchStreak])
+      fetchAlreadyGrantedMilestones();
+    }, [fetchStreak, fetchAlreadyGrantedMilestones])
   );
 
   useEffect(() => {
@@ -704,7 +716,9 @@ export default function CalendarScreen() {
       if (answersMap.has(dayKey)) capturedThisMonth++;
     }
   }
-  const nextMilestone = STREAK_MILESTONES.find((mil) => mil > realStreak) ?? null;
+  const nextMilestone = STREAK_MILESTONES.find(
+    (mil) => mil > realStreak && !alreadyGrantedMilestones.has(mil)
+  ) ?? null;
   const daysLeft = nextMilestone != null ? nextMilestone - realStreak : 0;
   const progressPercent = nextMilestone != null ? (realStreak / nextMilestone) * 100 : 0;
   const isViewingCurrentMonth =
@@ -752,16 +766,20 @@ export default function CalendarScreen() {
       if (!missedAnswerDay) return;
       refetch();
       const newStreak = await fetchStreak();
-      const crossed = getMilestonesCrossed(previousStreak, newStreak);
+      const grants = await getAlreadyGranted(supabase, userId);
+      const crossed = getMilestonesCrossed(previousStreak, newStreak).filter(
+        (m) => !grants.has(m)
+      );
       await grantMilestoneJokersForCrossed(supabase, userId, previousStreak, newStreak);
       if (crossed.length > 0) {
         const milestoneToCelebrate = crossed[0] ?? null;
         if (milestoneToCelebrate) setPendingStreakMilestone(milestoneToCelebrate);
       }
+      await fetchAlreadyGrantedMilestones();
       // Always refetch profile so joker_balance updates after use_joker (RPC deducts in DB).
       await refetchProfile();
     },
-    [missedAnswerDay, refetch, fetchStreak, refetchProfile, userId]
+    [missedAnswerDay, refetch, fetchStreak, refetchProfile, userId, fetchAlreadyGrantedMilestones]
   );
 
   const handleJokerAnswerComplete = useCallback(

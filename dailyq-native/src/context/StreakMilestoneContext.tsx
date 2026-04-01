@@ -86,8 +86,8 @@ export function getMilestonesCrossed(previousStreak: number, newStreak: number):
   return STREAK_MILESTONES.filter((m) => previousStreak < m && newStreak >= m);
 }
 
-/** Row shape when selecting from user_milestone_grants (streak_at_grant may be added by migration). */
-type UserMilestoneGrantRow = { milestone: number; streak_at_grant?: number | null };
+/** Row shape when selecting from user_milestone_grants. */
+type UserMilestoneGrantRow = { milestone: number };
 
 /** Minimal Supabase-like client for fetching grants and calling RPC. */
 type SupabaseLike = {
@@ -95,35 +95,19 @@ type SupabaseLike = {
   rpc: (fn: string, params: { p_user_id: string; p_milestone: number; p_streak_at_grant?: number }) => Promise<{ error: unknown }>;
 };
 
-/**
- * Fetches user_milestone_grants for the given user and returns which milestones
- * are already granted in the current streak cycle. A milestone M counts as
- * "already granted in this cycle" if there is a row with streak_at_grant >= M.
- * If streak_at_grant is missing (legacy row), that row's milestone is considered granted.
- */
-export async function getAlreadyGrantedInCycle(
+/** Fetches all milestones that were already granted to the user. */
+export async function getAlreadyGranted(
   supabase: SupabaseLike,
-  userId: string,
-  _currentStreak: number
+  userId: string
 ): Promise<Set<number>> {
   const granted = new Set<number>();
   const { data: rows, error } = await supabase
     .from("user_milestone_grants")
-    .select("milestone, streak_at_grant")
+    .select("milestone")
     .eq("user_id", userId);
   if (error || !rows) return granted;
   for (const row of rows as UserMilestoneGrantRow[]) {
-    const streakAtGrant = row.streak_at_grant;
-    const m = row.milestone;
-    if (streakAtGrant != null) {
-      const cycleStart = streakAtGrant - (streakAtGrant % 365);
-      const cycleEnd = cycleStart + 365;
-      if (streakAtGrant >= m && streakAtGrant < cycleEnd) {
-        granted.add(m);
-      }
-    } else {
-      granted.add(m);
-    }
+    granted.add(row.milestone);
   }
   return granted;
 }

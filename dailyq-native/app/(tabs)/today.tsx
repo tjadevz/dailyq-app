@@ -21,7 +21,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { COLORS, JOKER, MODAL, MODAL_ENTER_MS, MODAL_CLOSE_MS } from "@/src/config/constants";
 import { useLanguage } from "@/src/context/LanguageContext";
 import { useAuth } from "@/src/context/AuthContext";
-import { useStreakMilestone, getHighestMilestoneCrossed, getMilestonesCrossed, grantMilestoneJokersForCrossed } from "@/src/context/StreakMilestoneContext";
+import { useStreakMilestone, getAlreadyGranted, getHighestMilestoneCrossed, getMilestonesCrossed, grantMilestoneJokersForCrossed } from "@/src/context/StreakMilestoneContext";
 import { useCalendarAnswersContext } from "@/src/context/CalendarAnswersContext";
 import { useTodayQuestion } from "@/src/hooks/useTodayQuestion";
 import { useProfileContext } from "@/src/context/ProfileContext";
@@ -479,7 +479,10 @@ export default function TodayScreen() {
         const newStreak = Math.max(Number(visual), Number(real));
 
         try {
-          const crossed = getMilestonesCrossed(previousStreak, newStreak);
+          const alreadyGranted = await getAlreadyGranted(supabase, userId);
+          const crossed = getMilestonesCrossed(previousStreak, newStreak).filter(
+            (m) => !alreadyGranted.has(m)
+          );
           const grantSuccess = await grantMilestoneJokersForCrossed(
             supabase,
             userId,

@@ -16,6 +16,7 @@ import {
 import Feather from "@expo/vector-icons/Feather";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { LinearGradient } from "expo-linear-gradient";
+import * as Notifications from "expo-notifications";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { COLORS, JOKER, MODAL, MODAL_ENTER_MS, MODAL_CLOSE_MS } from "@/src/config/constants";
@@ -407,6 +408,12 @@ export default function TodayScreen() {
             { onConflict: "user_id,question_date" }
           );
         if (error) throw error;
+
+        try {
+          await Notifications.setBadgeCountAsync(0);
+        } catch {
+          // ignore – badge reset is non-critical
+        }
 
         try {
           const { data, error: profileErr } = await supabase

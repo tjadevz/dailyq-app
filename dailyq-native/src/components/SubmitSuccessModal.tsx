@@ -1,8 +1,10 @@
-import React, { useEffect, useRef } from "react";
-import { View, Modal, StyleSheet, Animated } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { View, Text, Modal, StyleSheet, Animated } from "react-native";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import Feather from "@expo/vector-icons/Feather";
+
+import { useLanguage } from "@/src/context/LanguageContext";
 
 export interface SubmitSuccessModalProps {
   visible: boolean;
@@ -15,7 +17,34 @@ export interface SubmitSuccessModalProps {
  */
 const CHECK_DELAY_MS = 280;
 
+const SAVE_MESSAGES_NL = [
+  "Opgeslagen in jouw archief.",
+  "Bewaard. Over een jaar lees je dit terug.",
+  "Toegevoegd aan jouw archief.",
+  "Klaar voor vandaag.",
+  "Weer een dag van jou vastgelegd.",
+  "Klaar. Morgen een nieuwe vraag.",
+];
+
+const SAVE_MESSAGES_EN = [
+  "Saved to your archive.",
+  "Stored. You'll read this back in a year.",
+  "Added to your archive.",
+  "Done for today.",
+  "Another day of you, saved.",
+  "Done. A new question tomorrow.",
+];
+
 export function SubmitSuccessModal({ visible }: SubmitSuccessModalProps) {
+  const { lang } = useLanguage();
+  const [messageIndex] = useState(() =>
+    Math.floor(Math.random() * SAVE_MESSAGES_NL.length)
+  );
+  const saveMessage =
+    lang === "en"
+      ? SAVE_MESSAGES_EN[messageIndex]
+      : SAVE_MESSAGES_NL[messageIndex];
+
   const scale = useRef(new Animated.Value(0.5)).current;
   const opacity = useRef(new Animated.Value(0)).current;
   const didAnimateRef = useRef(false);
@@ -23,6 +52,9 @@ export function SubmitSuccessModal({ visible }: SubmitSuccessModalProps) {
   useEffect(() => {
     if (!visible) {
       didAnimateRef.current = false;
+      // Reset so the next open does not paint one frame at opacity 1 / scale 1 before useEffect runs.
+      scale.setValue(0.5);
+      opacity.setValue(0);
       return;
     }
     if (didAnimateRef.current) return;
@@ -65,7 +97,7 @@ export function SubmitSuccessModal({ visible }: SubmitSuccessModalProps) {
           style={[StyleSheet.absoluteFill, styles.purpleOverlay]}
         />
         <Animated.View
-          style={[styles.checkWrap, { opacity, transform: [{ scale }] }]}
+          style={[styles.contentColumn, { opacity, transform: [{ scale }] }]}
         >
           <LinearGradient
             colors={["#FEF3C7", "#FACC15", "#FCD34D"]}
@@ -75,6 +107,7 @@ export function SubmitSuccessModal({ visible }: SubmitSuccessModalProps) {
           >
             <Feather name="check" size={40} color="#fff" strokeWidth={2.5} />
           </LinearGradient>
+          <Text style={styles.messageText}>{saveMessage}</Text>
         </Animated.View>
       </View>
     </Modal>
@@ -90,10 +123,9 @@ const styles = StyleSheet.create({
   purpleOverlay: {
     backgroundColor: "rgba(76, 29, 149, 0.25)",
   },
-  checkWrap: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+  contentColumn: {
+    alignItems: "center",
+    maxWidth: "88%",
   },
   checkCircle: {
     width: 80,
@@ -108,5 +140,13 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.35,
     shadowRadius: 12,
     elevation: 6,
+  },
+  messageText: {
+    color: "#fff",
+    fontSize: 19,
+    marginTop: 24,
+    textAlign: "center",
+    letterSpacing: 0.3,
+    fontWeight: "500",
   },
 });

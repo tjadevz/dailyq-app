@@ -838,7 +838,7 @@ export default function CalendarScreen() {
         setMissedAnswerDay(null);
         setMissedAnswerQuestionText("");
         setShowSubmitSuccess(true);
-        setTimeout(() => setShowSubmitSuccess(false), 1700);
+        setTimeout(() => setShowSubmitSuccess(false), 2400);
         await handleMissedSaved(previousStreak);
       } catch (e: unknown) {
         setMissedAnswerError(

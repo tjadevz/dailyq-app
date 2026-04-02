@@ -457,7 +457,7 @@ export default function TodayScreen() {
         setShowSubmitSuccess(true);
         setTimeout(() => {
           setShowSubmitSuccess(false);
-        }, 1700);
+        }, 2400);
 
         if (wasUpdate) {
           setEditConfirmVisible(true);

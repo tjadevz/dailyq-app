@@ -7,6 +7,7 @@ import {
   Pressable,
   KeyboardAvoidingView,
   TouchableWithoutFeedback,
+  TouchableOpacity,
   Keyboard,
   Platform,
   Modal,
@@ -37,10 +38,12 @@ import { GlassCardContainer } from "@/src/components/GlassCardContainer";
 import DailyQLoadingScreen from "@/src/components/DailyQLoadingScreen";
 import { AnsweringExperience } from "@/src/components/AnsweringExperience";
 import { SubmitSuccessModal } from "@/src/components/SubmitSuccessModal";
+import ShareCard from "@/src/components/ShareCard";
 import AccountMilestoneModal, {
   type AccountMilestoneAnswer,
 } from "@/src/components/modals/AccountMilestoneModal";
 import PreviousYearModal from "@/src/components/modals/PreviousYearModal";
+import { useShareCard } from "@/src/hooks/useShareCard";
 
 const MAX_ANSWER_LENGTH = 280;
 const TODAY_PRIMARY_GRADIENT = ["rgba(139,92,246,0.96)", "rgba(124,58,237,0.96)"] as const;
@@ -154,6 +157,7 @@ export default function TodayScreen() {
   const { question, loading: questionLoading, error: questionError } = useTodayQuestion(lang, userId);
   const { profile, refetch: refetchProfile } = useProfileContext();
   const { showMilestone, open: streakCelebrationOpen } = useStreakMilestone();
+  const { shareCardRef, shareCard } = useShareCard();
 
   const [answerText, setAnswerText] = useState("");
   const [existingAnswer, setExistingAnswer] = useState<string | null>(null);
@@ -537,6 +541,17 @@ export default function TodayScreen() {
 
   const dayLabel = question ? `#${String(getDayOfYear(question.day)).padStart(3, "0")}` : "";
   const hasAnswer = existingAnswer != null && existingAnswer.length > 0;
+  const todayDateLabel = useMemo(() => {
+    if (!question?.day) return "";
+    const [y, m, d] = question.day.split("-").map(Number);
+    if (!y || !m || !d) return "";
+    const dt = new Date(y, m - 1, d);
+    return new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }).format(dt);
+  }, [question?.day]);
   const handleInvite = useCallback(async () => {
     if (!profile?.referral_code) return;
     const link = `https://dailyqapp.com/invite/${profile.referral_code}`;
@@ -607,6 +622,9 @@ export default function TodayScreen() {
                         end={{ x: 1, y: 1 }}
                         style={styles.answeredCardInner}
                       >
+                        <TouchableOpacity style={styles.shareButton} onPress={() => shareCard()}>
+                          <Feather name="upload" size={20} color="#7C3AED" />
+                        </TouchableOpacity>
                         <LinearGradient
                           colors={["rgba(139,92,246,0.08)", "rgba(139,92,246,0)"]}
                           start={{ x: 0, y: 0 }}
@@ -619,7 +637,10 @@ export default function TodayScreen() {
                           end={{ x: 1, y: 1 }}
                           style={styles.cardCornerBR}
                         />
-                        <Text style={styles.answeredDayLabel}>{dayLabel}</Text>
+                        <Text style={styles.answeredDayLabel}>
+                          <Text style={styles.answeredDayLabelHash}>#</Text>
+                          <Text style={styles.answeredDayLabelNumber}>{dayLabel.slice(1)}</Text>
+                        </Text>
                         <View style={styles.answeredCheckCircleWrap}>
                           <LinearGradient
                             colors={["#FEF3C7", "#FACC15", "#FCD34D"]}
@@ -731,6 +752,14 @@ export default function TodayScreen() {
           <EditConfirmModal visible={editConfirmVisible} message={t("today_answer_changed")} />
         </View>
       </TouchableWithoutFeedback>
+      {hasAnswer ? (
+        <ShareCard
+          ref={shareCardRef}
+          question={question.text}
+          answer={existingAnswer ?? ""}
+          dateLabel={todayDateLabel}
+        />
+      ) : null}
     </GlassCardContainer>
   );
 }
@@ -896,15 +925,24 @@ const styles = StyleSheet.create({
     paddingVertical: 48,
     paddingHorizontal: 16,
     alignItems: "center",
+    position: "relative",
   },
   answeredDayLabel: {
     position: "absolute",
-    top: 16,
-    right: 20,
-    fontSize: 10,
+    top: 22,
+    left: 20,
+    fontSize: 12,
     fontWeight: "700",
     color: "#7C3AED",
     opacity: 0.78,
+  },
+  answeredDayLabelHash: {
+    fontWeight: "500",
+    fontFamily: "Montserrat",
+  },
+  answeredDayLabelNumber: {
+    fontWeight: "700",
+    fontFamily: "Montserrat",
   },
   answeredCheckCircleWrap: {
     marginBottom: 28,
@@ -926,9 +964,16 @@ const styles = StyleSheet.create({
   answeredQuestionText: {
     fontSize: 23,
     fontWeight: "500",
+    fontFamily: "Montserrat",
     color: "#374151",
     textAlign: "center",
     lineHeight: 32,
+  },
+  shareButton: {
+    position: "absolute",
+    top: 12,
+    right: 12,
+    padding: 8,
   },
   editAnswerButton: {
     paddingVertical: 12,
@@ -1100,6 +1145,7 @@ const styles = StyleSheet.create({
   questionText: {
     fontSize: 23,
     fontWeight: "500",
+    fontFamily: "Montserrat",
     color: "#374151",
     textAlign: "center",
     lineHeight: 32,

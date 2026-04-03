@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   Pressable,
+  TouchableOpacity,
   ActivityIndicator,
   TextInput,
   Animated,
@@ -48,6 +49,8 @@ import { GlassCardContainer } from "@/src/components/GlassCardContainer";
 import { PrimaryButton } from "@/src/components/PrimaryButton";
 import { AnsweringExperience } from "@/src/components/AnsweringExperience";
 import { SubmitSuccessModal } from "@/src/components/SubmitSuccessModal";
+import ShareCard from "@/src/components/ShareCard";
+import { useShareCard } from "@/src/hooks/useShareCard";
 import { useStreakMilestone, getAlreadyGranted, getHighestMilestoneCrossed, getMilestonesCrossed, grantMilestoneJokersForCrossed } from "@/src/context/StreakMilestoneContext";
 import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
 import AnimatedReanimated, {
@@ -194,6 +197,7 @@ function ViewAnswerModal({
   const dragY = useSharedValue(0);
 
   const closeModal = useCallback(() => onClose(), [onClose]);
+  const { shareCardRef, shareCard } = useShareCard();
 
   const panGesture = useMemo(
     () =>
@@ -260,6 +264,18 @@ function ViewAnswerModal({
           });
         })()
       : "";
+
+  const shareDateLabel =
+    dayKey
+      ? (() => {
+          const [y, m, d] = dayKey.split("-").map(Number);
+          return new Date(y, m - 1, d).toLocaleDateString(lang === "nl" ? "nl-NL" : "en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          });
+        })()
+      : "";
   const sheetData =
     dayKey && (entry || (allYearsEntries && allYearsEntries.length > 0))
       ? {
@@ -308,9 +324,13 @@ function ViewAnswerModal({
             </View>
 
             <View style={styles.bottomSheetHeader}>
-              <Pressable onPress={handleClose} style={styles.bottomSheetCloseBtn}>
-                <Feather name="x" size={18} color="#7C3AED" strokeWidth={2.5} />
-              </Pressable>
+              <TouchableOpacity
+                style={styles.shareButton}
+                onPress={() => shareCard()}
+                activeOpacity={0.7}
+              >
+                <Feather name="upload" size={20} color="#8B5CF6" />
+              </TouchableOpacity>
               <Text style={styles.bottomSheetDateLabel}>{dateLabel}</Text>
               {sheetData ? (
                 <Text style={styles.bottomSheetQuestion} numberOfLines={3}>
@@ -318,6 +338,13 @@ function ViewAnswerModal({
                 </Text>
               ) : null}
             </View>
+
+            <ShareCard
+              ref={shareCardRef}
+              question={sheetData?.question ?? ""}
+              answer={entry?.answerText ?? sheetData?.answers?.[0]?.answer ?? ""}
+              dateLabel={shareDateLabel}
+            />
 
             <ScrollView
               style={styles.bottomSheetScroll}
@@ -1663,12 +1690,25 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(224, 231, 255, 0.6)",
   },
   bottomSheetHeader: {
+    position: "relative",
     paddingHorizontal: 24,
     paddingTop: 8,
     paddingBottom: 20,
     borderBottomWidth: 1,
     borderBottomColor: "rgba(124, 58, 237, 0.08)",
     zIndex: 10,
+  },
+  shareButton: {
+    position: "absolute",
+    top: 12,
+    right: 15.2,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(243, 244, 246, 0.9)",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 11,
   },
   bottomSheetCloseBtn: {
     position: "absolute",

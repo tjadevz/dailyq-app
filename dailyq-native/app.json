@@ -11,7 +11,7 @@
       "fallbackToCacheTimeout": 0
     },
     "slug": "dailyq",
-    "version": "1.3.2",
+    "version": "1.4.0",
     "orientation": "portrait",
     "scheme": "dailyq",
     "icon": "./assets/images/icon.png",
@@ -42,7 +42,8 @@
           "organization": "dailyq"
         }
       ],
-      "@sentry/react-native"
+      "@sentry/react-native",
+      "expo-localization"
     ],
     "ios": {
       "bundleIdentifier": "com.tjade.dailyq",

@@ -72,7 +72,7 @@ const styles = StyleSheet.create({
   brandText: {
     fontSize: 13,
     fontWeight: "500",
-    fontFamily: "Montserrat",
+    fontFamily: "Inter",
     color: "rgba(255,255,255,0.6)",
     letterSpacing: 2,
   },
@@ -84,7 +84,7 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 10,
     color: "rgba(255,255,255,0.5)",
-    fontFamily: "Montserrat",
+    fontFamily: "Inter",
     letterSpacing: 1.5,
     marginBottom: 8,
   },
@@ -92,7 +92,7 @@ const styles = StyleSheet.create({
   questionText: {
     fontSize: 22,
     fontWeight: "500",
-    fontFamily: "Montserrat",
+    fontFamily: "Inter",
     color: "#fff",
     lineHeight: 22 * 1.4,
     marginBottom: 24,
@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
   answerText: {
     fontSize: 16,
     color: "rgba(255,255,255,0.9)",
-    fontFamily: "Montserrat",
+    fontFamily: "Inter",
     lineHeight: 16 * 1.6,
   },
 
@@ -120,13 +120,13 @@ const styles = StyleSheet.create({
   dateText: {
     fontSize: 11,
     color: "rgba(255,255,255,0.4)",
-    fontFamily: "Montserrat",
+    fontFamily: "Inter",
   },
 
   domainText: {
     fontSize: 11,
     color: "rgba(255,255,255,0.6)",
-    fontFamily: "Montserrat",
+    fontFamily: "Inter",
   },
 });
 

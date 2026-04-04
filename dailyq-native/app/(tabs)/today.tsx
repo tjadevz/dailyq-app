@@ -938,11 +938,11 @@ const styles = StyleSheet.create({
   },
   answeredDayLabelHash: {
     fontWeight: "500",
-    fontFamily: "Montserrat",
+    fontFamily: "Inter",
   },
   answeredDayLabelNumber: {
     fontWeight: "700",
-    fontFamily: "Montserrat",
+    fontFamily: "Inter",
   },
   answeredCheckCircleWrap: {
     marginBottom: 28,
@@ -964,7 +964,7 @@ const styles = StyleSheet.create({
   answeredQuestionText: {
     fontSize: 23,
     fontWeight: "500",
-    fontFamily: "Montserrat",
+    fontFamily: "Inter",
     color: "#374151",
     textAlign: "center",
     lineHeight: 32,
@@ -1145,7 +1145,7 @@ const styles = StyleSheet.create({
   questionText: {
     fontSize: 23,
     fontWeight: "500",
-    fontFamily: "Montserrat",
+    fontFamily: "Inter",
     color: "#374151",
     textAlign: "center",
     lineHeight: 32,

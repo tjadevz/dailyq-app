@@ -1,0 +1,17 @@
+diff --git a/node_modules/expo-updates/ios/EXUpdates/Procedures/StartupProcedure.swift b/node_modules/expo-updates/ios/EXUpdates/Procedures/StartupProcedure.swift
+index 826b529..07ae453 100644
+--- a/node_modules/expo-updates/ios/EXUpdates/Procedures/StartupProcedure.swift
++++ b/node_modules/expo-updates/ios/EXUpdates/Procedures/StartupProcedure.swift
+@@ -345,6 +345,11 @@ final class StartupProcedure: StateMachineProcedure, AppLoaderTaskDelegate, AppL
+   }
+ 
+   func throwException(_ exception: NSException) {
+-    exception.raise()
++    // iOS 26 fix: NSException.raise() called from a C++ dispatch context
++    // (expo.controller.errorRecoveryQueue) causes __cxa_rethrow -> std::terminate.
++    // Dispatch to main thread to raise in a proper ObjC context.
++    DispatchQueue.main.async {
++      exception.raise()
++    }
+   }
+ }

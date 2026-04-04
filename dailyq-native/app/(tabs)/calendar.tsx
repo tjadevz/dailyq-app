@@ -371,13 +371,15 @@ function ViewAnswerModal({
             pointerEvents="none"
             collapsable={false}
           >
-            <View style={styles.shareCaptureOverlayInner}>
-              <ShareCard
-                ref={shareCardRefCallback}
-                question={sheetData?.question ?? ""}
-                answer={entry?.answerText ?? sheetData?.answers?.[0]?.answer ?? ""}
-                dateLabel={shareDateLabel}
-              />
+            <View style={styles.shareCaptureOverlayInner} collapsable={false}>
+              <View style={styles.shareCaptureCardHidden} collapsable={false}>
+                <ShareCard
+                  ref={shareCardRefCallback}
+                  question={sheetData?.question ?? ""}
+                  answer={entry?.answerText ?? sheetData?.answers?.[0]?.answer ?? ""}
+                  dateLabel={shareDateLabel}
+                />
+              </View>
             </View>
           </View>
         ) : null}
@@ -1717,6 +1719,9 @@ const styles = StyleSheet.create({
   shareCaptureOverlayInner: {
     justifyContent: "center",
     alignItems: "center",
+  },
+  shareCaptureCardHidden: {
+    opacity: 0.02,
   },
   shareButton: {
     position: "absolute",

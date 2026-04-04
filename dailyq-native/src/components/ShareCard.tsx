@@ -17,7 +17,7 @@ const ShareCard = forwardRef<View, ShareCardProps>(function ShareCard(
   ref
 ) {
   return (
-    <View ref={ref} style={styles.captureRoot} pointerEvents="none">
+    <View ref={ref} style={styles.captureRoot} pointerEvents="none" collapsable={false}>
       <LinearGradient
         colors={["#A78BFA", "#7C3AED"]}
         start={{ x: 0, y: 0 }}

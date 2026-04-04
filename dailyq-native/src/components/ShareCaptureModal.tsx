@@ -15,8 +15,10 @@ export default function ShareCaptureModal({
   if (!open) return null;
   return (
     <Modal visible={open} transparent animationType="none" statusBarTranslucent>
-      <View style={styles.host} collapsable={false}>
-        {children}
+      <View style={styles.host} collapsable={false} pointerEvents="none">
+        <View style={styles.captureHidden} collapsable={false}>
+          {children}
+        </View>
       </View>
     </Modal>
   );
@@ -27,6 +29,10 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.02)",
+    backgroundColor: "transparent",
+  },
+  // Near-invisible wrapper: opacity 0 often yields blank view-shot PNGs on iOS.
+  captureHidden: {
+    opacity: 0.02,
   },
 });

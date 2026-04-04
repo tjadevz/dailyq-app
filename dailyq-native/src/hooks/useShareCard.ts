@@ -46,7 +46,6 @@ export function useShareCard(): {
               format: "png",
               quality: 1.0,
             });
-            setShareCaptureVisible(false);
             const isAvailable = await Sharing.isAvailableAsync();
             if (isAvailable) {
               await Sharing.shareAsync(uri, {
@@ -59,6 +58,7 @@ export function useShareCard(): {
             }
           } catch (e) {
             console.error("Failed to share card:", e);
+          } finally {
             setShareCaptureVisible(false);
           }
         });

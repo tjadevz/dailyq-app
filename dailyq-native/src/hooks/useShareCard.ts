@@ -1,34 +1,77 @@
-import { useRef } from "react";
-import type { RefObject } from "react";
-import { Share } from 'react-native'
-import { View } from 'react-native'
-import { captureRef } from 'react-native-view-shot'
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { RefCallback } from "react";
+import * as Sharing from "expo-sharing";
+import { InteractionManager, View } from "react-native";
+import { captureRef } from "react-native-view-shot";
 
 export function useShareCard(): {
-  shareCardRef: RefObject<View>;
-  shareCard: () => Promise<void>;
+  shareCardRefCallback: RefCallback<View>;
+  shareCard: () => void;
+  shareCaptureVisible: boolean;
 } {
+  const [shareCaptureVisible, setShareCaptureVisible] = useState(false);
+  const [cardMounted, setCardMounted] = useState(false);
   const shareCardRef = useRef<View | null>(null);
+  const captureStartedRef = useRef(false);
 
-  const shareCard = async () => {
-    try {
-      if (!shareCardRef.current) {
-        console.warn("ShareCard ref is null; nothing to share.");
-        return;
-      }
-
-      const uri = await captureRef(shareCardRef, {
-        format: "png",
-        quality: 1.0,
-      });
-
-      // iOS uses `url` for images, not `message`.
-      await Share.share({ url: uri });
-    } catch (e) {
-      console.error("Failed to share card:", e);
+  const shareCardRefCallback = useCallback<RefCallback<View>>((node) => {
+    shareCardRef.current = node;
+    setCardMounted(!!node);
+    if (!node) {
+      captureStartedRef.current = false;
     }
-  };
+  }, []);
 
-  return { shareCardRef, shareCard };
+  const shareCard = useCallback(() => {
+    captureStartedRef.current = false;
+    setShareCaptureVisible(true);
+  }, []);
+
+  useEffect(() => {
+    if (!shareCaptureVisible || !cardMounted || !shareCardRef.current) return;
+    if (captureStartedRef.current) return;
+    captureStartedRef.current = true;
+
+    let cancelled = false;
+    const handle = InteractionManager.runAfterInteractions(() => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(async () => {
+          if (cancelled || !shareCardRef.current) {
+            setShareCaptureVisible(false);
+            captureStartedRef.current = false;
+            return;
+          }
+          try {
+            const uri = await captureRef(shareCardRef, {
+              format: "png",
+              quality: 1.0,
+            });
+            setShareCaptureVisible(false);
+            const isAvailable = await Sharing.isAvailableAsync();
+            if (isAvailable) {
+              await Sharing.shareAsync(uri, {
+                mimeType: "image/png",
+                dialogTitle: "Deel je antwoord",
+                UTI: "public.png",
+              });
+            } else {
+              console.warn("Sharing is not available on this device.");
+            }
+          } catch (e) {
+            console.error("Failed to share card:", e);
+            setShareCaptureVisible(false);
+          }
+        });
+      });
+    });
+
+    return () => {
+      cancelled = true;
+      if (typeof handle?.cancel === "function") {
+        handle.cancel();
+      }
+    };
+  }, [shareCaptureVisible, cardMounted]);
+
+  return { shareCardRefCallback, shareCard, shareCaptureVisible };
 }
-

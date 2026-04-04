@@ -43,7 +43,8 @@
         }
       ],
       "@sentry/react-native",
-      "expo-localization"
+      "expo-localization",
+      "expo-sharing"
     ],
     "ios": {
       "bundleIdentifier": "com.tjade.dailyq",

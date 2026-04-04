@@ -197,7 +197,7 @@ function ViewAnswerModal({
   const dragY = useSharedValue(0);
 
   const closeModal = useCallback(() => onClose(), [onClose]);
-  const { shareCardRef, shareCard } = useShareCard();
+  const { shareCardRefCallback, shareCard, shareCaptureVisible } = useShareCard();
 
   const panGesture = useMemo(
     () =>
@@ -324,6 +324,12 @@ function ViewAnswerModal({
             </View>
 
             <View style={styles.bottomSheetHeader}>
+              <Text style={styles.bottomSheetDateLabel}>{dateLabel}</Text>
+              {sheetData ? (
+                <Text style={styles.bottomSheetQuestion} numberOfLines={3}>
+                  {sheetData.question}
+                </Text>
+              ) : null}
               <TouchableOpacity
                 style={styles.shareButton}
                 onPress={() => shareCard()}
@@ -331,20 +337,7 @@ function ViewAnswerModal({
               >
                 <Feather name="upload" size={20} color="#8B5CF6" />
               </TouchableOpacity>
-              <Text style={styles.bottomSheetDateLabel}>{dateLabel}</Text>
-              {sheetData ? (
-                <Text style={styles.bottomSheetQuestion} numberOfLines={3}>
-                  {sheetData.question}
-                </Text>
-              ) : null}
             </View>
-
-            <ShareCard
-              ref={shareCardRef}
-              question={sheetData?.question ?? ""}
-              answer={entry?.answerText ?? sheetData?.answers?.[0]?.answer ?? ""}
-              dateLabel={shareDateLabel}
-            />
 
             <ScrollView
               style={styles.bottomSheetScroll}
@@ -371,6 +364,23 @@ function ViewAnswerModal({
           </AnimatedReanimated.View>
           </GestureDetector>
         </AnimatedReanimated.View>
+
+        {shareCaptureVisible ? (
+          <View
+            style={[StyleSheet.absoluteFill, styles.shareCaptureOverlay]}
+            pointerEvents="none"
+            collapsable={false}
+          >
+            <View style={styles.shareCaptureOverlayInner}>
+              <ShareCard
+                ref={shareCardRefCallback}
+                question={sheetData?.question ?? ""}
+                answer={entry?.answerText ?? sheetData?.answers?.[0]?.answer ?? ""}
+                dateLabel={shareDateLabel}
+              />
+            </View>
+          </View>
+        ) : null}
       </GestureHandlerRootView>
     </Modal>
   );
@@ -1698,6 +1708,16 @@ const styles = StyleSheet.create({
     borderBottomColor: "rgba(124, 58, 237, 0.08)",
     zIndex: 10,
   },
+  shareCaptureOverlay: {
+    zIndex: 9999,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.02)",
+  },
+  shareCaptureOverlayInner: {
+    justifyContent: "center",
+    alignItems: "center",
+  },
   shareButton: {
     position: "absolute",
     top: 12,
@@ -1708,7 +1728,8 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(243, 244, 246, 0.9)",
     alignItems: "center",
     justifyContent: "center",
-    zIndex: 11,
+    zIndex: 30,
+    elevation: 12,
   },
   bottomSheetCloseBtn: {
     position: "absolute",
@@ -1727,6 +1748,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "rgba(124, 58, 237, 0.8)",
     marginBottom: 8,
+    paddingRight: 44,
   },
   bottomSheetQuestion: {
     fontSize: 22,

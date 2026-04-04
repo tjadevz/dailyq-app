@@ -9,15 +9,15 @@ export interface ShareCardProps {
 }
 
 /**
- * Off-screen share card intended to be captured as an image via react-native-view-shot.
- * This component has no navigation/context dependencies.
+ * Share card for capture via react-native-view-shot. Mount on-screen (e.g. inside a
+ * short-lived Modal) so gradients lay out with a valid colorspace on iOS.
  */
 const ShareCard = forwardRef<View, ShareCardProps>(function ShareCard(
   { question, answer, dateLabel },
   ref
 ) {
   return (
-    <View ref={ref} style={styles.offscreenWrapper} pointerEvents="none">
+    <View ref={ref} style={styles.captureRoot} pointerEvents="none">
       <LinearGradient
         colors={["#A78BFA", "#7C3AED"]}
         start={{ x: 0, y: 0 }}
@@ -52,14 +52,9 @@ const ShareCard = forwardRef<View, ShareCardProps>(function ShareCard(
 export default ShareCard;
 
 const styles = StyleSheet.create({
-  // Off-screen so it doesn't show up in the app UI, but still exists in the render tree for capture.
-  offscreenWrapper: {
-    position: "absolute",
+  captureRoot: {
     width: 375,
     height: 667,
-    left: -10000,
-    top: -10000,
-    transform: [{ scale: 1 }],
   },
   card: {
     flex: 1,

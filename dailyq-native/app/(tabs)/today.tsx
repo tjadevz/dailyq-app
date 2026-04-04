@@ -39,6 +39,7 @@ import DailyQLoadingScreen from "@/src/components/DailyQLoadingScreen";
 import { AnsweringExperience } from "@/src/components/AnsweringExperience";
 import { SubmitSuccessModal } from "@/src/components/SubmitSuccessModal";
 import ShareCard from "@/src/components/ShareCard";
+import ShareCaptureModal from "@/src/components/ShareCaptureModal";
 import AccountMilestoneModal, {
   type AccountMilestoneAnswer,
 } from "@/src/components/modals/AccountMilestoneModal";
@@ -157,7 +158,7 @@ export default function TodayScreen() {
   const { question, loading: questionLoading, error: questionError } = useTodayQuestion(lang, userId);
   const { profile, refetch: refetchProfile } = useProfileContext();
   const { showMilestone, open: streakCelebrationOpen } = useStreakMilestone();
-  const { shareCardRef, shareCard } = useShareCard();
+  const { shareCardRefCallback, shareCard, shareCaptureVisible } = useShareCard();
 
   const [answerText, setAnswerText] = useState("");
   const [existingAnswer, setExistingAnswer] = useState<string | null>(null);
@@ -622,9 +623,6 @@ export default function TodayScreen() {
                         end={{ x: 1, y: 1 }}
                         style={styles.answeredCardInner}
                       >
-                        <TouchableOpacity style={styles.shareButton} onPress={() => shareCard()}>
-                          <Feather name="upload" size={20} color="#7C3AED" />
-                        </TouchableOpacity>
                         <LinearGradient
                           colors={["rgba(139,92,246,0.08)", "rgba(139,92,246,0)"]}
                           start={{ x: 0, y: 0 }}
@@ -652,6 +650,9 @@ export default function TodayScreen() {
                           </LinearGradient>
                         </View>
                         <Text style={styles.answeredQuestionText}>{question.text}</Text>
+                        <TouchableOpacity style={styles.shareButton} onPress={() => shareCard()}>
+                          <Feather name="upload" size={20} color="#7C3AED" />
+                        </TouchableOpacity>
                       </LinearGradient>
                     </View>
                   </View>
@@ -753,12 +754,14 @@ export default function TodayScreen() {
         </View>
       </TouchableWithoutFeedback>
       {hasAnswer ? (
-        <ShareCard
-          ref={shareCardRef}
-          question={question.text}
-          answer={existingAnswer ?? ""}
-          dateLabel={todayDateLabel}
-        />
+        <ShareCaptureModal visible={shareCaptureVisible}>
+          <ShareCard
+            ref={shareCardRefCallback}
+            question={question.text}
+            answer={existingAnswer ?? ""}
+            dateLabel={todayDateLabel}
+          />
+        </ShareCaptureModal>
       ) : null}
     </GlassCardContainer>
   );
@@ -973,7 +976,15 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 12,
     right: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     padding: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(243, 244, 246, 0.95)",
+    zIndex: 20,
+    elevation: 8,
   },
   editAnswerButton: {
     paddingVertical: 12,

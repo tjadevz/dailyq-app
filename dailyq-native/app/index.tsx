@@ -10,6 +10,7 @@ import {
   hasRecoveryTokens,
 } from "@/src/lib/resetPasswordLink";
 import { supabase } from "@/src/config/supabase";
+import { tryConsumeReferralFromClipboardOnFirstLaunch } from "@/src/lib/referralClipboard";
 import { useTodayQuestion } from "@/src/hooks/useTodayQuestion";
 
 export default function Index() {
@@ -22,14 +23,25 @@ export default function Index() {
   const userId = user?.id ?? null;
   const { loading: questionLoading } = useTodayQuestion(lang, userId);
 
-  // Step 1: check cold-start deep link before any auth-based routing
+  // Step 1: cold-start deep link + one-time clipboard referral (before routing)
   useEffect(() => {
-    Linking.getInitialURL().then((url) => {
-      if (url && isResetPasswordUrl(url) && hasRecoveryTokens(url)) {
-        setPendingResetUrl(url);
+    let cancelled = false;
+    (async () => {
+      try {
+        const [url] = await Promise.all([
+          Linking.getInitialURL(),
+          tryConsumeReferralFromClipboardOnFirstLaunch(),
+        ]);
+        if (!cancelled && url && isResetPasswordUrl(url) && hasRecoveryTokens(url)) {
+          setPendingResetUrl(url);
+        }
+      } finally {
+        if (!cancelled) setInitialUrlChecked(true);
       }
-      setInitialUrlChecked(true);
-    });
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // When user exists, fetch onboarding_completed to decide redirect

@@ -245,6 +245,7 @@ export default function OnboardingQuestionsScreen() {
             question_date: q.question_date,
             answer_text: trimmed,
             is_joker: false,
+            is_onboarding: true,
           },
           { onConflict: "user_id,question_date" }
         );

@@ -1,17 +1,14 @@
 -- Ensure profiles.created_at exists (streak day 1 boundary).
 alter table public.profiles
   add column if not exists created_at timestamptz;
-
 -- Backfill from auth.users so existing profiles have a creation date.
 update public.profiles p
 set created_at = u.created_at
 from auth.users u
 where p.id = u.id and p.created_at is null;
-
 -- Default for new profile rows (e.g. from trigger).
 alter table public.profiles
   alter column created_at set default now();
-
 -- get_user_streaks: add lower bound so streak day 1 = profiles.created_at::date.
 -- Only answers with question_date >= profiles.created_at::date (in user tz) count.
 -- Prevents historical/onboarding answers before account creation from inflating streak.
@@ -75,9 +72,7 @@ begin
   return next;
 end;
 $$;
-
 comment on function public.get_user_streaks(uuid, text) is
   'Returns visual_streak and real_streak: consecutive days with answers. If user answered today (in p_timezone), today is included; else count ends at yesterday. Streak day 1 = profiles.created_at::date; answers before that are ignored.';
-
 grant execute on function public.get_user_streaks(uuid, text) to authenticated;
 grant execute on function public.get_user_streaks(uuid, text) to service_role;

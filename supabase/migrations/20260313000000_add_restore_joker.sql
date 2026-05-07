@@ -11,8 +11,6 @@ as $$
   set joker_balance = coalesce(joker_balance, 0) + 1
   where id = auth.uid();
 $$;
-
 comment on function public.restore_joker() is
   'Restores one joker to the calling user. Used to compensate a use_joker that was not followed by a successful answer insert.';
-
 grant execute on function public.restore_joker() to authenticated;

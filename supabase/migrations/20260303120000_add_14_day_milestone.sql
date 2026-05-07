@@ -1,10 +1,8 @@
 -- Add 14-day streak milestone (1 joker). Allow 14 in user_milestone_grants and in grant_milestone_jokers.
 alter table public.user_milestone_grants
   drop constraint if exists milestone_allowed;
-
 alter table public.user_milestone_grants
   add constraint milestone_allowed check (milestone in (7, 14, 30, 60, 100, 180, 365));
-
 create or replace function public.grant_milestone_jokers(p_user_id uuid, p_milestone int)
 returns void
 language plpgsql
@@ -43,6 +41,5 @@ begin
   values (p_user_id, p_milestone);
 end;
 $$;
-
 comment on function public.grant_milestone_jokers(uuid, int) is
   'Awards jokers for crossing a streak milestone (7,14,30,60,100,180,365). Idempotent per milestone. p_user_id: user to grant to.';

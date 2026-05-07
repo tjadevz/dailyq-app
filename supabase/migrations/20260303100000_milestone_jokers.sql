@@ -6,18 +6,14 @@ create table if not exists public.user_milestone_grants (
   primary key (user_id, milestone),
   constraint milestone_allowed check (milestone in (7, 30, 60, 100, 180, 365))
 );
-
 alter table public.user_milestone_grants enable row level security;
-
 create policy "Users can view own milestone grants"
   on public.user_milestone_grants for select
   using (auth.uid() = user_id);
-
 -- No insert/update/delete from client; only grant_milestone_jokers (security definer) writes.
 
 comment on table public.user_milestone_grants is
   'Records which streak milestones have already awarded jokers to the user.';
-
 -- Grant jokers for a given streak milestone (7 → 1, 30 → 2, 60 → 2, 100 → 3, 180 → 4, 365 → 5).
 -- Idempotent: if this milestone was already granted, no-op and return success.
 -- Requires: profiles.joker_balance and profiles.id exist.
@@ -65,9 +61,7 @@ begin
   values (auth.uid(), p_milestone);
 end;
 $$;
-
 comment on function public.grant_milestone_jokers(int) is
   'Awards jokers for crossing a streak milestone (7,30,60,100,180,365). Idempotent per milestone.';
-
 grant execute on function public.grant_milestone_jokers(int) to authenticated;
 grant execute on function public.grant_milestone_jokers(int) to service_role;

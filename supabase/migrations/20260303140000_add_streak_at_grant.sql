@@ -1,14 +1,11 @@
 -- Add streak_at_grant to user_milestone_grants for cycle-aware granting (idempotent).
 alter table public.user_milestone_grants
   add column if not exists streak_at_grant integer not null default 0;
-
 comment on column public.user_milestone_grants.streak_at_grant is
   'Streak value at time of grant; used to determine if milestone was already granted in current cycle.';
-
 -- Drop existing overloads so CREATE OR REPLACE can change signature (cannot change return type/params with replace).
 drop function if exists public.grant_milestone_jokers(uuid, int, int);
 drop function if exists public.grant_milestone_jokers(uuid, int);
-
 create or replace function public.grant_milestone_jokers(p_user_id uuid, p_milestone int, p_streak_at_grant int default null)
 returns void
 language plpgsql
@@ -47,9 +44,7 @@ begin
   values (p_user_id, p_milestone, coalesce(p_streak_at_grant, 0));
 end;
 $$;
-
 comment on function public.grant_milestone_jokers(uuid, int, int) is
   'Awards jokers for crossing a streak milestone. Idempotent per milestone. p_streak_at_grant: streak at grant time (for cycle tracking).';
-
 grant execute on function public.grant_milestone_jokers(uuid, int, int) to authenticated;
 grant execute on function public.grant_milestone_jokers(uuid, int, int) to service_role;

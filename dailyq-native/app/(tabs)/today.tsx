@@ -27,7 +27,6 @@ import { useStreakMilestone, getAlreadyGranted, getHighestMilestoneCrossed, getM
 import { useCalendarAnswersContext } from "@/src/context/CalendarAnswersContext";
 import { useTodayQuestion } from "@/src/hooks/useTodayQuestion";
 import { useProfileContext } from "@/src/context/ProfileContext";
-import { getDayOfYear } from "@/src/lib/date";
 import { daysSinceAccountCreated, resolveAccountMilestone } from "@/src/lib/accountMilestone";
 import { supabase } from "@/src/config/supabase";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -44,10 +43,16 @@ import AccountMilestoneModal, {
   type AccountMilestoneAnswer,
 } from "@/src/components/modals/AccountMilestoneModal";
 import PreviousYearModal from "@/src/components/modals/PreviousYearModal";
+import MonthlyRecapModal from "@/src/components/modals/MonthlyRecapModal";
+import MonthlyRecapShareCard, {
+  type MonthlyRecapShareCardRef,
+} from "@/src/components/MonthlyRecapShareCard";
 import { useShareCard } from "@/src/hooks/useShareCard";
+import { useMonthlyRecap } from "@/src/hooks/useMonthlyRecap";
 
 const MAX_ANSWER_LENGTH = 280;
 const TODAY_PRIMARY_GRADIENT = ["rgba(139,92,246,0.96)", "rgba(124,58,237,0.96)"] as const;
+const MONTHLY_RECAP_DEV_TRIGGER_KEY = "dailyq-dev-force-monthly-recap";
 
 /** Answers + question text for AccountMilestoneModal (same as post-submit milestone flow). */
 async function fetchAccountMilestoneAnswersForModal(
@@ -153,6 +158,7 @@ export default function TodayScreen() {
   const { lang, t } = useLanguage();
   const { effectiveUser } = useAuth();
   const userId = effectiveUser?.id ?? null;
+  const { showRecap, recapData, markRecapSeen } = useMonthlyRecap();
 
   const { setAnswerForDay } = useCalendarAnswersContext();
   const { question, loading: questionLoading, error: questionError } = useTodayQuestion(lang, userId);
@@ -179,7 +185,8 @@ export default function TodayScreen() {
     return daysSinceAccountCreated(iso);
   }, [profileCreatedAtForMilestone, profile?.created_at, effectiveUser?.created_at]);
 
-  const [milestoneModalVisible, setMilestoneModalVisible] = useState(false);
+  const [modalQueue, setModalQueue] = useState<string[]>([]);
+  const [activeModal, setActiveModal] = useState<string | null>(null);
   const [milestoneAnswers, setMilestoneAnswers] = useState<AccountMilestoneAnswer[]>([]);
   const [activeAccountMilestone, setActiveAccountMilestone] = useState<10 | null>(null);
   const [jokerModalVisible, setJokerModalVisible] = useState(false);
@@ -189,10 +196,19 @@ export default function TodayScreen() {
     current: { question_date: string; answer_text: string };
     questionText: string;
   } | null>(null);
-  const [previousYearModalVisible, setPreviousYearModalVisible] = useState(false);
+  const advanceQueue = useCallback((queue: string[]) => {
+    if (queue.length > 0) {
+      setActiveModal(queue[0]);
+      setModalQueue((_prev) => queue.slice(1));
+    } else {
+      setActiveModal(null);
+    }
+  }, []);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const inputRef = useRef<TextInput>(null);
+  const monthlyRecapShareCardRef = useRef<MonthlyRecapShareCardRef | null>(null);
+  const streakQueueStateRef = useRef<"idle" | "waitingOpen" | "waitingClose">("idle");
   const questionBlockOffset = useRef(new Animated.Value(0)).current;
   const buttonOpacity = useRef(new Animated.Value(1)).current;
   const buttonScale = useRef(new Animated.Value(1)).current;
@@ -260,72 +276,121 @@ export default function TodayScreen() {
     };
   }, []);
 
+  const justSubmittedRef = useRef(false);
   useEffect(() => {
-    if (showSubmitSuccess || !pendingStreakMilestone) return;
-    showMilestone(pendingStreakMilestone);
-    setPendingStreakMilestone(null);
-  }, [showSubmitSuccess, pendingStreakMilestone, showMilestone]);
+    if (showSubmitSuccess) {
+      justSubmittedRef.current = true;
+    }
+  }, [showSubmitSuccess]);
 
   useEffect(() => {
-    if (
-      showSubmitSuccess ||
-      pendingMilestone == null ||
-      pendingStreakMilestone !== null ||
-      streakCelebrationOpen
-    ) {
-      return;
-    }
-    if (!userId || userId === "dev-user") {
-      setPendingMilestone(null);
-      return;
-    }
-    const milestone = pendingMilestone;
+    if (showSubmitSuccess || !justSubmittedRef.current) return;
     let cancelled = false;
     (async () => {
-      const mapped = await fetchAccountMilestoneAnswersForModal(userId, lang);
-      if (cancelled) return;
-      if (mapped == null) {
-        setPendingMilestone(null);
-        return;
+      const queue: string[] = [];
+
+      if (previousYearQueue && previousYearQueue.items.length > 0) {
+        queue.push("previousYear");
       }
-      setActiveAccountMilestone(milestone);
-      setMilestoneAnswers(mapped);
-      setMilestoneModalVisible(true);
-      setPendingMilestone(null);
+
+      if (pendingStreakMilestone) {
+        queue.push("streak");
+      }
+
+      if (pendingMilestone != null) {
+        if (!userId || userId === "dev-user") {
+          if (!cancelled) setPendingMilestone(null);
+        } else {
+          const mapped = await fetchAccountMilestoneAnswersForModal(userId, lang);
+          if (cancelled) return;
+          if (mapped != null) {
+            setActiveAccountMilestone(pendingMilestone);
+            setMilestoneAnswers(mapped);
+            queue.push("milestone");
+          }
+          setPendingMilestone(null);
+        }
+      }
+
+      if (showRecap) {
+        queue.push("monthlyRecap");
+      }
+
+      if (!cancelled) {
+        justSubmittedRef.current = false;
+        advanceQueue(queue);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    showSubmitSuccess,
+    pendingStreakMilestone,
+    pendingMilestone,
+    userId,
+    lang,
+    showRecap,
+    previousYearQueue,
+    advanceQueue,
+  ]);
+
+  useEffect(() => {
+    if (activeModal !== "streak" || !pendingStreakMilestone) return;
+    streakQueueStateRef.current = "waitingOpen";
+    showMilestone(pendingStreakMilestone);
+    setPendingStreakMilestone(null);
+  }, [activeModal, pendingStreakMilestone, showMilestone]);
+
+  useEffect(() => {
+    if (activeModal !== "streak") return;
+    if (streakQueueStateRef.current === "waitingOpen" && streakCelebrationOpen) {
+      streakQueueStateRef.current = "waitingClose";
+      return;
+    }
+    if (streakQueueStateRef.current === "waitingClose" && !streakCelebrationOpen) {
+      streakQueueStateRef.current = "idle";
+      advanceQueue(modalQueue);
+    }
+  }, [activeModal, streakCelebrationOpen, modalQueue, advanceQueue]);
+
+  useEffect(() => {
+    if (!__DEV__ || !showRecap || showSubmitSuccess || activeModal !== null) return;
+    let cancelled = false;
+    (async () => {
+      const forced = (await AsyncStorage.getItem(MONTHLY_RECAP_DEV_TRIGGER_KEY)) === "1";
+      if (!forced || cancelled) return;
+      await AsyncStorage.removeItem(MONTHLY_RECAP_DEV_TRIGGER_KEY);
+      if (cancelled) return;
+      advanceQueue(["monthlyRecap"]);
     })();
     return () => {
       cancelled = true;
     };
-  }, [showSubmitSuccess, pendingMilestone, pendingStreakMilestone, streakCelebrationOpen, userId, lang]);
-
-  useEffect(() => {
-    if (!previousYearQueue || previousYearQueue.items.length === 0) return;
-    if (showSubmitSuccess) return;
-    if (milestoneModalVisible) return;
-    if (streakCelebrationOpen) return;
-    if (pendingStreakMilestone !== null) return;
-    setPreviousYearModalVisible(true);
-  }, [
-    previousYearQueue,
-    showSubmitSuccess,
-    milestoneModalVisible,
-    streakCelebrationOpen,
-    pendingStreakMilestone,
-  ]);
+  }, [showRecap, showSubmitSuccess, activeModal, advanceQueue]);
 
   const handlePreviousYearClose = useCallback(() => {
-    setPreviousYearModalVisible(false);
     setPreviousYearQueue(null);
-  }, []);
+    advanceQueue(modalQueue);
+  }, [modalQueue, advanceQueue]);
 
   const handleMilestoneClose = useCallback(async () => {
     const m = activeAccountMilestone;
-    setMilestoneModalVisible(false);
     setActiveAccountMilestone(null);
-    if (!userId || userId === "dev-user" || !m) return;
-    await markAccountMilestoneShown(userId);
-    void refetchProfile();
-  }, [userId, activeAccountMilestone, refetchProfile]);
+    if (userId && userId !== "dev-user" && m) {
+      await markAccountMilestoneShown(userId);
+      void refetchProfile();
+    }
+    advanceQueue(modalQueue);
+  }, [userId, activeAccountMilestone, refetchProfile, modalQueue, advanceQueue]);
+
+  const handleRecapClose = useCallback(() => {
+    if (recapData?.previousMonthKey) {
+      void markRecapSeen(recapData.previousMonthKey);
+    }
+    advanceQueue(modalQueue);
+  }, [markRecapSeen, recapData?.previousMonthKey, modalQueue, advanceQueue]);
 
   // Clear leftover Monday recap keys (feature removed); they are not read anywhere.
   useEffect(() => {
@@ -424,7 +489,7 @@ export default function TodayScreen() {
           const { data, error: profileErr } = await supabase
             .from("profiles")
             .select(
-              "created_at, milestone_10_days_shown, milestone_30_days_shown, milestone_100_days_shown"
+              "created_at, milestone_10_days_shown, milestone_100_days_shown"
             )
             .eq("id", userId)
             .maybeSingle();
@@ -540,7 +605,6 @@ export default function TodayScreen() {
     ]
   );
 
-  const dayLabel = question ? `#${String(getDayOfYear(question.day)).padStart(3, "0")}` : "";
   const hasAnswer = existingAnswer != null && existingAnswer.length > 0;
   const todayDateLabel = useMemo(() => {
     if (!question?.day) return "";
@@ -635,10 +699,6 @@ export default function TodayScreen() {
                           end={{ x: 1, y: 1 }}
                           style={styles.cardCornerBR}
                         />
-                        <Text style={styles.answeredDayLabel}>
-                          <Text style={styles.answeredDayLabelHash}>#</Text>
-                          <Text style={styles.answeredDayLabelNumber}>{dayLabel.slice(1)}</Text>
-                        </Text>
                         <View style={styles.answeredCheckCircleWrap}>
                           <LinearGradient
                             colors={["#FEF3C7", "#FACC15", "#FCD34D"]}
@@ -679,7 +739,6 @@ export default function TodayScreen() {
                           end={{ x: 1, y: 1 }}
                           style={styles.cardCornerBR}
                         />
-                        <Text style={styles.cardDayLabel}>{dayLabel}</Text>
                         <Text style={styles.questionText}>{question.text}</Text>
                       </LinearGradient>
                     </View>
@@ -693,12 +752,15 @@ export default function TodayScreen() {
                 ]}
               >
                 {hasAnswer ? (
-                  <PrimaryButton
+                  <Pressable
                     onPress={() => setAnswerModalOpen(true)}
-                    gradientColors={TODAY_PRIMARY_GRADIENT}
+                    style={({ pressed }) => [
+                      styles.editAnswerButton,
+                      pressed && styles.editAnswerButtonPressed,
+                    ]}
                   >
-                    {t("today_edit_answer")}
-                  </PrimaryButton>
+                    <Text style={styles.editAnswerButtonText}>{t("today_edit_answer")}</Text>
+                  </Pressable>
                 ) : (
                   <PrimaryButton
                     fullWidth
@@ -738,13 +800,30 @@ export default function TodayScreen() {
           />
           <SubmitSuccessModal visible={showSubmitSuccess} />
           <AccountMilestoneModal
-            visible={milestoneModalVisible}
+            visible={activeModal === "milestone"}
             daysSinceCreation={accountMilestoneDaysSinceCreation}
             answers={milestoneAnswers}
             onClose={handleMilestoneClose}
           />
+          {recapData ? (
+            <>
+              <MonthlyRecapModal
+                visible={activeModal === "monthlyRecap"}
+                recapData={recapData}
+                onClose={handleRecapClose}
+                onShare={() => void monthlyRecapShareCardRef.current?.triggerShare()}
+              />
+              <View style={styles.monthlyRecapShareCapture} pointerEvents="none" collapsable={false}>
+                <MonthlyRecapShareCard
+                  ref={monthlyRecapShareCardRef}
+                  recapData={recapData}
+                  lang={lang}
+                />
+              </View>
+            </>
+          ) : null}
           <PreviousYearModal
-            visible={previousYearModalVisible}
+            visible={activeModal === "previousYear"}
             items={previousYearQueue?.items ?? []}
             currentAnswer={previousYearQueue?.current ?? null}
             questionText={previousYearQueue?.questionText ?? ""}
@@ -990,20 +1069,19 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 22,
     borderRadius: 9999,
-    backgroundColor: COLORS.ACCENT,
-    shadowColor: COLORS.ACCENT,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 4,
+    backgroundColor: "#E5E5EA",
+    borderWidth: 1,
+    borderColor: "#D1D1D6",
+    alignItems: "center",
+    justifyContent: "center",
   },
   editAnswerButtonPressed: {
-    opacity: 0.9,
+    opacity: 0.75,
   },
   editAnswerButtonText: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#fff",
+    color: "#6E6E73",
   },
   primaryButton: {
     width: "100%",
@@ -1224,5 +1302,11 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "600",
     color: COLORS.TEXT_PRIMARY,
+  },
+  monthlyRecapShareCapture: {
+    position: "absolute",
+    left: -9999,
+    top: -9999,
+    opacity: 0.02,
   },
 });

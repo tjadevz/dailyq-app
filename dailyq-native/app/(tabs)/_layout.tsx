@@ -5,7 +5,7 @@ import { TabBarWithPill } from "@/src/components/TabBarWithPill";
 import { useLanguage } from "@/src/context/LanguageContext";
 
 export default function TabsLayout() {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   return (
     <Tabs
       tabBar={(props) => <TabBarWithPill {...props} />}
@@ -51,7 +51,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="archive"
         options={{
-          title: "Archief",
+          title: lang === "en" ? "Archive" : "Archief",
           tabBarLabel: "",
           headerShown: false,
           tabBarIcon: ({ color, size }) => (

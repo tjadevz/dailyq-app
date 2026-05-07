@@ -1,6 +1,5 @@
 export type AccountMilestoneFlags = {
   milestone_10_days_shown: boolean;
-  milestone_30_days_shown: boolean;
   milestone_100_days_shown: boolean;
 };
 
@@ -22,7 +21,7 @@ export function daysSinceAccountCreated(createdAt: string | Date | null | undefi
 }
 
 /**
- * Day-10 account milestone only (30/100 reserved in DB for future use).
+ * Day-10 account milestone only (100 reserved in DB for future use).
  */
 export function resolveAccountMilestone(
   createdAt: string | Date | null | undefined,

@@ -37,6 +37,7 @@ import { setPendingReferralCode } from "@/src/lib/referralPending";
 import { setReferralGivenDevTrigger } from "@/src/lib/referralGivenDevTrigger";
 
 const REMINDER_TIME_KEY = "dailyq-reminder-time";
+const MONTHLY_RECAP_DEV_TRIGGER_KEY = "dailyq-dev-force-monthly-recap";
 const FEEDBACK_EMAIL = "info@dailyqapp.com";
 
 const showDebugModals = __DEV__ && process.env.EXPO_PUBLIC_DEBUG_MODALS === "true";
@@ -198,6 +199,7 @@ export default function SettingsScreen() {
   const [startReferralLoading, setStartReferralLoading] = useState(false);
   const [startReferralError, setStartReferralError] = useState<string | null>(null);
   const [triggerReferralGivenModalLoading, setTriggerReferralGivenModalLoading] = useState(false);
+  const [triggerMonthlyRecapLoading, setTriggerMonthlyRecapLoading] = useState(false);
 
   useEffect(() => {
     AsyncStorage.getItem(REMINDER_TIME_KEY).then((value) => {
@@ -316,6 +318,25 @@ export default function SettingsScreen() {
       setTriggerReferralGivenModalLoading(false);
     }
   }, [router]);
+
+  const handleTriggerMonthlyRecap = useCallback(async () => {
+    const userId = effectiveUser?.id;
+    if (!__DEV__ || !userId || userId === "dev-user") return;
+    setTriggerMonthlyRecapLoading(true);
+    try {
+      await AsyncStorage.setItem(MONTHLY_RECAP_DEV_TRIGGER_KEY, "1");
+      const { error } = await supabase
+        .from("profiles")
+        .update({ last_monthly_recap_shown: null })
+        .eq("id", userId);
+      if (error) throw error;
+      router.replace("/(tabs)/today");
+    } catch (e) {
+      console.error("[Settings] Trigger monthly recap failed:", e);
+    } finally {
+      setTriggerMonthlyRecapLoading(false);
+    }
+  }, [effectiveUser?.id, router]);
 
   const handleSendFeedback = useCallback(async () => {
     const subject = encodeURIComponent(`DailyQ Feedback (v${APP_VERSION})`);
@@ -482,6 +503,30 @@ export default function SettingsScreen() {
                   <Text style={styles.cardSubtitle}>Show one-time referral reward modal on app open</Text>
                 </View>
                 {triggerReferralGivenModalLoading ? (
+                  <ActivityIndicator size="small" color={COLORS.ACCENT} />
+                ) : (
+                  <Feather name="chevron-right" size={20} color={COLORS.TEXT_MUTED} />
+                )}
+              </View>
+            </Pressable>
+          )}
+
+          {/* Trigger monthly recap (dev only) */}
+          {__DEV__ && (
+            <Pressable
+              style={[styles.card, triggerMonthlyRecapLoading && styles.cardDisabled]}
+              onPress={handleTriggerMonthlyRecap}
+              disabled={triggerMonthlyRecapLoading}
+            >
+              <View style={styles.cardIconWrap}>
+                <View style={[styles.cardIcon, styles.cardIconPurple]}>
+                  <Feather name="calendar" size={16} strokeWidth={2} color={COLORS.ACCENT} />
+                </View>
+                <View style={styles.cardTextWrap}>
+                  <Text style={styles.cardTitle}>Trigger monthly recap (dev)</Text>
+                  <Text style={styles.cardSubtitle}>Reset recap shown flag and open Today</Text>
+                </View>
+                {triggerMonthlyRecapLoading ? (
                   <ActivityIndicator size="small" color={COLORS.ACCENT} />
                 ) : (
                   <Feather name="chevron-right" size={20} color={COLORS.TEXT_MUTED} />

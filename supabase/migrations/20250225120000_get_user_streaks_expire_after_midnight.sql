@@ -31,9 +31,7 @@ begin
   return next;
 end;
 $$;
-
 comment on function public.get_user_streaks(uuid) is
   'Returns visual_streak and real_streak: consecutive days with answers ending at yesterday (today does not break the streak until after midnight).';
-
 grant execute on function public.get_user_streaks(uuid) to authenticated;
 grant execute on function public.get_user_streaks(uuid) to service_role;

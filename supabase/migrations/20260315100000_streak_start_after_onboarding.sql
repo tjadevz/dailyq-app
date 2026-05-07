@@ -3,10 +3,8 @@
 
 alter table public.profiles
   add column if not exists onboarding_completed_at timestamptz;
-
 comment on column public.profiles.onboarding_completed_at is
   'When set, streak day 1 is this date (user tz). Answers before this date (e.g. onboarding) do not count.';
-
 -- get_user_streaks: use onboarding_completed_at as day_one when set (else created_at).
 create or replace function public.get_user_streaks(p_user_id uuid, p_timezone text default 'UTC')
 returns table (visual_streak bigint, real_streak bigint)
@@ -65,9 +63,7 @@ begin
   return next;
 end;
 $$;
-
 comment on function public.get_user_streaks(uuid, text) is
   'Returns visual_streak and real_streak. Streak day 1 = onboarding_completed_at::date when set (ignores onboarding answers), else profiles.created_at::date.';
-
 grant execute on function public.get_user_streaks(uuid, text) to authenticated;
 grant execute on function public.get_user_streaks(uuid, text) to service_role;

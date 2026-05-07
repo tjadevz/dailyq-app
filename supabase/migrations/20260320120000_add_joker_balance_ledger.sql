@@ -11,23 +11,17 @@ create table if not exists public.joker_balance_ledger (
   metadata jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default timezone('utc'::text, now())
 );
-
 comment on table public.joker_balance_ledger is
   'Append-only audit trail for joker balance changes.';
-
 comment on column public.joker_balance_ledger.delta is
   'Change amount: positive = awarded, negative = spent.';
-
 create index if not exists joker_balance_ledger_user_created_idx
   on public.joker_balance_ledger (user_id, created_at desc);
-
 alter table public.joker_balance_ledger enable row level security;
-
 drop policy if exists "Users can view own joker balance ledger" on public.joker_balance_ledger;
 create policy "Users can view own joker balance ledger"
   on public.joker_balance_ledger for select
   using (auth.uid() = user_id);
-
 create or replace function public.log_joker_balance_change()
 returns trigger
 language plpgsql
@@ -83,14 +77,11 @@ begin
   return new;
 end;
 $$;
-
 comment on function public.log_joker_balance_change() is
   'Trigger function that logs every profiles.joker_balance mutation.';
-
 drop trigger if exists profiles_joker_balance_ledger_trg on public.profiles;
 create trigger profiles_joker_balance_ledger_trg
 after insert or update of joker_balance on public.profiles
 for each row execute function public.log_joker_balance_change();
-
 grant select on public.joker_balance_ledger to authenticated;
 grant select on public.joker_balance_ledger to service_role;

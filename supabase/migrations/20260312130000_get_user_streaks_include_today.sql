@@ -45,9 +45,7 @@ begin
   return next;
 end;
 $$;
-
 comment on function public.get_user_streaks(uuid, text) is
   'Returns visual_streak and real_streak: consecutive days with answers. If user answered today (in p_timezone), today is included; else count ends at yesterday.';
-
 grant execute on function public.get_user_streaks(uuid, text) to authenticated;
 grant execute on function public.get_user_streaks(uuid, text) to service_role;

@@ -16,8 +16,6 @@ begin
     and user_id != p_user_id;
 end;
 $$;
-
 comment on function public.clear_expo_push_token_from_other_users(text, uuid) is
   'Clears expo_push_token from any row with the same token and a different user_id. Call before upserting the token for the current user to avoid duplicate token across users.';
-
 grant execute on function public.clear_expo_push_token_from_other_users(text, uuid) to authenticated;

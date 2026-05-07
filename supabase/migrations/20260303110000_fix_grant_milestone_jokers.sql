@@ -36,9 +36,7 @@ begin
   values (p_user_id, p_milestone);
 end;
 $$;
-
 comment on function public.grant_milestone_jokers(uuid, int) is
   'Awards jokers for crossing a streak milestone (7,30,60,100,180,365). Idempotent per milestone. p_user_id: user to grant to.';
-
 grant execute on function public.grant_milestone_jokers(uuid, int) to authenticated;
 grant execute on function public.grant_milestone_jokers(uuid, int) to service_role;

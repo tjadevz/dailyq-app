@@ -1,6 +1,5 @@
 import React, { forwardRef } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 
 export interface ShareCardProps {
   question: string;
@@ -18,33 +17,16 @@ const ShareCard = forwardRef<View, ShareCardProps>(function ShareCard(
 ) {
   return (
     <View ref={ref} style={styles.captureRoot} pointerEvents="none" collapsable={false}>
-      <LinearGradient
-        colors={["#A78BFA", "#7C3AED"]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.card}
-      >
-        {/* Top */}
+      <View style={styles.card}>
+        <Text style={styles.brandText}>DAILYQ</Text>
+        <View style={styles.spacer} />
         <View>
-          <Text style={styles.brandText}>DailyQ</Text>
-        </View>
-
-        {/* Middle */}
-        <View style={styles.middle}>
-          <Text style={styles.sectionLabel}>TODAY&apos;S QUESTION</Text>
           <Text style={styles.questionText}>{question}</Text>
-
-          <View style={styles.answerBox}>
-            <Text style={styles.answerText}>{answer}</Text>
-          </View>
-        </View>
-
-        {/* Bottom */}
-        <View style={styles.bottomRow}>
+          <Text style={styles.answerText}>{answer}</Text>
           <Text style={styles.dateText}>{dateLabel}</Text>
-          <Text style={styles.domainText}>dailyqapp.com</Text>
         </View>
-      </LinearGradient>
+        <View style={styles.spacer} />
+      </View>
     </View>
   );
 });
@@ -60,68 +42,43 @@ const styles = StyleSheet.create({
     flex: 1,
     width: 375,
     height: 667,
-    padding: 48,
-    justifyContent: "space-between",
+    backgroundColor: "#251560",
+    paddingHorizontal: 48,
+    paddingVertical: 52,
   },
 
   brandText: {
-    fontSize: 13,
+    fontSize: 11,
     fontWeight: "500",
-    fontFamily: "Inter",
-    color: "rgba(255,255,255,0.6)",
+    color: "rgba(196,181,253,0.8)",
     letterSpacing: 2,
+    textTransform: "uppercase",
   },
 
-  middle: {
-    flexShrink: 1,
-  },
-
-  sectionLabel: {
-    fontSize: 10,
-    color: "rgba(255,255,255,0.5)",
-    fontFamily: "Inter",
-    letterSpacing: 1.5,
-    marginBottom: 8,
+  spacer: {
+    flex: 1,
   },
 
   questionText: {
-    fontSize: 22,
-    fontWeight: "500",
-    fontFamily: "Inter",
-    color: "#fff",
-    lineHeight: 22 * 1.4,
-    marginBottom: 24,
-  },
-
-  answerBox: {
-    backgroundColor: "rgba(255,255,255,0.12)",
-    borderRadius: 16,
-    padding: 20,
+    fontSize: 14,
+    color: "rgba(196,181,253,0.75)",
+    lineHeight: 21,
+    fontStyle: "italic",
+    marginBottom: 12,
   },
 
   answerText: {
-    fontSize: 16,
-    color: "rgba(255,255,255,0.9)",
-    fontFamily: "Inter",
-    lineHeight: 16 * 1.6,
-  },
-
-  bottomRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-end",
+    fontSize: 21,
+    fontWeight: "600",
+    color: "#FFFFFF",
+    lineHeight: 30,
   },
 
   dateText: {
     fontSize: 11,
-    color: "rgba(255,255,255,0.4)",
-    fontFamily: "Inter",
-  },
-
-  domainText: {
-    fontSize: 11,
-    color: "rgba(255,255,255,0.6)",
-    fontFamily: "Inter",
+    color: "rgba(196,181,253,0.45)",
+    marginTop: 28,
+    marginBottom: 28,
   },
 });
 

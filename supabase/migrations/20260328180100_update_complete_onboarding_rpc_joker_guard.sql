@@ -71,6 +71,5 @@ begin
   where p.id = v_user_id;
 end;
 $$;
-
 comment on function public.complete_onboarding_with_reward(boolean) is
   'Marks onboarding as completed for auth.uid(); optional +1 joker is idempotent via onboarding_joker_granted (independent of onboarding_completed). Safe to call at BEGIN click (no joker) and again at flow completion (with joker).';

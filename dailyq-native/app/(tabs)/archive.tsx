@@ -77,7 +77,6 @@ export default function ArchiveScreen() {
       .from("answers")
       .select("question_date, answer_text")
       .eq("user_id", userId)
-      .eq("is_onboarding", false)
       .not("answer_text", "is", null)
       .order("question_date", { ascending: true });
 
@@ -164,9 +163,20 @@ export default function ArchiveScreen() {
   }, [fetchArchiveData, userId]);
 
   const answerLabel = useMemo(
-    () => (items.length === 1 ? "antwoord" : "antwoorden"),
-    [items.length]
+    () => {
+      if (lang === "en") {
+        return items.length === 1 ? "answer" : "answers";
+      }
+      return items.length === 1 ? "antwoord" : "antwoorden";
+    },
+    [items.length, lang]
   );
+  const headerPrefix = lang === "en" ? "Your archive contains" : "Jouw archief bevat";
+  const loadingText = lang === "en" ? "Loading archive..." : "Archief laden...";
+  const emptyText =
+    lang === "en"
+      ? "No answers yet. Answer your first question."
+      : "Nog geen antwoorden. Beantwoord je eerste vraag.";
 
   useEffect(() => {
     dotPulse.value = withRepeat(
@@ -190,7 +200,7 @@ export default function ArchiveScreen() {
         <View style={[styles.content, { paddingTop: insets.top + 32 }]}>
           <View style={[styles.center, styles.centerFill]}>
             <ActivityIndicator size="small" color="#7C3AED" />
-            <Text style={styles.loadingText}>Archief laden...</Text>
+            <Text style={styles.loadingText}>{loadingText}</Text>
           </View>
         </View>
       </View>
@@ -204,13 +214,13 @@ export default function ArchiveScreen() {
         <View style={[styles.content, { paddingTop: insets.top + 32 }]}>
           <View style={styles.header}>
             <View style={styles.heroCard}>
-              <Text style={styles.heroLabel}>Jouw archief bevat</Text>
+              <Text style={styles.heroLabel}>{headerPrefix}</Text>
               <Text style={styles.heroValue}>0</Text>
-              <Text style={styles.heroSubLabel}>antwoorden</Text>
+              <Text style={styles.heroSubLabel}>{lang === "en" ? "answers" : "antwoorden"}</Text>
             </View>
           </View>
           <View style={[styles.center, styles.centerFill]}>
-            <Text style={styles.emptyText}>Nog geen antwoorden. Beantwoord je eerste vraag.</Text>
+            <Text style={styles.emptyText}>{emptyText}</Text>
           </View>
         </View>
       </View>
@@ -223,7 +233,7 @@ export default function ArchiveScreen() {
       <View style={[styles.content, { paddingTop: insets.top + 32 }]}>
         <View style={styles.header}>
           <View style={styles.heroCard}>
-            <Text style={styles.heroLabel}>Jouw archief bevat</Text>
+            <Text style={styles.heroLabel}>{headerPrefix}</Text>
             <Text style={styles.heroValue}>{items.length}</Text>
             <Text style={styles.heroSubLabel}>{answerLabel}</Text>
           </View>

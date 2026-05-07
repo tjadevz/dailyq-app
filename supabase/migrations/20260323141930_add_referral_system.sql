@@ -2,11 +2,9 @@
 
 -- Required for gen_random_uuid()
 create extension if not exists pgcrypto;
-
 -- 1) Add referral_code to profiles
 alter table public.profiles
   add column if not exists referral_code text unique;
-
 -- 2) Generate a unique 8-character referral code (lowercase letters + digits)
 create or replace function public.generate_referral_code()
 returns text
@@ -35,12 +33,10 @@ begin
   return result;
 end;
 $$;
-
 -- 3) Backfill referral_code for existing users
 update public.profiles
 set referral_code = public.generate_referral_code()
 where referral_code is null;
-
 -- 4) Trigger: automatically set referral_code for new profiles
 create or replace function public.set_referral_code()
 returns trigger
@@ -53,12 +49,10 @@ begin
   return new;
 end;
 $$;
-
 drop trigger if exists trigger_set_referral_code on public.profiles;
 create trigger trigger_set_referral_code
   before insert on public.profiles
   for each row execute function public.set_referral_code();
-
 -- 5) Referrals table
 create table if not exists public.referrals (
   id uuid primary key default gen_random_uuid(),
@@ -66,10 +60,8 @@ create table if not exists public.referrals (
   referred_id uuid not null unique references public.profiles(id) on delete cascade,
   created_at timestamptz default now()
 );
-
 create index if not exists referrals_referrer_id_idx
   on public.referrals (referrer_id);
-
 -- We already have a trigger that writes to public.joker_balance_ledger when
 -- public.profiles.joker_balance changes. For handle_referral we want to write
 -- the ledger rows ourselves with a specific reason, so we allow the trigger
@@ -133,7 +125,6 @@ begin
   return new;
 end;
 $$;
-
 -- 6) RPC: handle_referral
 create or replace function public.handle_referral(
   p_referral_code text,
@@ -283,7 +274,5 @@ begin
   return true;
 end;
 $$;
-
 grant execute on function public.handle_referral(text, uuid) to authenticated;
 grant execute on function public.handle_referral(text, uuid) to service_role;
-

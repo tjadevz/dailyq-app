@@ -1075,7 +1075,11 @@ export default function CalendarScreen() {
                 <View style={styles.nextRewardTextWrap}>
                   <View style={styles.nextRewardStreakRow}>
                     <Text style={styles.nextRewardStreakValue}>{realStreak}</Text>
-                    <Text style={styles.nextRewardStreakLabel}>{t("calendar_stats_day_streak")}</Text>
+                    <Text style={styles.nextRewardStreakLabel}>
+                      {realStreak === 1
+                        ? t("calendar_stats_day_streak_one")
+                        : t("calendar_stats_day_streak")}
+                    </Text>
                   </View>
                 </View>
               </View>

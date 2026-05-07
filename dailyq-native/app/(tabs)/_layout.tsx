@@ -49,6 +49,17 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="archive"
+        options={{
+          title: "Archief",
+          tabBarLabel: "",
+          headerShown: false,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="book-outline" size={size ?? 22} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="calendar"
         options={{
           title: t("tabs_calendar"),

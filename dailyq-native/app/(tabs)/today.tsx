@@ -386,11 +386,14 @@ export default function TodayScreen() {
   }, [userId, activeAccountMilestone, refetchProfile, modalQueue, advanceQueue]);
 
   const handleRecapClose = useCallback(() => {
-    if (recapData?.previousMonthKey) {
-      void markRecapSeen(recapData.previousMonthKey);
-    }
     advanceQueue(modalQueue);
-  }, [markRecapSeen, recapData?.previousMonthKey, modalQueue, advanceQueue]);
+  }, [modalQueue, advanceQueue]);
+
+  useEffect(() => {
+    if (activeModal !== "monthlyRecap") return;
+    if (!recapData?.previousMonthKey) return;
+    void markRecapSeen(recapData.previousMonthKey);
+  }, [activeModal, recapData?.previousMonthKey, markRecapSeen]);
 
   // Clear leftover Monday recap keys (feature removed); they are not read anywhere.
   useEffect(() => {

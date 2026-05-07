@@ -177,6 +177,24 @@ export function useMonthlyRecap(): MonthlyRecapHook {
           getPreviousMonthRange(now);
         const prevMonthStartKey = toDayKey(firstDayPrevMonth);
         const prevMonthEndKey = toDayKey(lastDayPrevMonth);
+        const prevMonthCreatedAtStartIso = new Date(
+          firstDayPrevMonth.getFullYear(),
+          firstDayPrevMonth.getMonth(),
+          firstDayPrevMonth.getDate(),
+          0,
+          0,
+          0,
+          0
+        ).toISOString();
+        const prevMonthCreatedAtEndExclusiveIso = new Date(
+          lastDayPrevMonth.getFullYear(),
+          lastDayPrevMonth.getMonth(),
+          lastDayPrevMonth.getDate() + 1,
+          0,
+          0,
+          0,
+          0
+        ).toISOString();
 
         const { data: profileData, error: profileError } = await supabase
           .from("profiles")
@@ -206,16 +224,20 @@ export function useMonthlyRecap(): MonthlyRecapHook {
           .select("question_date, answer_text, created_at")
           .eq("user_id", userId)
           .eq("is_onboarding", false)
-          .gte("question_date", prevMonthStartKey)
-          .lte("question_date", prevMonthEndKey);
+          .gte("created_at", prevMonthCreatedAtStartIso)
+          .lt("created_at", prevMonthCreatedAtEndExclusiveIso);
         if (monthlyAnswersError) throw monthlyAnswersError;
 
-        const { count: totalAnswersCount, error: totalAnswersError } = await supabase
+        const { data: totalAnswersData, error: totalAnswersError } = await supabase
           .from("answers")
-          .select("id", { count: "exact", head: true })
+          .select("answer_text")
           .eq("user_id", userId)
-          .eq("is_onboarding", false);
+          .not("answer_text", "is", null);
         if (totalAnswersError) throw totalAnswersError;
+        const totalAnswersCount =
+          ((totalAnswersData as { answer_text: string | null }[] | null) ?? []).filter((row) =>
+            Boolean(row.answer_text?.trim())
+          ).length;
 
         const rows =
           (monthlyAnswers as {
@@ -223,6 +245,9 @@ export function useMonthlyRecap(): MonthlyRecapHook {
             answer_text: string | null;
             created_at: string | null;
           }[] | null) ?? [];
+        // #region agent log
+        fetch("http://127.0.0.1:7729/ingest/db237dc3-2932-4821-b603-b2959e85e2e1",{method:"POST",headers:{"Content-Type":"application/json","X-Debug-Session-Id":"c9dba5"},body:JSON.stringify({sessionId:"c9dba5",runId:"pre-fix",hypothesisId:"H2_H3",location:"useMonthlyRecap.ts:rows",message:"Monthly recap answer rows loaded",data:{userId,rowCount:rows.length,prevMonthStartKey,prevMonthEndKey,sample:rows.slice(0,10).map((r)=>({question_date:r.question_date,created_at:r.created_at}))},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
 
         const daysAnswered = rows.length;
         const longestStreakThisMonth = calculateLongestStreak(rows.map((r) => r.question_date));
@@ -230,20 +255,43 @@ export function useMonthlyRecap(): MonthlyRecapHook {
           (sum, row) => sum + countWords(row.answer_text),
           0
         );
-        const monthAnswerTimes = rows
+        const monthAnswerDates = rows
           .map((row) => row.created_at)
           .filter((value): value is string => Boolean(value))
           .map((value) => new Date(value))
-          .filter((dt) => Number.isFinite(dt.getTime()))
-          .map((dt) => dt.getTime());
-        const earliestAnswerTime =
-          monthAnswerTimes.length > 0
-            ? formatTimeHHMM(new Date(Math.min(...monthAnswerTimes)).toISOString())
-            : "--:--";
-        const latestAnswerTime =
-          monthAnswerTimes.length > 0
-            ? formatTimeHHMM(new Date(Math.max(...monthAnswerTimes)).toISOString())
-            : "--:--";
+          .filter((dt) => Number.isFinite(dt.getTime()));
+        const minTimeOfDayDate = monthAnswerDates.reduce<Date | null>((acc, dt) => {
+          const mins = dt.getHours() * 60 + dt.getMinutes();
+          if (!acc) return dt;
+          const accMins = acc.getHours() * 60 + acc.getMinutes();
+          return mins < accMins ? dt : acc;
+        }, null);
+        const maxTimeOfDayDate = monthAnswerDates.reduce<Date | null>((acc, dt) => {
+          const mins = dt.getHours() * 60 + dt.getMinutes();
+          if (!acc) return dt;
+          const accMins = acc.getHours() * 60 + acc.getMinutes();
+          return mins > accMins ? dt : acc;
+        }, null);
+        const earliestDate = monthAnswerDates.reduce<Date | null>((acc, dt) => {
+          if (!acc) return dt;
+          return dt.getTime() < acc.getTime() ? dt : acc;
+        }, null);
+        const latestDate = monthAnswerDates.reduce<Date | null>((acc, dt) => {
+          if (!acc) return dt;
+          return dt.getTime() > acc.getTime() ? dt : acc;
+        }, null);
+        // #region agent log
+        fetch("http://127.0.0.1:7729/ingest/db237dc3-2932-4821-b603-b2959e85e2e1",{method:"POST",headers:{"Content-Type":"application/json","X-Debug-Session-Id":"c9dba5"},body:JSON.stringify({sessionId:"c9dba5",runId:"pre-fix",hypothesisId:"H1_H4",location:"useMonthlyRecap.ts:time-comparison",message:"Compare timestamp-based vs time-of-day-based bounds",data:{timestampEarliest:earliestDate?{iso:earliestDate.toISOString(),hhmm:`${String(earliestDate.getHours()).padStart(2,"0")}:${String(earliestDate.getMinutes()).padStart(2,"0")}`}:null,timestampLatest:latestDate?{iso:latestDate.toISOString(),hhmm:`${String(latestDate.getHours()).padStart(2,"0")}:${String(latestDate.getMinutes()).padStart(2,"0")}`}:null,timeOfDayEarliest:minTimeOfDayDate?{iso:minTimeOfDayDate.toISOString(),hhmm:`${String(minTimeOfDayDate.getHours()).padStart(2,"0")}:${String(minTimeOfDayDate.getMinutes()).padStart(2,"0")}`}:null,timeOfDayLatest:maxTimeOfDayDate?{iso:maxTimeOfDayDate.toISOString(),hhmm:`${String(maxTimeOfDayDate.getHours()).padStart(2,"0")}:${String(maxTimeOfDayDate.getMinutes()).padStart(2,"0")}`}:null},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
+        const earliestAnswerTime = minTimeOfDayDate
+          ? formatTimeHHMM(minTimeOfDayDate.toISOString())
+          : "--:--";
+        const latestAnswerTime = maxTimeOfDayDate
+          ? formatTimeHHMM(maxTimeOfDayDate.toISOString())
+          : "--:--";
+        // #region agent log
+        fetch("http://127.0.0.1:7729/ingest/db237dc3-2932-4821-b603-b2959e85e2e1",{method:"POST",headers:{"Content-Type":"application/json","X-Debug-Session-Id":"c9dba5"},body:JSON.stringify({sessionId:"c9dba5",runId:"pre-fix",hypothesisId:"H1_H2_H4",location:"useMonthlyRecap.ts:final-times",message:"Final recap times emitted",data:{earliestAnswerTime,latestAnswerTime},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
 
         const locale = lang === "nl" ? "nl-NL" : "en-US";
         const monthName = new Intl.DateTimeFormat(locale, { month: "long" }).format(
@@ -255,7 +303,7 @@ export function useMonthlyRecap(): MonthlyRecapHook {
           totalDaysInMonth,
           longestStreakThisMonth,
           wordsWrittenThisMonth,
-          totalAnswers: totalAnswersCount ?? 0,
+          totalAnswers: totalAnswersCount,
           monthsActive: calculateMonthsActive(createdAt, now),
           earliestAnswerTime,
           latestAnswerTime,

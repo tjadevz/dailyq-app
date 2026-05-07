@@ -324,6 +324,56 @@ export default function SettingsScreen() {
     if (!__DEV__ || !userId || userId === "dev-user") return;
     setTriggerMonthlyRecapLoading(true);
     try {
+      const now = new Date();
+      const firstOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const firstOfPreviousMonth = new Date(
+        firstOfCurrentMonth.getFullYear(),
+        firstOfCurrentMonth.getMonth() - 1,
+        1
+      );
+      const pad = (n: number) => String(n).padStart(2, "0");
+      const dayA = new Date(
+        firstOfPreviousMonth.getFullYear(),
+        firstOfPreviousMonth.getMonth(),
+        5,
+        6,
+        0,
+        0,
+        0
+      );
+      const dayB = new Date(
+        firstOfPreviousMonth.getFullYear(),
+        firstOfPreviousMonth.getMonth(),
+        20,
+        22,
+        0,
+        0,
+        0
+      );
+      const questionDateA = `${dayA.getFullYear()}-${pad(dayA.getMonth() + 1)}-${pad(dayA.getDate())}`;
+      const questionDateB = `${dayB.getFullYear()}-${pad(dayB.getMonth() + 1)}-${pad(dayB.getDate())}`;
+
+      const { error: seedError } = await supabase.from("answers").upsert(
+        [
+          {
+            user_id: userId,
+            question_date: questionDateA,
+            answer_text: "Dev recap seed earliest",
+            is_onboarding: false,
+            created_at: dayA.toISOString(),
+          },
+          {
+            user_id: userId,
+            question_date: questionDateB,
+            answer_text: "Dev recap seed latest",
+            is_onboarding: false,
+            created_at: dayB.toISOString(),
+          },
+        ],
+        { onConflict: "user_id,question_date" }
+      );
+      if (seedError) throw seedError;
+
       await AsyncStorage.setItem(MONTHLY_RECAP_DEV_TRIGGER_KEY, "1");
       const { error } = await supabase
         .from("profiles")

@@ -28,6 +28,12 @@ const MonthlyRecapShareCard = forwardRef<MonthlyRecapShareCardRef, MonthlyRecapS
         year: "numeric",
       }).format(parsed);
     }, [recapData.monthName, recapData.previousMonthKey, lang]);
+    const monthsActiveLabel = useMemo(() => {
+      if (lang === "nl") {
+        return recapData.monthsActive === 1 ? "actieve maand" : "actieve maanden";
+      }
+      return recapData.monthsActive === 1 ? "active month" : "active months";
+    }, [lang, recapData.monthsActive]);
     const copy =
       lang === "nl"
         ? {
@@ -58,6 +64,8 @@ const MonthlyRecapShareCard = forwardRef<MonthlyRecapShareCardRef, MonthlyRecapS
           if (!captureViewRef.current) return;
           try {
             const uri = await captureRef(captureViewRef, {
+              width: 375,
+              height: 667,
               format: "png",
               quality: 1,
             });
@@ -116,7 +124,7 @@ const MonthlyRecapShareCard = forwardRef<MonthlyRecapShareCardRef, MonthlyRecapS
 
             <View style={styles.tile}>
               <Text style={styles.tileValue}>{recapData.monthsActive}</Text>
-              <Text style={styles.tileLabel}>{copy.monthsActive}</Text>
+              <Text style={styles.tileLabel}>{monthsActiveLabel}</Text>
             </View>
           </View>
 
@@ -142,8 +150,12 @@ const styles = StyleSheet.create({
   captureRoot: {
     width: 375,
     height: 667,
+    position: "absolute",
+    left: -9999,
+    top: 0,
   },
   card: {
+    flex: 1,
     width: 375,
     height: 667,
     backgroundColor: "#2A1A5E",

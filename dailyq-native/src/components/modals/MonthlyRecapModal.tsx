@@ -58,6 +58,12 @@ export default function MonthlyRecapModal({ visible, recapData, onClose, onShare
     if (recapData.totalDaysInMonth <= 0) return 0;
     return Math.min(1, Math.max(0, recapData.daysAnswered / recapData.totalDaysInMonth));
   }, [recapData.daysAnswered, recapData.totalDaysInMonth]);
+  const monthsActiveLabel = useMemo(() => {
+    if (lang === "nl") {
+      return recapData.monthsActive === 1 ? "actieve maand" : "actieve maanden";
+    }
+    return recapData.monthsActive === 1 ? "active month" : "active months";
+  }, [lang, recapData.monthsActive]);
 
   const closeModal = useCallback(() => onClose(), [onClose]);
 
@@ -144,7 +150,7 @@ export default function MonthlyRecapModal({ visible, recapData, onClose, onShare
                     {recapData.monthsActive != null ? (
                       <View style={[styles.statTile, styles.halfCard]}>
                         <Text style={styles.statBig}>{recapData.monthsActive}</Text>
-                        <Text style={styles.label}>{copy.monthsActive}</Text>
+                        <Text style={styles.label}>{monthsActiveLabel}</Text>
                       </View>
                     ) : null}
                     <View style={[styles.statTile, styles.halfCard]}>

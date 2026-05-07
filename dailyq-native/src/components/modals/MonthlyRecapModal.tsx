@@ -34,17 +34,23 @@ export default function MonthlyRecapModal({ visible, recapData, onClose, onShare
     ? {
         eyebrow: "Dit was",
         daysAnswered: "dagen beantwoord",
-        totalAnswers: "antwoorden in totaal",
+        totalAnswers: "antwoorden in je archief",
         longestStreak: "langste reeks",
-        wordsWritten: "woorden geschreven deze maand",
+        wordsWritten: "woorden geschreven",
+        earliestAnswer: "vroegste antwoord",
+        latestAnswer: "laatste antwoord",
+        monthsActive: "actieve maanden",
         share: "Deel je maand",
       }
     : {
         eyebrow: "This was",
         daysAnswered: "days answered",
-        totalAnswers: "answers in total",
+        totalAnswers: "answers in your archive",
         longestStreak: "longest streak",
-        wordsWritten: "words written this month",
+        wordsWritten: "words written",
+        earliestAnswer: "earliest answer",
+        latestAnswer: "latest answer",
+        monthsActive: "active months",
         share: "Share your month",
       };
 
@@ -102,8 +108,10 @@ export default function MonthlyRecapModal({ visible, recapData, onClose, onShare
                     <Feather name="x" size={18} color="#FFFFFF" strokeWidth={2.5} />
                   </Pressable>
 
-                  <Text style={styles.eyebrow}>{copy.eyebrow}</Text>
-                  <Text style={styles.monthName}>{recapData.monthName}</Text>
+                  <View style={styles.heroBlock}>
+                    <Text style={styles.heroEyebrow}>{copy.eyebrow}</Text>
+                    <Text style={styles.heroMonthName}>{recapData.monthName}</Text>
+                  </View>
 
                   <View style={styles.card}>
                     <View style={styles.daysRow}>
@@ -116,20 +124,37 @@ export default function MonthlyRecapModal({ visible, recapData, onClose, onShare
                     </View>
                   </View>
 
-                  <View style={styles.statsRow}>
-                    <View style={[styles.card, styles.halfCard]}>
+                  <View style={styles.statsGrid}>
+                    <View style={[styles.statTile, styles.halfCard]}>
                       <Text style={styles.statBig}>{recapData.totalAnswers}</Text>
-                      <Text style={styles.label}>{copy.totalAnswers}</Text>
+                      <Text style={styles.totalAnswersLabel}>
+                        {lang === "nl" ? "antwoorden in je archief" : copy.totalAnswers}
+                      </Text>
                     </View>
-                    <View style={[styles.card, styles.halfCard]}>
+                    <View style={[styles.statTile, styles.halfCard]}>
                       <Text style={styles.statBig}>{recapData.longestStreakThisMonth}</Text>
-                      <Text style={styles.label}>{copy.longestStreak}</Text>
+                      <Text style={styles.label}>
+                        {lang === "nl" ? "langste streak" : copy.longestStreak}
+                      </Text>
                     </View>
-                  </View>
-
-                  <View style={styles.card}>
-                    <Text style={styles.statBig}>{recapData.wordsWrittenThisMonth}</Text>
-                    <Text style={styles.label}>{copy.wordsWritten}</Text>
+                    <View style={[styles.statTile, styles.halfCard]}>
+                      <Text style={styles.statBig}>{recapData.wordsWrittenThisMonth}</Text>
+                      <Text style={styles.label}>{copy.wordsWritten}</Text>
+                    </View>
+                    {recapData.monthsActive != null ? (
+                      <View style={[styles.statTile, styles.halfCard]}>
+                        <Text style={styles.statBig}>{recapData.monthsActive}</Text>
+                        <Text style={styles.label}>{copy.monthsActive}</Text>
+                      </View>
+                    ) : null}
+                    <View style={[styles.statTile, styles.halfCard]}>
+                      <Text style={styles.statBig}>{recapData.earliestAnswerTime}</Text>
+                      <Text style={styles.label}>{copy.earliestAnswer}</Text>
+                    </View>
+                    <View style={[styles.statTile, styles.halfCard]}>
+                      <Text style={styles.statBig}>{recapData.latestAnswerTime}</Text>
+                      <Text style={styles.label}>{copy.latestAnswer}</Text>
+                    </View>
                   </View>
 
                   <Pressable
@@ -164,7 +189,7 @@ const styles = StyleSheet.create({
   },
   panelRoot: {
     flex: 1,
-    backgroundColor: "#1A1033",
+    backgroundColor: "#2A1A5E",
     overflow: "hidden",
   },
   panelContent: {
@@ -180,17 +205,25 @@ const styles = StyleSheet.create({
     padding: 8,
     marginBottom: 8,
   },
-  eyebrow: {
-    color: "rgba(255,255,255,0.4)",
-    fontSize: 14,
-    fontWeight: "500",
-    marginBottom: 6,
+  heroBlock: {
+    backgroundColor: "#7C3AED",
+    borderRadius: 14,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+    marginBottom: 16,
   },
-  monthName: {
+  heroEyebrow: {
+    fontSize: 11,
+    color: "rgba(255,255,255,0.6)",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    marginBottom: 4,
+  },
+  heroMonthName: {
+    fontSize: 42,
+    fontWeight: "600",
     color: "#FFFFFF",
-    fontSize: 38,
-    fontWeight: "500",
-    marginBottom: 18,
+    lineHeight: 42,
   },
   card: {
     backgroundColor: "rgba(255,255,255,0.07)",
@@ -231,18 +264,33 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: "#7C3AED",
   },
-  statsRow: {
+  statsGrid: {
     flexDirection: "row",
-    gap: 12,
+    flexWrap: "wrap",
+    gap: 8,
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  statTile: {
+    backgroundColor: "rgba(255,255,255,0.11)",
+    borderRadius: 14,
+    padding: 16,
   },
   halfCard: {
-    flex: 1,
+    width: "48%",
   },
   statBig: {
     color: "#FFFFFF",
     fontSize: 34,
     fontWeight: "600",
     marginBottom: 8,
+  },
+  totalAnswersLabel: {
+    color: "rgba(255,255,255,0.4)",
+    fontSize: 14,
+    fontWeight: "500",
+    flexShrink: 1,
+    flexWrap: "wrap",
   },
   shareButton: {
     marginTop: "auto",

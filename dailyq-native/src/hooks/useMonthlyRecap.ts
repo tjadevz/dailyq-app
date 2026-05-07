@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect } from "@react-navigation/native";
 import { supabase } from "../config/supabase";
 import { useAuth } from "../context/AuthContext";
 import { useLanguage } from "../context/LanguageContext";
@@ -11,6 +12,8 @@ export type RecapData = {
   wordsWrittenThisMonth: number;
   totalAnswers: number;
   monthsActive: number;
+  earliestAnswerTime: string;
+  latestAnswerTime: string;
   monthName: string;
   previousMonthKey: string;
 };
@@ -60,7 +63,7 @@ function isCreatedMoreThan30DaysAgo(createdAt: string | null, now: Date): boolea
   const createdDate = new Date(createdAt);
   if (!Number.isFinite(createdDate.getTime())) return false;
   const diffMs = now.getTime() - createdDate.getTime();
-  return diffMs > 30 * 24 * 60 * 60 * 1000;
+  return diffMs > 1 * 24 * 60 * 60 * 1000;
 }
 
 function calculateLongestStreak(questionDates: string[]): number {
@@ -107,6 +110,14 @@ function calculateMonthsActive(createdAt: string | null, now: Date): number {
   return Math.max(1, months);
 }
 
+function formatTimeHHMM(value: string): string {
+  const dt = new Date(value);
+  if (!Number.isFinite(dt.getTime())) return "--:--";
+  const hh = String(dt.getHours()).padStart(2, "0");
+  const mm = String(dt.getMinutes()).padStart(2, "0");
+  return `${hh}:${mm}`;
+}
+
 export function useMonthlyRecap(): MonthlyRecapHook {
   const { effectiveUser } = useAuth();
   const { lang } = useLanguage();
@@ -133,21 +144,18 @@ export function useMonthlyRecap(): MonthlyRecapHook {
     [userId]
   );
 
-  useEffect(() => {
+  const loadRecap = useCallback(async () => {
     let cancelled = false;
-
-    const run = async () => {
+    try {
       const now = new Date();
       const dayOfMonth = now.getDate();
       const isRecapWindow = dayOfMonth >= 1 && dayOfMonth <= 7;
 
       if (!userId || userId === "dev-user") {
-        if (!cancelled) {
-          setShowRecap(false);
-          setRecapData(null);
-          setLoading(false);
-          setError(null);
-        }
+        setShowRecap(false);
+        setRecapData(null);
+        setLoading(false);
+        setError(null);
         return;
       }
 
@@ -155,21 +163,16 @@ export function useMonthlyRecap(): MonthlyRecapHook {
         __DEV__ && (await AsyncStorage.getItem(MONTHLY_RECAP_DEV_TRIGGER_KEY)) === "1";
 
       if (!isRecapWindow && !isDevForceTrigger) {
-        if (!cancelled) {
-          setShowRecap(false);
-          setRecapData(null);
-          setLoading(false);
-          setError(null);
-        }
+        setShowRecap(false);
+        setRecapData(null);
+        setLoading(false);
+        setError(null);
         return;
       }
 
-      if (!cancelled) {
-        setLoading(true);
-        setError(null);
-      }
+      setLoading(true);
+      setError(null);
 
-      try {
         const { firstDayPrevMonth, lastDayPrevMonth, previousMonthKey, totalDaysInMonth } =
           getPreviousMonthRange(now);
         const prevMonthStartKey = toDayKey(firstDayPrevMonth);
@@ -193,16 +196,14 @@ export function useMonthlyRecap(): MonthlyRecapHook {
           isDevForceTrigger || (accountOldEnough && recapNotShownForPrevMonth);
 
         if (!shouldShow) {
-          if (!cancelled) {
-            setShowRecap(false);
-            setRecapData(null);
-          }
+          setShowRecap(false);
+          setRecapData(null);
           return;
         }
 
         const { data: monthlyAnswers, error: monthlyAnswersError } = await supabase
           .from("answers")
-          .select("question_date, answer_text")
+          .select("question_date, answer_text, created_at")
           .eq("user_id", userId)
           .eq("is_onboarding", false)
           .gte("question_date", prevMonthStartKey)
@@ -217,7 +218,11 @@ export function useMonthlyRecap(): MonthlyRecapHook {
         if (totalAnswersError) throw totalAnswersError;
 
         const rows =
-          (monthlyAnswers as { question_date: string; answer_text: string | null }[] | null) ?? [];
+          (monthlyAnswers as {
+            question_date: string;
+            answer_text: string | null;
+            created_at: string | null;
+          }[] | null) ?? [];
 
         const daysAnswered = rows.length;
         const longestStreakThisMonth = calculateLongestStreak(rows.map((r) => r.question_date));
@@ -225,6 +230,20 @@ export function useMonthlyRecap(): MonthlyRecapHook {
           (sum, row) => sum + countWords(row.answer_text),
           0
         );
+        const monthAnswerTimes = rows
+          .map((row) => row.created_at)
+          .filter((value): value is string => Boolean(value))
+          .map((value) => new Date(value))
+          .filter((dt) => Number.isFinite(dt.getTime()))
+          .map((dt) => dt.getTime());
+        const earliestAnswerTime =
+          monthAnswerTimes.length > 0
+            ? formatTimeHHMM(new Date(Math.min(...monthAnswerTimes)).toISOString())
+            : "--:--";
+        const latestAnswerTime =
+          monthAnswerTimes.length > 0
+            ? formatTimeHHMM(new Date(Math.max(...monthAnswerTimes)).toISOString())
+            : "--:--";
 
         const locale = lang === "nl" ? "nl-NL" : "en-US";
         const monthName = new Intl.DateTimeFormat(locale, { month: "long" }).format(
@@ -238,34 +257,39 @@ export function useMonthlyRecap(): MonthlyRecapHook {
           wordsWrittenThisMonth,
           totalAnswers: totalAnswersCount ?? 0,
           monthsActive: calculateMonthsActive(createdAt, now),
+          earliestAnswerTime,
+          latestAnswerTime,
           monthName,
           previousMonthKey,
         };
 
-        if (!cancelled) {
-          setRecapData(nextRecapData);
-          setShowRecap(true);
-        }
-      } catch (e) {
-        const message = e instanceof Error ? e.message : "Failed to load monthly recap";
-        console.error("[MonthlyRecap] Fetch failed:", e);
-        if (!cancelled) {
-          setError(message);
-          setShowRecap(false);
-          setRecapData(null);
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
+        setRecapData(nextRecapData);
+        setShowRecap(true);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Failed to load monthly recap";
+      console.error("[MonthlyRecap] Fetch failed:", e);
+      setError(message);
+      setShowRecap(false);
+      setRecapData(null);
+    } finally {
+      if (!cancelled) {
+        setLoading(false);
       }
-    };
-
-    run();
+    }
     return () => {
       cancelled = true;
     };
   }, [userId, lang, effectiveUser?.created_at]);
+
+  useEffect(() => {
+    void loadRecap();
+  }, [loadRecap]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadRecap();
+    }, [loadRecap])
+  );
 
   return { showRecap, recapData, markRecapSeen };
 }

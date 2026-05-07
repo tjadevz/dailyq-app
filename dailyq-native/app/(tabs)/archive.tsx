@@ -241,33 +241,59 @@ export default function ArchiveScreen() {
 
         <ScrollView
           style={styles.scroll}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingBottom: insets.bottom + 112 },
+          ]}
           showsVerticalScrollIndicator
         >
           {items.map((item, index) => {
             const isLast = index === items.length - 1;
+            const prevItem = index > 0 ? items[index - 1] : null;
+            const monthKey = item.date.slice(0, 7);
+            const prevMonthKey = prevItem?.date.slice(0, 7) ?? null;
+            const showMonthPill = monthKey !== prevMonthKey;
             return (
-              <View key={`${item.date}-${index}`} style={styles.row}>
-                <View style={styles.timelineCol}>
-                  <AnimatedReanimated.View style={[styles.dot, dotPulseStyle]} />
-                  {!isLast ? <View style={styles.line} /> : null}
-                </View>
+              <React.Fragment key={`${item.date}-${index}`}>
+                {showMonthPill ? (
+                  <View style={styles.monthSeparatorRow}>
+                    <View style={styles.monthTimelineCol}>
+                      <View style={styles.monthLine} />
+                    </View>
+                    <View style={styles.monthSeparatorContent}>
+                      <Text style={styles.monthLabel}>
+                        {formatDate(new Date(`${item.date}T12:00:00`), {
+                          month: "long",
+                          year: "numeric",
+                        }).toLocaleUpperCase(lang === "nl" ? "nl-NL" : "en-US")}
+                      </Text>
+                      <View style={styles.monthDivider} />
+                    </View>
+                  </View>
+                ) : null}
 
-                <AnimatedReanimated.View
-                  entering={FadeInUp.delay(250 + index * 80).duration(260)}
-                  style={styles.card}
-                >
-                  <Text style={styles.cardDate}>
-                    {formatDate(new Date(`${item.date}T12:00:00`), {
-                      day: "numeric",
-                      month: "short",
-                      year: "numeric",
-                    })}
-                  </Text>
-                  <Text style={styles.cardQuestion}>{item.questionText}</Text>
-                  <Text style={styles.cardAnswer}>{item.answerText}</Text>
-                </AnimatedReanimated.View>
-              </View>
+                <View style={styles.row}>
+                  <View style={styles.timelineCol}>
+                    <AnimatedReanimated.View style={[styles.dot, dotPulseStyle]} />
+                    {!isLast ? <View style={styles.line} /> : null}
+                  </View>
+
+                  <AnimatedReanimated.View
+                    entering={FadeInUp.delay(250 + index * 80).duration(260)}
+                    style={styles.card}
+                  >
+                    <Text style={styles.cardDate}>
+                      {formatDate(new Date(`${item.date}T12:00:00`), {
+                        day: "numeric",
+                        month: "long",
+                        year: "numeric",
+                      })}
+                    </Text>
+                    <Text style={styles.cardQuestion}>{item.questionText}</Text>
+                    <Text style={styles.cardAnswer}>{item.answerText}</Text>
+                  </AnimatedReanimated.View>
+                </View>
+              </React.Fragment>
             );
           })}
         </ScrollView>
@@ -323,6 +349,38 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "flex-start",
+  },
+  monthSeparatorRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  monthTimelineCol: {
+    width: 24,
+    alignItems: "center",
+    marginRight: 12,
+    minHeight: 20,
+  },
+  monthLine: {
+    width: 1.5,
+    flex: 1,
+    backgroundColor: "#D4BBFF",
+  },
+  monthSeparatorContent: {
+    flex: 1,
+  },
+  monthLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#7C3AED",
+    letterSpacing: 0.48,
+    marginBottom: 6,
+  },
+  monthDivider: {
+    width: "100%",
+    height: 1,
+    backgroundColor: "#D4BBFF",
   },
   timelineCol: {
     width: 24,

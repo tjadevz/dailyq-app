@@ -1066,8 +1066,9 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   editAnswerButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 22,
+    width: "100%",
+    paddingVertical: 16,
+    minHeight: 52,
     borderRadius: 9999,
     backgroundColor: "#E5E5EA",
     borderWidth: 1,

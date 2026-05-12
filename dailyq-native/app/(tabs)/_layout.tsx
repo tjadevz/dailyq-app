@@ -49,24 +49,42 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="archive"
-        options={{
-          title: lang === "en" ? "Archive" : "Archief",
-          tabBarLabel: "",
-          headerShown: false,
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="book-outline" size={size ?? 22} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
         name="calendar"
         options={{
           title: t("tabs_calendar"),
           tabBarLabel: "",
           headerShown: false,
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="calendar-outline" size={size ?? 22} color={color} />
+            <Ionicons
+              name="calendar-outline"
+              size={size ?? 22}
+              color={color}
+              style={{
+                lineHeight: size ?? 22,
+                includeFontPadding: false,
+                textAlignVertical: "center",
+              }}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="archive"
+        options={{
+          title: lang === "en" ? "Archive" : "Archief",
+          tabBarLabel: "",
+          headerShown: false,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons
+              name="book-outline"
+              size={size ?? 22}
+              color={color}
+              style={{
+                lineHeight: size ?? 22,
+                includeFontPadding: false,
+                textAlignVertical: "center",
+              }}
+            />
           ),
         }}
       />
@@ -77,7 +95,16 @@ export default function TabsLayout() {
           tabBarLabel: "",
           headerShown: false,
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="settings-outline" size={size ?? 22} color={color} />
+            <Ionicons
+              name="options-outline"
+              size={size ?? 22}
+              color={color}
+              style={{
+                lineHeight: size ?? 22,
+                includeFontPadding: false,
+                textAlignVertical: "center",
+              }}
+            />
           ),
         }}
       />

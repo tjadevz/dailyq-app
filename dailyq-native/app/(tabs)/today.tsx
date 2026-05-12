@@ -1049,7 +1049,7 @@ const styles = StyleSheet.create({
   answeredQuestionText: {
     fontSize: 23,
     fontWeight: "500",
-    fontFamily: "Inter",
+    fontFamily: "Inter_500Medium",
     color: "#374151",
     textAlign: "center",
     lineHeight: 32,
@@ -1238,7 +1238,7 @@ const styles = StyleSheet.create({
   questionText: {
     fontSize: 23,
     fontWeight: "500",
-    fontFamily: "Inter",
+    fontFamily: "Inter_500Medium",
     color: "#374151",
     textAlign: "center",
     lineHeight: 32,

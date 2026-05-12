@@ -3,6 +3,7 @@ import { InteractionManager, View } from "react-native";
 import Constants from "expo-constants";
 import { Slot, usePathname } from "expo-router";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { useFonts, Inter_500Medium } from "@expo-google-fonts/inter";
 import { AuthProvider } from "@/src/context/AuthContext";
 import { ProfileProvider } from "@/src/context/ProfileContext";
 import { LanguageProvider } from "@/src/context/LanguageContext";
@@ -133,6 +134,8 @@ function ReferralGivenAppOpenGate() {
 }
 
 export default function RootLayout() {
+  const [fontsLoaded] = useFonts({ Inter_500Medium });
+  if (!fontsLoaded) return null;
   return (
     <SafeAreaProvider>
       <AuthProvider>

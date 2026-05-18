@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -12,19 +12,23 @@ import {
   Dimensions,
   ActivityIndicator,
   Pressable,
+  Image,
 } from "react-native";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
-  withSpring,
   Easing,
   runOnJS,
 } from "react-native-reanimated";
 import { BlurView } from "expo-blur";
 import Feather from "@expo/vector-icons/Feather";
 import { LinearGradient } from "expo-linear-gradient";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  useSafeAreaInsets,
+  initialWindowMetrics,
+} from "react-native-safe-area-context";
+import { COLORS } from "@/src/config/constants";
 import { useLanguage } from "@/src/context/LanguageContext";
 import { getDayOfYear } from "@/src/lib/date";
 import { supabase } from "@/src/config/supabase";
@@ -55,6 +59,19 @@ export interface AnsweringExperienceProps {
   enterFromRight?: boolean;
   /** When true, close animates with card swiping down before calling onClose (e.g. onboarding) */
   animateOnClose?: boolean;
+  /** When true, advance slides current card left before onComplete (onboarding questions). */
+  slideOnAdvance?: boolean;
+  /** When set with progressTotal, shows step indicator at top (onboarding questions). */
+  progressCurrent?: number;
+  progressTotal?: number;
+  /** Shown above the card (e.g. onboarding first question only). */
+  subtitle?: string;
+  /** Onboarding intro card: same shell as question card, no input, CTA only. */
+  isIntroCard?: boolean;
+  introHeadline?: string;
+  introBody?: string;
+  introCtaLabel?: string;
+  onIntroContinue?: () => void;
 }
 
 export function AnsweringExperience({
@@ -73,8 +90,28 @@ export function AnsweringExperience({
   skipLabel = "Skip",
   enterFromRight = false,
   animateOnClose = false,
+  slideOnAdvance = false,
+  progressCurrent,
+  progressTotal,
+  subtitle,
+  isIntroCard = false,
+  introHeadline,
+  introBody,
+  introCtaLabel,
+  onIntroContinue,
 }: AnsweringExperienceProps) {
+  const showProgress =
+    !isIntroCard &&
+    progressTotal != null &&
+    progressTotal > 0 &&
+    progressCurrent != null &&
+    progressCurrent >= 1;
+  const showTopChrome = showProgress || isIntroCard;
   const insets = useSafeAreaInsets();
+  const topInset = Math.max(
+    insets.top,
+    initialWindowMetrics?.insets.top ?? 0
+  );
   const { lang: contextLang, formatDate } = useLanguage();
   const [userAnswer, setUserAnswer] = useState(initialAnswer);
   const [question, setQuestion] = useState(questionProp);
@@ -97,6 +134,20 @@ export function AnsweringExperience({
   const slideX = useSharedValue(enterFromRight ? width : 0);
   const buttonScale = useSharedValue(1);
   const buttonOpacity = useSharedValue(0.4);
+  const prevDayKeyRef = useRef<string | null | undefined>(undefined);
+
+  const TRANSITION_MS = 320;
+  const slideEasing = Easing.out(Easing.cubic);
+  const openEasing = Easing.bezier(0.25, 0.1, 0.25, 1);
+
+  const runSlideInFromRight = useCallback(() => {
+    slideY.value = 0;
+    slideX.value = width;
+    slideX.value = withTiming(0, {
+      duration: TRANSITION_MS,
+      easing: slideEasing,
+    });
+  }, [slideX, slideY]);
 
   useEffect(() => {
     if (questionProp) {
@@ -143,29 +194,61 @@ export function AnsweringExperience({
     if (isOpen) {
       setUserAnswer(initialAnswer);
       if (enterFromRight) {
-        slideY.value = 0;
-        slideX.value = width;
-        slideX.value = withTiming(0, {
-          duration: 280,
-          easing: Easing.out(Easing.cubic),
+        runSlideInFromRight();
+      } else if (isIntroCard) {
+        slideX.value = 0;
+        slideY.value = height;
+        slideY.value = withTiming(0, {
+          duration: TRANSITION_MS,
+          easing: openEasing,
         });
       } else {
         slideX.value = 0;
-        slideY.value = withSpring(0, {
-          damping: 22,
-          stiffness: 140,
-          mass: 0.8,
+        slideY.value = height;
+        slideY.value = withTiming(0, {
+          duration: TRANSITION_MS,
+          easing: openEasing,
         });
       }
-      const focusTimer = setTimeout(() => inputRef.current?.focus(), 50);
-      return () => clearTimeout(focusTimer);
+      if (!isIntroCard) {
+        const focusTimer = setTimeout(
+          () => inputRef.current?.focus(),
+          enterFromRight ? TRANSITION_MS + 40 : 80
+        );
+        return () => clearTimeout(focusTimer);
+      }
+      return;
     }
+    prevDayKeyRef.current = undefined;
     slideY.value = withTiming(height, {
-      duration: 280,
+      duration: TRANSITION_MS,
       easing: Easing.inOut(Easing.cubic),
     });
     Keyboard.dismiss();
-  }, [isOpen, initialAnswer, slideY, slideX, enterFromRight, dayKey, questionProp]);
+  }, [
+    isOpen,
+    initialAnswer,
+    slideY,
+    slideX,
+    enterFromRight,
+    isIntroCard,
+    runSlideInFromRight,
+  ]);
+
+  useEffect(() => {
+    if (!isOpen || isIntroCard || !dayKey) return;
+    if (prevDayKeyRef.current != null && prevDayKeyRef.current !== dayKey) {
+      setUserAnswer(initialAnswer);
+      runSlideInFromRight();
+      const focusTimer = setTimeout(
+        () => inputRef.current?.focus(),
+        TRANSITION_MS + 40
+      );
+      prevDayKeyRef.current = dayKey;
+      return () => clearTimeout(focusTimer);
+    }
+    prevDayKeyRef.current = dayKey;
+  }, [isOpen, isIntroCard, dayKey, initialAnswer, runSlideInFromRight]);
 
   useEffect(() => {
     const hasText =
@@ -174,14 +257,20 @@ export function AnsweringExperience({
     buttonOpacity.value = withTiming(hasText ? 1 : 0.4, { duration: 200 });
   }, [userAnswer, questionLoading, submitting, buttonScale, buttonOpacity]);
 
-  const DURATION_SWIPE_MS = 280;
+  const slideOutLeft = (onDone: () => void) => {
+    slideX.value = withTiming(
+      -width,
+      { duration: TRANSITION_MS, easing: slideEasing },
+      () => runOnJS(onDone)()
+    );
+  };
 
   const handleCloseWithAnimation = () => {
     Keyboard.dismiss();
     if (animateOnClose) {
       slideY.value = withTiming(
         height,
-        { duration: DURATION_SWIPE_MS, easing: Easing.inOut(Easing.cubic) },
+        { duration: TRANSITION_MS, easing: Easing.inOut(Easing.cubic) },
         () => {
           runOnJS(onClose)();
         }
@@ -195,12 +284,8 @@ export function AnsweringExperience({
     if (!userAnswer.trim()) return;
     Keyboard.dismiss();
     const answer = userAnswer;
-    if (onSkip != null) {
-      slideX.value = withTiming(
-        -width,
-        { duration: DURATION_SWIPE_MS, easing: Easing.out(Easing.cubic) },
-        () => runOnJS(onComplete)(answer)
-      );
+    if (onSkip != null || slideOnAdvance) {
+      slideOutLeft(() => onComplete(answer));
     } else {
       onComplete(answer);
     }
@@ -208,11 +293,13 @@ export function AnsweringExperience({
 
   const handleSkipWithAnimation = () => {
     if (onSkip == null) return;
-    slideX.value = withTiming(
-      -width,
-      { duration: DURATION_SWIPE_MS, easing: Easing.out(Easing.cubic) },
-      () => runOnJS(onSkip)()
-    );
+    slideOutLeft(onSkip);
+  };
+
+  const handleIntroContinue = () => {
+    if (!onIntroContinue) return;
+    Keyboard.dismiss();
+    slideOutLeft(onIntroContinue);
   };
 
   const animatedSlideStyle = useAnimatedStyle(() => ({
@@ -242,127 +329,213 @@ export function AnsweringExperience({
           </View>
         </Pressable>
 
+        {showTopChrome ? (
+          <View
+            style={[styles.topOverlay, { paddingTop: topInset + 12 }]}
+            pointerEvents="box-none"
+          >
+            <View style={styles.headerTopRow} pointerEvents="box-none">
+              {showProgress ? (
+                <View style={styles.progressBlock} pointerEvents="none">
+                  <View style={styles.progressTrack}>
+                    {Array.from({ length: progressTotal! }, (_, i) => {
+                      const step = i + 1;
+                      const filled = step <= progressCurrent!;
+                      return (
+                        <View
+                          key={step}
+                          style={[
+                            styles.progressSegment,
+                            filled && styles.progressSegmentFilled,
+                          ]}
+                        />
+                      );
+                    })}
+                  </View>
+                  <Text style={styles.progressLabel}>
+                    {progressCurrent} / {progressTotal}
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.headerSpacer} />
+              )}
+              <Pressable
+                onPress={handleCloseWithAnimation}
+                style={styles.closeButton}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                accessibilityRole="button"
+                accessibilityLabel="Close"
+              >
+                <Feather name="x" size={20} color="#FFFFFF" strokeWidth={2.5} />
+              </Pressable>
+            </View>
+          </View>
+        ) : null}
+
         <View style={styles.keyboardContainer} pointerEvents="box-none">
           <View style={styles.bottomAnchor} pointerEvents="box-none">
             <Animated.View
               style={[styles.contentContainer, animatedSlideStyle]}
               pointerEvents="box-none"
             >
-              <View
-                style={[styles.header, { paddingTop: insets.top + 16 }]}
-                pointerEvents="box-none"
-              >
-                <View style={{ width: 36 }} pointerEvents="box-none" />
-                <Pressable
-                  onPress={handleCloseWithAnimation}
-                  style={styles.closeButton}
-                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                  accessibilityRole="button"
-                  accessibilityLabel="Close"
+              {!showTopChrome ? (
+                <View
+                  style={[styles.header, { paddingTop: topInset + 12 }]}
+                  pointerEvents="box-none"
                 >
-                  <Feather name="x" size={20} color="#FFFFFF" strokeWidth={2.5} />
-                </Pressable>
-              </View>
+                  <View style={styles.headerTopRow} pointerEvents="box-none">
+                    <View style={styles.headerSpacer} />
+                    <Pressable
+                      onPress={handleCloseWithAnimation}
+                      style={styles.closeButton}
+                      hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                      accessibilityRole="button"
+                      accessibilityLabel="Close"
+                    >
+                      <Feather name="x" size={20} color="#FFFFFF" strokeWidth={2.5} />
+                    </Pressable>
+                  </View>
+                </View>
+              ) : null}
 
           <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
             <View style={styles.cardWrapper}>
-              <View style={styles.card}>
-                <View style={styles.cardHeaderRow}>
-                  <View style={styles.badgeContainer}>
-                    <View style={styles.badge}>
-                      <Feather
-                        name="star"
-                        size={14}
-                        color="#7C3AED"
-                        strokeWidth={2}
+              {subtitle ? (
+                <Text style={styles.cardAreaSubtitle}>{subtitle}</Text>
+              ) : null}
+              <View style={[styles.card, isIntroCard && styles.introCard]}>
+                {isIntroCard ? (
+                  <>
+                    <View style={styles.introLogoWrap}>
+                      <Image
+                        source={require("@/assets/images/logo.nobg.png")}
+                        style={styles.introLogo}
+                        resizeMode="contain"
                       />
-                      <Text style={styles.badgeText} numberOfLines={1}>
-                        {displayDate || contextLabel}
-                      </Text>
                     </View>
-                  </View>
-                  {cardNumber ? (
-                    <Text style={styles.cardNumber}>{cardNumber}</Text>
-                  ) : null}
-                </View>
-
-                {questionLoading ? (
-                  <View style={styles.questionLoader}>
-                    <ActivityIndicator size="small" color="#7C3AED" />
-                  </View>
-                ) : (
-                  <Text style={styles.questionText}>{question || " "}</Text>
-                )}
-
-                <View style={styles.inputContainer}>
-                  <TextInput
-                    ref={inputRef}
-                    value={userAnswer}
-                    onChangeText={(text) => {
-                      if (text.length <= MAX_ANSWER_LENGTH) setUserAnswer(text);
-                    }}
-                    placeholder={placeholder}
-                    placeholderTextColor="#9CA3AF"
-                    multiline
-                    maxLength={MAX_ANSWER_LENGTH}
-                    style={styles.input}
-                    selectionColor="#7C3AED"
-                    textAlignVertical="top"
-                    editable={!questionLoading && !submitting}
-                  />
-                </View>
-
-                {submitError ? (
-                  <Text style={styles.errorText}>{submitError}</Text>
-                ) : null}
-
-                <View style={styles.footer}>
-                  <View style={styles.footerRow}>
-                    {onSkip ? (
-                      <TouchableOpacity
-                        onPress={handleSkipWithAnimation}
-                        disabled={submitting}
-                        style={styles.skipButton}
-                        activeOpacity={0.7}
-                      >
-                        <Text style={styles.skipButtonText}>{skipLabel}</Text>
-                      </TouchableOpacity>
-                    ) : null}
-                    <Animated.View
-                      style={[
-                        animatedButtonStyle,
-                        { alignSelf: "flex-end", marginLeft: "auto" },
-                      ]}
-                    >
-                      <TouchableOpacity
-                        onPress={handleSubmit}
-                        disabled={
-                          !userAnswer.trim() || questionLoading || submitting
-                        }
-                        activeOpacity={0.8}
-                        style={styles.submitButtonWrap}
+                    <View style={styles.introTextWrap}>
+                      <Text style={styles.introHeadline}>{introHeadline}</Text>
+                      <Text style={styles.introBodyText}>{introBody}</Text>
+                    </View>
+                    <View style={styles.introFooter}>
+                      <Pressable
+                        onPress={handleIntroContinue}
+                        style={({ pressed }) => [
+                          styles.introCtaWrap,
+                          pressed && styles.introCtaPressed,
+                        ]}
                       >
                         <LinearGradient
                           colors={["#7C3AED", "#6D28D9"]}
                           start={{ x: 0, y: 0 }}
                           end={{ x: 1, y: 0 }}
-                          style={styles.submitButton}
+                          style={styles.introCtaGradient}
                         >
-                          {submitting ? (
-                            <ActivityIndicator size="small" color="#FFFFFF" />
-                          ) : (
-                            <Feather
-                              name="arrow-right"
-                              size={17}
-                              color="#FFFFFF"
-                              strokeWidth={3}
-                            />
-                          )}
+                          <Text style={styles.introCtaText}>{introCtaLabel}</Text>
                         </LinearGradient>
-                      </TouchableOpacity>
-                    </Animated.View>
-                  </View>
-                </View>
+                      </Pressable>
+                    </View>
+                  </>
+                ) : (
+                  <>
+                    <View style={styles.cardHeaderRow}>
+                      <View style={styles.badgeContainer}>
+                        <View style={styles.badge}>
+                          <Feather
+                            name="star"
+                            size={14}
+                            color="#7C3AED"
+                            strokeWidth={2}
+                          />
+                          <Text style={styles.badgeText} numberOfLines={1}>
+                            {displayDate || contextLabel}
+                          </Text>
+                        </View>
+                      </View>
+                      {cardNumber && !showProgress ? (
+                        <Text style={styles.cardNumber}>{cardNumber}</Text>
+                      ) : null}
+                    </View>
+
+                    {questionLoading ? (
+                      <View style={styles.questionLoader}>
+                        <ActivityIndicator size="small" color="#7C3AED" />
+                      </View>
+                    ) : (
+                      <Text style={styles.questionText}>{question || " "}</Text>
+                    )}
+
+                    <View style={styles.inputContainer}>
+                      <TextInput
+                        ref={inputRef}
+                        value={userAnswer}
+                        onChangeText={(text) => {
+                          if (text.length <= MAX_ANSWER_LENGTH) setUserAnswer(text);
+                        }}
+                        placeholder={placeholder}
+                        placeholderTextColor="#9CA3AF"
+                        multiline
+                        maxLength={MAX_ANSWER_LENGTH}
+                        style={styles.input}
+                        selectionColor="#7C3AED"
+                        textAlignVertical="top"
+                        editable={!questionLoading && !submitting}
+                      />
+                    </View>
+
+                    {submitError ? (
+                      <Text style={styles.errorText}>{submitError}</Text>
+                    ) : null}
+
+                    <View style={styles.footer}>
+                      <View style={styles.footerRow}>
+                        {onSkip ? (
+                          <TouchableOpacity
+                            onPress={handleSkipWithAnimation}
+                            disabled={submitting}
+                            style={styles.skipButton}
+                            activeOpacity={0.7}
+                          >
+                            <Text style={styles.skipButtonText}>{skipLabel}</Text>
+                          </TouchableOpacity>
+                        ) : null}
+                        <Animated.View
+                          style={[
+                            animatedButtonStyle,
+                            { alignSelf: "flex-end", marginLeft: "auto" },
+                          ]}
+                        >
+                          <TouchableOpacity
+                            onPress={handleSubmit}
+                            disabled={
+                              !userAnswer.trim() || questionLoading || submitting
+                            }
+                            activeOpacity={0.8}
+                            style={styles.submitButtonWrap}
+                          >
+                            <LinearGradient
+                              colors={["#7C3AED", "#6D28D9"]}
+                              start={{ x: 0, y: 0 }}
+                              end={{ x: 1, y: 0 }}
+                              style={styles.submitButton}
+                            >
+                              {submitting ? (
+                                <ActivityIndicator size="small" color="#FFFFFF" />
+                              ) : (
+                                <Feather
+                                  name="arrow-right"
+                                  size={17}
+                                  color="#FFFFFF"
+                                  strokeWidth={3}
+                                />
+                              )}
+                            </LinearGradient>
+                          </TouchableOpacity>
+                        </Animated.View>
+                      </View>
+                    </View>
+                  </>
+                )}
               </View>
             </View>
           </TouchableWithoutFeedback>
@@ -400,12 +573,52 @@ const styles = StyleSheet.create({
   contentContainer: {
     flexDirection: "column",
   },
+  topOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+  },
   header: {
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+  },
+  headerTopRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingBottom: 16,
+    gap: 12,
+  },
+  headerSpacer: {
+    flex: 1,
+  },
+  progressBlock: {
+    flex: 1,
+    gap: 8,
+    paddingRight: 4,
+  },
+  progressTrack: {
+    flexDirection: "row",
+    gap: 6,
+    height: 4,
+  },
+  progressSegment: {
+    flex: 1,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "rgba(255, 255, 255, 0.25)",
+  },
+  progressSegmentFilled: {
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
+  },
+  progressLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "rgba(255, 255, 255, 0.9)",
+    letterSpacing: 0.3,
   },
   closeButton: {
     width: 36,
@@ -421,6 +634,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: Platform.OS === "ios" ? 28 : 20,
   },
+  cardAreaSubtitle: {
+    fontSize: 17,
+    fontWeight: "500",
+    color: "rgba(255, 255, 255, 0.92)",
+    textAlign: "center",
+    lineHeight: 24,
+    marginBottom: 14,
+    paddingHorizontal: 8,
+  },
   card: {
     backgroundColor: "rgba(255, 255, 255, 0.95)",
     borderRadius: 32,
@@ -434,6 +656,9 @@ const styles = StyleSheet.create({
     elevation: 10,
     minHeight: 340,
     maxHeight: 420,
+  },
+  introCard: {
+    justifyContent: "space-between",
   },
   cardHeaderRow: {
     flexDirection: "row",
@@ -471,6 +696,64 @@ const styles = StyleSheet.create({
     color: "#7C3AED",
     marginLeft: 12,
     opacity: 0.78,
+  },
+  introLogoWrap: {
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  introLogo: {
+    width: 72,
+    height: 72,
+  },
+  introTextWrap: {
+    flex: 1,
+    justifyContent: "center",
+    gap: 12,
+    marginBottom: 20,
+  },
+  introHeadline: {
+    fontSize: 26,
+    lineHeight: 34,
+    fontWeight: "700",
+    color: COLORS.TEXT_PRIMARY,
+    letterSpacing: -0.5,
+    textAlign: "center",
+  },
+  introBodyText: {
+    fontSize: 16,
+    lineHeight: 24,
+    fontWeight: "400",
+    color: COLORS.TEXT_SECONDARY,
+    textAlign: "center",
+  },
+  introFooter: {
+    paddingTop: 4,
+  },
+  introCtaWrap: {
+    width: "100%",
+    borderRadius: 9999,
+    overflow: "hidden",
+    shadowColor: "rgba(124,58,237,0.35)",
+    shadowOffset: { width: 0, height: 20 },
+    shadowOpacity: 1,
+    shadowRadius: 56,
+    elevation: 8,
+  },
+  introCtaPressed: {
+    opacity: 0.9,
+  },
+  introCtaGradient: {
+    paddingVertical: 18,
+    paddingHorizontal: 40,
+    minHeight: 56,
+    borderRadius: 9999,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  introCtaText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#FFFFFF",
   },
   questionText: {
     fontSize: 25,

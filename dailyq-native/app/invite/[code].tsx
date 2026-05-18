@@ -6,6 +6,7 @@ import { COLORS } from "@/src/config/constants";
 import { useAuth } from "@/src/context/AuthContext";
 import { useProfileContext } from "@/src/context/ProfileContext";
 import { setPendingReferralCode } from "@/src/lib/referralPending";
+import { getIncompleteOnboardingHref } from "@/src/lib/onboardingProgress";
 
 function normalizeCodeParam(codeParam: unknown): string | null {
   if (!codeParam) return null;
@@ -50,9 +51,14 @@ export default function InviteCodeRoute() {
       return;
     }
 
-    // ProfileProvider should already fetch onboarding_completed for the current user.
     const onboardingCompleted = profile?.onboarding_completed === true;
-    router.replace(onboardingCompleted ? "/(tabs)/today" : "/(tabs)/onboarding-questions");
+    if (onboardingCompleted) {
+      router.replace("/(tabs)/today");
+      return;
+    }
+    void getIncompleteOnboardingHref(user.id).then((href) => {
+      router.replace(href);
+    });
   }, [authCheckDone, pendingSaved, code, user, profile, router]);
 
   // While we wait for Auth/Profile to be ready, render a minimal loader.

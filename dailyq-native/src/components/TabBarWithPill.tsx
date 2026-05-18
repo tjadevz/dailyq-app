@@ -14,6 +14,7 @@ export function TabBarWithPill({ state, descriptors, navigation }: BottomTabBarP
   const visibleRoutes = state.routes.filter(
     (r) =>
       r.name !== "index" &&
+      r.name !== "onboarding-notifications" &&
       r.name !== "onboarding-questions" &&
       r.name !== "over" &&
       r.name !== "account"
@@ -44,7 +45,7 @@ export function TabBarWithPill({ state, descriptors, navigation }: BottomTabBarP
   }, [visibleIndex, barWidth]);
 
   const pillWidth = barWidth > 0 ? barWidth / visibleRoutes.length - 16 : 80;
-  if (currentRouteName === "onboarding-questions") {
+  if (currentRouteName === "onboarding-notifications" || currentRouteName === "onboarding-questions") {
     return null;
   }
 

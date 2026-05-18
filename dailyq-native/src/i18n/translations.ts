@@ -47,12 +47,11 @@ export const translations: Record<Lang, Record<string, string>> = {
     onboarding_toggle_prefix_sign_in: "Already have an account? ",
     onboarding_toggle_prefix_sign_up: "No account yet? ",
     onboarding_intro_title: "Welcome to DailyQ",
-    onboarding_intro_tagline: "The easiest way to see yourself change",
     onboarding_intro_past_answers: "Your Past Answers",
     onboarding_intro_example_question:
       "Do you have vacation plans for this year?",
     onboarding_intro_example_month_1: "2 March 2026",
-    onboarding_intro_example_answer_1: "Weekend on Ameland. If I have any money left.",
+    onboarding_intro_example_answer_1: "Camping for the weekend. If I have any money left.",
     onboarding_intro_example_month_2: "2 March 2025",
     onboarding_intro_example_answer_2: "I'm going backpacking in Asia for half a year!",
     onboarding_continue: "Continue",
@@ -81,9 +80,9 @@ export const translations: Record<Lang, Record<string, string>> = {
     onboarding_answer_placeholder: "Type your answer…",
     onboarding_save: "Save",
     onboarding_skip: "Skip",
-    onboarding_questions_intro_title: "Welcome to DailyQ",
-    onboarding_questions_intro_subtitle:
-      "Your archive starts here. Your first 5 questions are waiting.",
+    onboarding_questions_intro_card_headline: "Your archive starts now.",
+    onboarding_questions_intro_card_body:
+      "One question a day, one honest answer. In a year, you'll read back what you thought. Your first 3 questions are waiting.",
     onboarding_questions_intro_cta: "Start",
     referral_claim_cta: "Claim your Joker",
     onboarding_reward_title: "You've earned a joker!",
@@ -260,7 +259,6 @@ export const translations: Record<Lang, Record<string, string>> = {
     onboarding_toggle_prefix_sign_in: "Heb je al een account? ",
     onboarding_toggle_prefix_sign_up: "Nog geen account? ",
     onboarding_intro_title: "Welkom bij DailyQ",
-    onboarding_intro_tagline: "The easiest way to see yourself change",
     onboarding_intro_past_answers: "Je eerdere antwoorden",
     onboarding_intro_example_question:
       "Heb je al vakantieplannen voor dit jaar?",
@@ -294,9 +292,9 @@ export const translations: Record<Lang, Record<string, string>> = {
     onboarding_answer_placeholder: "Typ je antwoord…",
     onboarding_save: "Opslaan",
     onboarding_skip: "Overslaan",
-    onboarding_questions_intro_title: "Welkom bij DailyQ",
-    onboarding_questions_intro_subtitle:
-      "Hier begint jouw archief. Je eerste 5 vragen wachten op je.",
+    onboarding_questions_intro_card_headline: "Je archief begint nu.",
+    onboarding_questions_intro_card_body:
+      "Eén vraag per dag, één eerlijk antwoord. Over een jaar lees je terug wat je dacht. Je eerste 3 vragen staan klaar.",
     onboarding_questions_intro_cta: "Begin",
     referral_claim_cta: "Claim je Joker",
     onboarding_reward_title: "Je hebt een joker verdiend!",

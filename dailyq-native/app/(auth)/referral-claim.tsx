@@ -83,7 +83,7 @@ export default function ReferralClaimScreen() {
     didNavigateRef.current = true;
     setNavigating(true);
     try {
-      router.replace("/(tabs)/onboarding-questions?skipIntro=1");
+      router.replace("/(tabs)/onboarding-notifications");
     } finally {
       setNavigating(false);
     }

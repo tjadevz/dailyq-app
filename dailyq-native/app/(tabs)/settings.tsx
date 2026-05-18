@@ -25,6 +25,7 @@ import { useAuth } from "@/src/context/AuthContext";
 import { useProfileContext } from "@/src/context/ProfileContext";
 import { supabase } from "@/src/config/supabase";
 import type { Lang } from "@/src/i18n/translations";
+import { clearOnboardingNotificationsDone } from "@/src/lib/onboardingProgress";
 import {
   upsertPushSubscription,
   getStoredExpoPushToken,
@@ -258,7 +259,8 @@ export default function SettingsScreen() {
         .eq("id", userId);
       if (error) throw error;
       await refetchProfile();
-      router.replace("/(tabs)/onboarding-questions");
+      await clearOnboardingNotificationsDone(userId);
+      router.replace("/(tabs)/onboarding-notifications");
     } catch (e) {
       console.error("[Settings] Replay onboarding failed:", e);
     } finally {

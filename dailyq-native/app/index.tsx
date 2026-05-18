@@ -11,6 +11,7 @@ import {
 } from "@/src/lib/resetPasswordLink";
 import { supabase } from "@/src/config/supabase";
 import { tryConsumeReferralFromClipboardOnFirstLaunch } from "@/src/lib/referralClipboard";
+import { getIncompleteOnboardingHref } from "@/src/lib/onboardingProgress";
 import { useTodayQuestion } from "@/src/hooks/useTodayQuestion";
 
 export default function Index() {
@@ -20,6 +21,7 @@ export default function Index() {
   const [pendingResetUrl, setPendingResetUrl] = useState<string | null>(null);
   const [onboardingChecked, setOnboardingChecked] = useState(false);
   const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
+  const [incompleteOnboardingHref, setIncompleteOnboardingHref] = useState<string | null>(null);
   const userId = user?.id ?? null;
   const { loading: questionLoading } = useTodayQuestion(lang, userId);
 
@@ -49,26 +51,35 @@ export default function Index() {
     if (!user?.id || user.id === "dev-user") {
       setOnboardingChecked(true);
       setOnboardingCompleted(true);
+      setIncompleteOnboardingHref(null);
       return;
     }
     let cancelled = false;
-    supabase
-      .from("profiles")
-      .select("onboarding_completed")
-      .eq("id", user.id)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (!cancelled) {
-          setOnboardingCompleted(data?.onboarding_completed ?? false);
-          setOnboardingChecked(true);
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from("profiles")
+          .select("onboarding_completed")
+          .eq("id", user.id)
+          .maybeSingle();
+        if (cancelled) return;
+        const completed = data?.onboarding_completed ?? false;
+        setOnboardingCompleted(completed);
+        if (!completed) {
+          const href = await getIncompleteOnboardingHref(user.id);
+          if (!cancelled) setIncompleteOnboardingHref(href);
+        } else {
+          setIncompleteOnboardingHref(null);
         }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setOnboardingCompleted(false);
-          setOnboardingChecked(true);
-        }
-      });
+      } catch {
+        if (cancelled) return;
+        setOnboardingCompleted(false);
+        const href = await getIncompleteOnboardingHref(user.id);
+        if (!cancelled) setIncompleteOnboardingHref(href);
+      } finally {
+        if (!cancelled) setOnboardingChecked(true);
+      }
+    })();
     return () => {
       cancelled = true;
     };
@@ -101,7 +112,8 @@ export default function Index() {
       if (questionLoading) return <DailyQLoadingScreen />;
       return <Redirect href="/(tabs)/today" />;
     }
-    return <Redirect href="/(tabs)/onboarding-questions" />;
+    if (!incompleteOnboardingHref) return <DailyQLoadingScreen />;
+    return <Redirect href={incompleteOnboardingHref} />;
   }
 
   return <Redirect href="/(auth)/onboarding" />;

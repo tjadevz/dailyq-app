@@ -17,9 +17,7 @@ import {
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import Feather from "@expo/vector-icons/Feather";
-import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { LinearGradient } from "expo-linear-gradient";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import * as AppleAuthentication from "expo-apple-authentication";
 
@@ -28,18 +26,10 @@ import { BackgroundLayer } from "@/src/components/BackgroundLayer";
 import { useLanguage } from "@/src/context/LanguageContext";
 import { useAuth, useAppleSignIn } from "@/src/context/AuthContext";
 import { supabase } from "@/src/config/supabase";
-import {
-  getStoredExpoPushToken,
-  setStoredExpoPushToken,
-  upsertPushSubscription,
-} from "@/src/lib/pushSubscription";
-import { registerForPushNotificationsAsync } from "@/src/native/notifications";
 import { getPendingReferralCode, setPendingReferralCode } from "@/src/lib/referralPending";
+import { getIncompleteOnboardingHref } from "@/src/lib/onboardingProgress";
 
-const REMINDER_TIME_KEY = "dailyq-reminder-time";
-
-type Step = "intro" | "jokers" | "notifications" | "auth";
-type NotificationTime = "morning" | "afternoon" | "evening" | null;
+type Step = "intro" | "auth";
 
 /** Slide + fade in on mount (mirrors Figma motion: x 40 → 0, opacity 0 → 1). */
 function StepTransitionView({
@@ -82,10 +72,6 @@ function StepTransitionView({
       {children}
     </Animated.View>
   );
-}
-
-async function saveReminderTime(time: "morning" | "afternoon" | "evening") {
-  await AsyncStorage.setItem(REMINDER_TIME_KEY, time);
 }
 
 function OnboardingPrimaryButton({
@@ -152,9 +138,8 @@ export default function OnboardingScreen() {
 
   const [step, setStep] = useState<Step>("intro");
   const [appleAuthAvailable, setAppleAuthAvailable] = useState(false);
-  const [notificationTime, setNotificationTime] =
-    useState<NotificationTime>(null);
-  const [isLoginMode, setIsLoginMode] = useState(true);
+  /** Default to registration — new users reach auth via intro; returning users use the toggle. */
+  const [isLoginMode, setIsLoginMode] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
@@ -176,48 +161,18 @@ export default function OnboardingScreen() {
   }, [referralCodeFromParams]);
 
   const goNext = useCallback((next: Step) => {
+    if (next === "auth") {
+      setIsLoginMode(false);
+    }
     setStep(next);
   }, []);
 
-  const handleNotificationsContinue = useCallback(async () => {
-    if (!notificationTime) return;
-    await saveReminderTime(notificationTime);
-    // Await token before proceeding so auth step can do a single upsert with token + reminder_time.
-    let token: string | null = null;
-    try {
-      token = await registerForPushNotificationsAsync();
-      await setStoredExpoPushToken(token);
-    } catch (e) {
-      console.error("[onboarding] Push token registration failed:", e);
-    }
-    if (token === null && !__DEV__) {
-      console.error("[onboarding] Push token is null (permission denied or unavailable)");
-    }
-    goNext("auth");
-  }, [notificationTime, goNext]);
-
-  const performPostAuthPushUpsertAndNavigate = useCallback(
-    async (userId: string, options?: { isSignup?: boolean }) => {
-      const token = await getStoredExpoPushToken();
-      const stored =
-        notificationTime ??
-        ((await AsyncStorage.getItem(REMINDER_TIME_KEY)) as "morning" | "afternoon" | "evening" | null);
-      const reminderTime =
-        stored === "morning" || stored === "afternoon" || stored === "evening" ? stored : null;
-      console.log("Upserting push subscription", {
-        userId,
-        token,
-        reminderTime,
-      });
-      const { error: upsertErr } = await upsertPushSubscription(userId, token, reminderTime);
-      if (upsertErr) console.error("[onboarding] Push subscription upsert failed:", upsertErr);
-
+  const performPostAuthNavigate = useCallback(
+    async (userId: string) => {
       if (referralCodeFromParams) {
         await setPendingReferralCode(referralCodeFromParams);
       }
 
-      // If the user opened the app from a referral link, we store a pending code in AsyncStorage.
-      // Claim happens in a dedicated screen after auth, then we go to regular onboarding.
       const pendingReferralCode = referralCodeFromParams ?? (await getPendingReferralCode());
       if (pendingReferralCode) {
         router.replace("/(auth)/referral-claim");
@@ -230,9 +185,14 @@ export default function OnboardingScreen() {
         .eq("id", userId)
         .maybeSingle();
       const completed = profileRow?.onboarding_completed === true;
-      router.replace(completed ? "/(tabs)/today" : "/(tabs)/onboarding-questions");
+      if (completed) {
+        router.replace("/(tabs)/today");
+        return;
+      }
+      const href = await getIncompleteOnboardingHref(userId);
+      router.replace(href);
     },
-    [notificationTime, referralCodeFromParams, router]
+    [referralCodeFromParams, router]
   );
 
   const handleAuthSubmit = useCallback(async () => {
@@ -261,14 +221,14 @@ export default function OnboardingScreen() {
       }
       const authUser = data?.user;
       if (authUser?.id) {
-        await performPostAuthPushUpsertAndNavigate(authUser.id, { isSignup: !isLoginMode });
+        await performPostAuthNavigate(authUser.id);
       } else {
         router.replace("/(tabs)/today");
       }
     } finally {
       setSubmitting(false);
     }
-  }, [email, password, passwordConfirm, isLoginMode, performPostAuthPushUpsertAndNavigate, router, t]);
+  }, [email, password, passwordConfirm, isLoginMode, performPostAuthNavigate, router, t]);
 
   const handleForgotPassword = useCallback(async () => {
     const trimmedEmail = email.trim();
@@ -302,11 +262,11 @@ export default function OnboardingScreen() {
     } = await supabase.auth.getSession();
     const authUser = session?.user;
     if (authUser?.id) {
-      await performPostAuthPushUpsertAndNavigate(authUser.id, { isSignup: true });
+      await performPostAuthNavigate(authUser.id);
     } else {
       router.replace("/(tabs)/today");
     }
-  }, [signInWithApple, clearAppleError, performPostAuthPushUpsertAndNavigate, router]);
+  }, [signInWithApple, clearAppleError, performPostAuthNavigate, router]);
 
   // When keyboard opens/closes on auth step, scroll in sync with keyboard so form and Inloggen button stay visible
   useEffect(() => {
@@ -359,13 +319,7 @@ export default function OnboardingScreen() {
           keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
         >
-            <View
-              style={[
-                styles.column,
-                styles.columnFullBleed,
-                step === "jokers" && styles.columnNarrow,
-              ]}
-            >
+            <View style={[styles.column, styles.columnFullBleed]}>
               {step === "intro" && (
                 <StepTransitionView style={[styles.step, styles.introStepWrap]}>
                   <View style={[styles.contentWrapper, styles.contentWrapperIntro]}>
@@ -379,9 +333,6 @@ export default function OnboardingScreen() {
                         </View>
                         <Text style={[styles.introTitle, styles.introTitleIntro]}>
                           {t("onboarding_intro_title")}
-                        </Text>
-                        <Text style={[styles.introTagline, styles.introTaglineIntro]}>
-                          {t("onboarding_intro_tagline")}
                         </Text>
                       </View>
                       <View style={[styles.pastAnswersCard, styles.pastAnswersCardIntro]}>
@@ -421,189 +372,9 @@ export default function OnboardingScreen() {
                         </View>
                       </View>
                       <View style={styles.ctaWrapIntro}>
-                        <OnboardingPrimaryButton fullWidth onPress={() => goNext("jokers")}>
+                        <OnboardingPrimaryButton fullWidth onPress={() => goNext("auth")}>
                           <Text style={styles.primaryButtonText}>
                             {t("onboarding_get_started")}
-                          </Text>
-                        </OnboardingPrimaryButton>
-                      </View>
-                    </View>
-                </StepTransitionView>
-              )}
-
-              {step === "jokers" && (
-                <StepTransitionView style={styles.step}>
-                  <View style={styles.contentWrapper}>
-                      <View style={styles.jokersHeader}>
-                        <LinearGradient
-                          colors={["#FDE68A", "#FBBF24"]}
-                          start={{ x: 0, y: 0 }}
-                          end={{ x: 1, y: 0 }}
-                          style={[styles.logoCircle, styles.jokerCircleGradient]}
-                        >
-                          <MaterialCommunityIcons
-                            name="crown"
-                            size={40}
-                            color="#FFFFFF"
-                          />
-                        </LinearGradient>
-                        <Text
-                          style={[styles.introTitle, styles.jokersTitle]}
-                          numberOfLines={1}
-                          adjustsFontSizeToFit
-                          minimumFontScale={0.9}
-                        >
-                          {t("onboarding_jokers_title")}
-                        </Text>
-                      </View>
-                      <View style={styles.bulletList}>
-                        <View style={styles.bulletRow}>
-                          <View style={[styles.bulletIcon, styles.bulletAmber]}>
-                            <Feather
-                              name="calendar"
-                              size={18}
-                              color="#F59E0B"
-                              strokeWidth={2.5}
-                            />
-                          </View>
-                          <View style={styles.bulletText}>
-                            <Text style={styles.bulletTitle}>
-                              {t("onboarding_jokers_answer_missed")}
-                            </Text>
-                            <Text style={styles.bulletDesc}>
-                              {t("onboarding_jokers_answer_missed_desc")}
-                            </Text>
-                          </View>
-                        </View>
-                        <View style={styles.bulletRow}>
-                          <View style={[styles.bulletIcon, styles.bulletBlue]}>
-                            <Feather
-                              name="trending-up"
-                              size={18}
-                              color="#3B82F6"
-                              strokeWidth={2.5}
-                            />
-                          </View>
-                          <View style={styles.bulletText}>
-                            <Text style={styles.bulletTitle}>
-                              {t("onboarding_jokers_earn_streaks")}
-                            </Text>
-                            <Text style={styles.bulletDesc}>
-                              {t("onboarding_jokers_earn_streaks_desc")}
-                            </Text>
-                          </View>
-                        </View>
-                        <View style={styles.bulletRow}>
-                          <View style={[styles.bulletIcon, styles.bulletPurple]}>
-                            <Feather
-                              name="user-plus"
-                              size={18}
-                              color="#8B5CF6"
-                              strokeWidth={2.5}
-                            />
-                          </View>
-                          <View style={styles.bulletText}>
-                            <Text style={styles.bulletTitle}>
-                              {t("onboarding_jokers_refer")}
-                            </Text>
-                            <Text style={styles.bulletDesc}>
-                              {t("onboarding_jokers_refer_desc")}
-                            </Text>
-                          </View>
-                        </View>
-                      </View>
-                      <OnboardingPrimaryButton
-                        fullWidth
-                        variant="amber"
-                        onPress={() => goNext("notifications")}
-                      >
-                        <Text style={styles.primaryButtonText}>
-                          {t("onboarding_continue")}
-                        </Text>
-                      </OnboardingPrimaryButton>
-                    </View>
-                </StepTransitionView>
-              )}
-
-              {step === "notifications" && (
-                <StepTransitionView style={styles.step}>
-                  <View style={styles.contentWrapper}>
-                      <View style={styles.notifHeader}>
-                        <View style={[styles.logoCircle, styles.notifCircle]}>
-                          <Feather
-                            name="bell"
-                            size={40}
-                            color="#3B82F6"
-                            strokeWidth={2}
-                          />
-                        </View>
-                        <Text style={styles.notifTitle}>
-                          {t("onboarding_notif_title")}
-                        </Text>
-                        <Text style={styles.introTagline}>
-                          {t("onboarding_notif_subtitle")}
-                        </Text>
-                      </View>
-                      <View style={styles.notifActionsWrap}>
-                        <View style={styles.optionList}>
-                          {(
-                            [
-                              "morning",
-                              "afternoon",
-                              "evening",
-                            ] as const
-                          ).map((opt) => (
-                            <Pressable
-                              key={opt}
-                              style={({ pressed }) => [
-                                styles.optionCard,
-                                notificationTime === opt && styles.optionCardSelected,
-                                pressed && styles.optionCardPressed,
-                              ]}
-                              onPress={() => setNotificationTime(opt)}
-                            >
-                              <View style={styles.optionCardInner}>
-                                <View>
-                                  <Text style={styles.optionLabel}>
-                                    {t(
-                                      opt === "morning"
-                                        ? "onboarding_notif_morning"
-                                        : opt === "afternoon"
-                                          ? "onboarding_notif_afternoon"
-                                          : "onboarding_notif_evening"
-                                    )}
-                                  </Text>
-                                  <Text style={styles.optionTime}>
-                                    {t(
-                                      opt === "morning"
-                                        ? "onboarding_notif_morning_time"
-                                        : opt === "afternoon"
-                                          ? "onboarding_notif_afternoon_time"
-                                          : "onboarding_notif_evening_time"
-                                    )}
-                                  </Text>
-                                </View>
-                                <View
-                                  style={[
-                                    styles.radioOuter,
-                                    notificationTime === opt && styles.radioOuterSelected,
-                                  ]}
-                                >
-                                  {notificationTime === opt && (
-                                    <View style={styles.radioInner} />
-                                  )}
-                                </View>
-                              </View>
-                            </Pressable>
-                          ))}
-                        </View>
-                        <OnboardingPrimaryButton
-                          fullWidth
-                          onPress={handleNotificationsContinue}
-                          disabled={!notificationTime}
-                        >
-                          <Text style={styles.primaryButtonText}>
-                            {t("onboarding_continue")}
                           </Text>
                         </OnboardingPrimaryButton>
                       </View>

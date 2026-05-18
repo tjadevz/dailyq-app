@@ -41,6 +41,7 @@ import {
   type CalendarAnswerEntry,
 } from "@/src/context/CalendarAnswersContext";
 import { getNow, getLocalDayKey } from "@/src/lib/date";
+import { logEvent } from "@/lib/analytics";
 import { supabase } from "@/src/config/supabase";
 import { JokerModalBottomSheet } from "@/src/components/JokerModalBottomSheet";
 import JokerOfferModal from "@/src/components/JokerOfferModal";
@@ -679,6 +680,7 @@ export default function CalendarScreen() {
   // Refetch streak when Calendar tab gains focus (e.g. after submitting answer on Today).
   useFocusEffect(
     useCallback(() => {
+      logEvent("calendar_opened");
       fetchStreak();
       fetchAlreadyGrantedMilestones();
     }, [fetchStreak, fetchAlreadyGrantedMilestones])
@@ -781,12 +783,18 @@ export default function CalendarScreen() {
     (dayKey: string | null, state: CellState) => {
       if (!dayKey) return;
       if (state === "answered" || state === "joker") {
+        const daysAgo = Math.round(
+          (new Date(todayKey + "T12:00:00").getTime() -
+            new Date(dayKey + "T12:00:00").getTime()) /
+            (1000 * 60 * 60 * 24)
+        );
+        logEvent("past_answer_viewed", { days_ago: daysAgo });
         setViewAnswerDay(dayKey);
       } else if (state === "missed" || state === "before") {
         setMissedDay(dayKey);
       }
     },
-    []
+    [todayKey]
   );
 
   const openMissedAnswer = useCallback(

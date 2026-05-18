@@ -19,6 +19,7 @@ import { useProfileContext } from "@/src/context/ProfileContext";
 import { supabase } from "@/src/config/supabase";
 import { getLocalDayKey } from "@/src/lib/date";
 import { getOnboardingNotificationsDone } from "@/src/lib/onboardingProgress";
+import { logEvent } from "@/lib/analytics";
 
 type OnboardingQuestion = {
   question_date: string;
@@ -116,6 +117,17 @@ export default function OnboardingQuestionsScreen() {
     };
   }, [userId, lang, dayKeys]);
 
+  const getOnboardingScreenName = useCallback(() => {
+    if (showIntroCard) return "questions_intro";
+    return `questions_${currentIndex + 1}`;
+  }, [showIntroCard, currentIndex]);
+
+  useEffect(() => {
+    if (loading || questions.length === 0) return;
+    const screen = showIntroCard ? "questions_intro" : `questions_${currentIndex + 1}`;
+    logEvent("onboarding_screen_viewed", { screen });
+  }, [loading, questions.length, showIntroCard, currentIndex]);
+
   const setOnboardingCompletedAndGoHome = useCallback(
     async (grantJoker: boolean) => {
       if (!userId || userId === "dev-user") {
@@ -128,6 +140,9 @@ export default function OnboardingQuestionsScreen() {
           p_grant_joker: grantJoker,
         });
         if (completeErr) throw completeErr;
+        if (grantJoker) {
+          logEvent("onboarding_completed");
+        }
         await refetchProfile();
         if (grantJoker) {
           setRewardModalVisible(true);
@@ -145,9 +160,10 @@ export default function OnboardingQuestionsScreen() {
   );
 
   const handleDismiss = useCallback(() => {
+    logEvent("onboarding_skipped", { screen: getOnboardingScreenName() });
     setModalDismissed(true);
     setOnboardingCompletedAndGoHome(false);
-  }, [setOnboardingCompletedAndGoHome]);
+  }, [setOnboardingCompletedAndGoHome, getOnboardingScreenName]);
 
   const handleLetsGo = useCallback(() => {
     setRewardModalVisible(false);

@@ -26,7 +26,7 @@ type Props = {
 
 export default function MonthlyRecapModal({ visible, recapData, onClose, onShare }: Props) {
   const insets = useSafeAreaInsets();
-  const { lang } = useLanguage();
+  const { lang, t } = useLanguage();
   const backdropOpacity = useSharedValue(0);
   const slideY = useSharedValue(FULL_HEIGHT);
 
@@ -35,7 +35,6 @@ export default function MonthlyRecapModal({ visible, recapData, onClose, onShare
         eyebrow: "Dit was",
         daysAnswered: "dagen beantwoord",
         totalAnswers: "antwoorden in je archief",
-        longestStreak: "langste reeks",
         wordsWritten: "woorden geschreven",
         earliestAnswer: "vroegste antwoord",
         latestAnswer: "laatste antwoord",
@@ -46,7 +45,6 @@ export default function MonthlyRecapModal({ visible, recapData, onClose, onShare
         eyebrow: "This was",
         daysAnswered: "days answered",
         totalAnswers: "answers in your archive",
-        longestStreak: "longest streak",
         wordsWritten: "words written",
         earliestAnswer: "earliest answer",
         latestAnswer: "latest answer",
@@ -58,12 +56,20 @@ export default function MonthlyRecapModal({ visible, recapData, onClose, onShare
     if (recapData.totalDaysInMonth <= 0) return 0;
     return Math.min(1, Math.max(0, recapData.daysAnswered / recapData.totalDaysInMonth));
   }, [recapData.daysAnswered, recapData.totalDaysInMonth]);
-  const monthsActiveLabel = useMemo(() => {
-    if (lang === "nl") {
-      return recapData.monthsActive === 1 ? "actieve maand" : "actieve maanden";
-    }
-    return recapData.monthsActive === 1 ? "active month" : "active months";
-  }, [lang, recapData.monthsActive]);
+  const monthsActiveLabel = useMemo(
+    () =>
+      recapData.monthsActive === 1
+        ? t("monthly_recap_months_active_singular")
+        : t("monthly_recap_months_active_plural"),
+    [recapData.monthsActive, t]
+  );
+  const jokersUsedLabel = useMemo(
+    () =>
+      recapData.jokersUsedThisMonth === 1
+        ? t("monthly_recap_jokers_used_singular")
+        : t("monthly_recap_jokers_used_plural"),
+    [recapData.jokersUsedThisMonth, t]
+  );
 
   const closeModal = useCallback(() => onClose(), [onClose]);
 
@@ -138,10 +144,8 @@ export default function MonthlyRecapModal({ visible, recapData, onClose, onShare
                       </Text>
                     </View>
                     <View style={[styles.statTile, styles.halfCard]}>
-                      <Text style={styles.statBig}>{recapData.longestStreakThisMonth}</Text>
-                      <Text style={styles.label}>
-                        {lang === "nl" ? "langste streak" : copy.longestStreak}
-                      </Text>
+                      <Text style={styles.statBig}>{recapData.jokersUsedThisMonth}</Text>
+                      <Text style={styles.label}>{jokersUsedLabel}</Text>
                     </View>
                     <View style={[styles.statTile, styles.halfCard]}>
                       <Text style={styles.statBig}>{recapData.wordsWrittenThisMonth}</Text>

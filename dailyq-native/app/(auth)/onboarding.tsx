@@ -28,6 +28,7 @@ import { useAuth, useAppleSignIn } from "@/src/context/AuthContext";
 import { supabase } from "@/src/config/supabase";
 import { getPendingReferralCode, setPendingReferralCode } from "@/src/lib/referralPending";
 import { getIncompleteOnboardingHref } from "@/src/lib/onboardingProgress";
+import { logEvent } from "@/lib/analytics";
 
 type Step = "intro" | "auth";
 
@@ -148,6 +149,10 @@ export default function OnboardingScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    logEvent("onboarding_screen_viewed", { screen: step });
+  }, [step]);
 
   useEffect(() => {
     if (Platform.OS !== "ios") return;

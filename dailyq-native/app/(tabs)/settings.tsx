@@ -369,6 +369,7 @@ export default function SettingsScreen() {
             question_date: questionDateB,
             answer_text: "Dev recap seed latest",
             is_onboarding: false,
+            is_joker: true,
             created_at: dayB.toISOString(),
           },
         ],

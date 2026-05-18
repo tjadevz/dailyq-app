@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { InteractionManager, View } from "react-native";
+import { AppState, InteractionManager, View } from "react-native";
+import { addNotificationResponseReceivedListener } from "expo-notifications";
 import Constants from "expo-constants";
 import { Slot, usePathname } from "expo-router";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -16,6 +17,7 @@ import { useAuth } from "@/src/context/AuthContext";
 import { useLanguage } from "@/src/context/LanguageContext";
 import { supabase } from "@/src/config/supabase";
 import { consumeReferralGivenDevTrigger } from "@/src/lib/referralGivenDevTrigger";
+import { logEvent } from "@/lib/analytics";
 import * as Sentry from "@sentry/react-native";
 
 if (!__DEV__) {
@@ -29,6 +31,36 @@ type ReferralGivenEvent = {
   delta: number;
   reason: string;
 };
+
+function AnalyticsAppLifecycleGate() {
+  const appStateRef = useRef(AppState.currentState);
+
+  useEffect(() => {
+    logEvent("app_open", { source: "cold_start" });
+
+    const appStateSubscription = AppState.addEventListener("change", (next) => {
+      const prev = appStateRef.current;
+      appStateRef.current = next;
+      if (
+        next === "active" &&
+        (prev === "background" || prev === "inactive")
+      ) {
+        logEvent("app_open", { source: "foreground" });
+      }
+    });
+
+    const notificationSubscription = addNotificationResponseReceivedListener(() => {
+      logEvent("notification_tapped");
+    });
+
+    return () => {
+      appStateSubscription.remove();
+      notificationSubscription.remove();
+    };
+  }, []);
+
+  return null;
+}
 
 function SyncProfileAppVersionGate() {
   const { user, authCheckDone } = useAuth();
@@ -149,6 +181,7 @@ export default function RootLayout() {
                     <View style={{ flex: 1, backgroundColor: "transparent" }}>
                       <Slot />
                     </View>
+                    <AnalyticsAppLifecycleGate />
                     <SyncProfileAppVersionGate />
                     <ReferralGivenAppOpenGate />
                   </View>

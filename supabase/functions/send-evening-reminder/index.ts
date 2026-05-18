@@ -1,6 +1,6 @@
-// supabase/functions/send-daily-notifications/index.ts
-// Runs every 30 min via cron. Sends push notifications to users whose local time
-// matches their chosen slot: morning=07:30, afternoon=12:30, evening=21:00.
+// supabase/functions/send-evening-reminder/index.ts
+// Runs every 30 min via cron. Sends an evening reminder at 21:00 local time to users
+// with reminder_time morning or afternoon who have not answered today's question.
 // Saves Expo ticket IDs to push_tickets for receipt verification.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -13,11 +13,7 @@ const corsHeaders = {
 
 const EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
 
-const SLOTS: Record<string, { hour: number; minute: number }> = {
-  morning:   { hour: 7,  minute: 30 },
-  afternoon: { hour: 12, minute: 30 },
-  evening:   { hour: 21, minute: 0  },
-};
+const EVENING_SLOT = { hour: 21, minute: 0 };
 
 function getLocalHourMinute(timezone: string): { hour: number; minute: number; dateStr: string } {
   const now = new Date();
@@ -62,9 +58,9 @@ serve(async (req) => {
 
   const { data: subs, error: subsErr } = await supabase
     .from("push_subscriptions")
-    .select("user_id, expo_push_token, reminder_time, timezone, last_notified_date")
+    .select("user_id, expo_push_token, reminder_time, timezone, last_evening_reminder_date")
     .not("expo_push_token", "is", null)
-    .not("reminder_time", "is", null);
+    .in("reminder_time", ["morning", "afternoon"]);
 
   if (subsErr) {
     return new Response(
@@ -82,17 +78,15 @@ serve(async (req) => {
   const eligibleSubs: (typeof subs[0] & { _dateStr: string })[] = [];
   for (const sub of subs) {
     const tz = sub.timezone ?? "Europe/Amsterdam";
-    const slot = SLOTS[sub.reminder_time];
-    if (!slot) continue;
     const { hour, minute, dateStr } = getLocalHourMinute(tz);
-    if (sub.last_notified_date === dateStr) continue;
-    if (!isInSlotWindow(hour, minute, slot)) continue;
+    if (sub.last_evening_reminder_date === dateStr) continue;
+    if (!isInSlotWindow(hour, minute, EVENING_SLOT)) continue;
     eligibleSubs.push({ ...sub, _dateStr: dateStr });
   }
 
   if (!eligibleSubs.length) {
     return new Response(
-      JSON.stringify({ sent: 0, message: "No users in slot window right now" }),
+      JSON.stringify({ sent: 0, message: "No users in evening reminder window right now" }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
@@ -155,8 +149,8 @@ serve(async (req) => {
         : lang === "en" && enTeaser
           ? enTeaser
           : lang === "nl"
-            ? "Je DailyQ staat klaar!"
-            : "Your DailyQ is ready!";
+            ? "De vraag van vandaag wacht nog op je."
+            : "Today's question is still waiting for you.";
 
     messages.push({
       to: sub.expo_push_token,
@@ -239,7 +233,7 @@ serve(async (req) => {
     for (const [dateStr, ids] of Object.entries(byDate)) {
       await supabase
         .from("push_subscriptions")
-        .update({ last_notified_date: dateStr })
+        .update({ last_evening_reminder_date: dateStr })
         .in("user_id", ids);
     }
   }

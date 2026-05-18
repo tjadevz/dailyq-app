@@ -14,12 +14,17 @@ import {
   setOnboardingNotificationsDone,
 } from "@/src/lib/onboardingProgress";
 import { upsertPushSubscription } from "@/src/lib/pushSubscription";
+import { logEvent } from "@/lib/analytics";
 
 export default function OnboardingNotificationsScreen() {
   const router = useRouter();
   const { effectiveUser } = useAuth();
   const userId = effectiveUser?.id ?? null;
   const [continuing, setContinuing] = useState(false);
+
+  useEffect(() => {
+    logEvent("onboarding_screen_viewed", { screen: "notifications" });
+  }, []);
 
   useEffect(() => {
     if (!userId || userId === "dev-user") return;

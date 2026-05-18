@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from "react-native";
 import * as Sharing from "expo-sharing";
 import { captureRef } from "react-native-view-shot";
 
+import { useLanguage } from "@/src/context/LanguageContext";
 import type { RecapData } from "@/src/hooks/useMonthlyRecap";
 
 export type MonthlyRecapShareCardProps = {
@@ -16,6 +17,7 @@ export type MonthlyRecapShareCardRef = {
 
 const MonthlyRecapShareCard = forwardRef<MonthlyRecapShareCardRef, MonthlyRecapShareCardProps>(
   function MonthlyRecapShareCard({ recapData, lang }, ref) {
+    const { t } = useLanguage();
     const captureViewRef = useRef<View | null>(null);
     const progress = recapData.totalDaysInMonth > 0
       ? Math.min(1, Math.max(0, recapData.daysAnswered / recapData.totalDaysInMonth))
@@ -28,12 +30,20 @@ const MonthlyRecapShareCard = forwardRef<MonthlyRecapShareCardRef, MonthlyRecapS
         year: "numeric",
       }).format(parsed);
     }, [recapData.monthName, recapData.previousMonthKey, lang]);
-    const monthsActiveLabel = useMemo(() => {
-      if (lang === "nl") {
-        return recapData.monthsActive === 1 ? "actieve maand" : "actieve maanden";
-      }
-      return recapData.monthsActive === 1 ? "active month" : "active months";
-    }, [lang, recapData.monthsActive]);
+    const monthsActiveLabel = useMemo(
+      () =>
+        recapData.monthsActive === 1
+          ? t("monthly_recap_months_active_singular")
+          : t("monthly_recap_months_active_plural"),
+      [recapData.monthsActive, t]
+    );
+    const jokersUsedLabel = useMemo(
+      () =>
+        recapData.jokersUsedThisMonth === 1
+          ? t("monthly_recap_jokers_used_singular")
+          : t("monthly_recap_jokers_used_plural"),
+      [recapData.jokersUsedThisMonth, t]
+    );
     const copy =
       lang === "nl"
         ? {
@@ -41,7 +51,6 @@ const MonthlyRecapShareCard = forwardRef<MonthlyRecapShareCardRef, MonthlyRecapS
             daysAnswered: "dagen beantwoord",
             totalAnswers: "in archief",
             wordsWritten: "woorden geschreven",
-            longestStreak: "langste reeks",
             monthsActive: "actieve maanden",
             earliest: "vroegste antwoord",
             latest: "laatste antwoord",
@@ -51,7 +60,6 @@ const MonthlyRecapShareCard = forwardRef<MonthlyRecapShareCardRef, MonthlyRecapS
             daysAnswered: "days answered",
             totalAnswers: "in archive",
             wordsWritten: "words written",
-            longestStreak: "longest streak",
             monthsActive: "active months",
             earliest: "earliest answer",
             latest: "latest answer",
@@ -118,8 +126,8 @@ const MonthlyRecapShareCard = forwardRef<MonthlyRecapShareCardRef, MonthlyRecapS
             </View>
 
             <View style={styles.tile}>
-              <Text style={styles.tileValue}>{recapData.longestStreakThisMonth}</Text>
-              <Text style={styles.tileLabel}>{copy.longestStreak}</Text>
+              <Text style={styles.tileValue}>{recapData.jokersUsedThisMonth}</Text>
+              <Text style={styles.tileLabel}>{jokersUsedLabel}</Text>
             </View>
 
             <View style={styles.tile}>

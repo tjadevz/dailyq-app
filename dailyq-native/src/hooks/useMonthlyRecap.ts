@@ -8,7 +8,7 @@ import { useLanguage } from "../context/LanguageContext";
 export type RecapData = {
   daysAnswered: number;
   totalDaysInMonth: number;
-  longestStreakThisMonth: number;
+  jokersUsedThisMonth: number;
   wordsWrittenThisMonth: number;
   totalAnswers: number;
   monthsActive: number;
@@ -30,13 +30,6 @@ type ProfileRecapRow = {
 };
 
 const MONTHLY_RECAP_DEV_TRIGGER_KEY = "dailyq-dev-force-monthly-recap";
-
-function toDayKey(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
 
 function getPreviousMonthRange(now: Date): {
   firstDayPrevMonth: Date;
@@ -64,31 +57,6 @@ function isCreatedMoreThan30DaysAgo(createdAt: string | null, now: Date): boolea
   if (!Number.isFinite(createdDate.getTime())) return false;
   const diffMs = now.getTime() - createdDate.getTime();
   return diffMs > 1 * 24 * 60 * 60 * 1000;
-}
-
-function calculateLongestStreak(questionDates: string[]): number {
-  if (questionDates.length === 0) return 0;
-
-  const uniqueSorted = Array.from(new Set(questionDates)).sort((a, b) =>
-    a.localeCompare(b)
-  );
-
-  let longest = 1;
-  let current = 1;
-
-  for (let i = 1; i < uniqueSorted.length; i += 1) {
-    const prev = new Date(`${uniqueSorted[i - 1]}T00:00:00`);
-    const curr = new Date(`${uniqueSorted[i]}T00:00:00`);
-    const diffDays = Math.round((curr.getTime() - prev.getTime()) / (24 * 60 * 60 * 1000));
-    if (diffDays === 1) {
-      current += 1;
-      if (current > longest) longest = current;
-    } else {
-      current = 1;
-    }
-  }
-
-  return longest;
 }
 
 function countWords(text: string | null): number {
@@ -175,8 +143,6 @@ export function useMonthlyRecap(): MonthlyRecapHook {
 
         const { firstDayPrevMonth, lastDayPrevMonth, previousMonthKey, totalDaysInMonth } =
           getPreviousMonthRange(now);
-        const prevMonthStartKey = toDayKey(firstDayPrevMonth);
-        const prevMonthEndKey = toDayKey(lastDayPrevMonth);
         const prevMonthCreatedAtStartIso = new Date(
           firstDayPrevMonth.getFullYear(),
           firstDayPrevMonth.getMonth(),
@@ -221,7 +187,7 @@ export function useMonthlyRecap(): MonthlyRecapHook {
 
         const { data: monthlyAnswers, error: monthlyAnswersError } = await supabase
           .from("answers")
-          .select("question_date, answer_text, created_at")
+          .select("question_date, answer_text, created_at, is_joker")
           .eq("user_id", userId)
           .eq("is_onboarding", false)
           .gte("created_at", prevMonthCreatedAtStartIso)
@@ -244,13 +210,11 @@ export function useMonthlyRecap(): MonthlyRecapHook {
             question_date: string;
             answer_text: string | null;
             created_at: string | null;
+            is_joker: boolean | null;
           }[] | null) ?? [];
-        // #region agent log
-        fetch("http://127.0.0.1:7729/ingest/db237dc3-2932-4821-b603-b2959e85e2e1",{method:"POST",headers:{"Content-Type":"application/json","X-Debug-Session-Id":"c9dba5"},body:JSON.stringify({sessionId:"c9dba5",runId:"pre-fix",hypothesisId:"H2_H3",location:"useMonthlyRecap.ts:rows",message:"Monthly recap answer rows loaded",data:{userId,rowCount:rows.length,prevMonthStartKey,prevMonthEndKey,sample:rows.slice(0,10).map((r)=>({question_date:r.question_date,created_at:r.created_at}))},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
 
         const daysAnswered = rows.length;
-        const longestStreakThisMonth = calculateLongestStreak(rows.map((r) => r.question_date));
+        const jokersUsedThisMonth = rows.filter((row) => row.is_joker === true).length;
         const wordsWrittenThisMonth = rows.reduce(
           (sum, row) => sum + countWords(row.answer_text),
           0
@@ -272,27 +236,12 @@ export function useMonthlyRecap(): MonthlyRecapHook {
           const accMins = acc.getHours() * 60 + acc.getMinutes();
           return mins > accMins ? dt : acc;
         }, null);
-        const earliestDate = monthAnswerDates.reduce<Date | null>((acc, dt) => {
-          if (!acc) return dt;
-          return dt.getTime() < acc.getTime() ? dt : acc;
-        }, null);
-        const latestDate = monthAnswerDates.reduce<Date | null>((acc, dt) => {
-          if (!acc) return dt;
-          return dt.getTime() > acc.getTime() ? dt : acc;
-        }, null);
-        // #region agent log
-        fetch("http://127.0.0.1:7729/ingest/db237dc3-2932-4821-b603-b2959e85e2e1",{method:"POST",headers:{"Content-Type":"application/json","X-Debug-Session-Id":"c9dba5"},body:JSON.stringify({sessionId:"c9dba5",runId:"pre-fix",hypothesisId:"H1_H4",location:"useMonthlyRecap.ts:time-comparison",message:"Compare timestamp-based vs time-of-day-based bounds",data:{timestampEarliest:earliestDate?{iso:earliestDate.toISOString(),hhmm:`${String(earliestDate.getHours()).padStart(2,"0")}:${String(earliestDate.getMinutes()).padStart(2,"0")}`}:null,timestampLatest:latestDate?{iso:latestDate.toISOString(),hhmm:`${String(latestDate.getHours()).padStart(2,"0")}:${String(latestDate.getMinutes()).padStart(2,"0")}`}:null,timeOfDayEarliest:minTimeOfDayDate?{iso:minTimeOfDayDate.toISOString(),hhmm:`${String(minTimeOfDayDate.getHours()).padStart(2,"0")}:${String(minTimeOfDayDate.getMinutes()).padStart(2,"0")}`}:null,timeOfDayLatest:maxTimeOfDayDate?{iso:maxTimeOfDayDate.toISOString(),hhmm:`${String(maxTimeOfDayDate.getHours()).padStart(2,"0")}:${String(maxTimeOfDayDate.getMinutes()).padStart(2,"0")}`}:null},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
         const earliestAnswerTime = minTimeOfDayDate
           ? formatTimeHHMM(minTimeOfDayDate.toISOString())
           : "--:--";
         const latestAnswerTime = maxTimeOfDayDate
           ? formatTimeHHMM(maxTimeOfDayDate.toISOString())
           : "--:--";
-        // #region agent log
-        fetch("http://127.0.0.1:7729/ingest/db237dc3-2932-4821-b603-b2959e85e2e1",{method:"POST",headers:{"Content-Type":"application/json","X-Debug-Session-Id":"c9dba5"},body:JSON.stringify({sessionId:"c9dba5",runId:"pre-fix",hypothesisId:"H1_H2_H4",location:"useMonthlyRecap.ts:final-times",message:"Final recap times emitted",data:{earliestAnswerTime,latestAnswerTime},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
-
         const locale = lang === "nl" ? "nl-NL" : "en-US";
         const monthName = new Intl.DateTimeFormat(locale, { month: "long" }).format(
           firstDayPrevMonth
@@ -301,7 +250,7 @@ export function useMonthlyRecap(): MonthlyRecapHook {
         const nextRecapData: RecapData = {
           daysAnswered,
           totalDaysInMonth,
-          longestStreakThisMonth,
+          jokersUsedThisMonth,
           wordsWrittenThisMonth,
           totalAnswers: totalAnswersCount,
           monthsActive: calculateMonthsActive(createdAt, now),

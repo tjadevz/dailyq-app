@@ -11,12 +11,13 @@
       "fallbackToCacheTimeout": 0
     },
     "slug": "dailyq",
-    "version": "1.5.1",
+    "version": "1.5.2",
     "orientation": "portrait",
     "scheme": "dailyq",
     "icon": "./assets/images/icon.png",
     "userInterfaceStyle": "automatic",
     "plugins": [
+      "./plugins/withFacebookCore",
       "expo-apple-authentication",
       "expo-font",
       "expo-router",
@@ -55,7 +56,9 @@
       },
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSUserNotificationsUsageDescription": "DailyQ sends a daily reminder so you don't miss your question."
+        "NSUserNotificationsUsageDescription": "DailyQ sends a daily reminder so you don't miss your question.",
+        "FacebookAppID": "1532476241627010",
+        "FacebookClientToken": "5a16a830e5acf0f4762f3bed7ea1cf55"
       }
     },
     "android": {

@@ -17,7 +17,10 @@ import { useAuth } from "@/src/context/AuthContext";
 import { useLanguage } from "@/src/context/LanguageContext";
 import { useProfileContext } from "@/src/context/ProfileContext";
 import { supabase } from "@/src/config/supabase";
-import { getLocalDayKey } from "@/src/lib/date";
+import {
+  ONBOARDING_QUESTION_COUNT,
+  getOnboardingQuestionDayKeys,
+} from "@/src/lib/onboardingWindow";
 import { getOnboardingNotificationsDone } from "@/src/lib/onboardingProgress";
 import { logEvent } from "@/lib/analytics";
 
@@ -25,19 +28,6 @@ type OnboardingQuestion = {
   question_date: string;
   question_text: string;
 };
-
-const ONBOARDING_DAYS = 3;
-
-function getOnboardingDayKeys(createdAt: string): string[] {
-  const signup = new Date(createdAt);
-  const keys: string[] = [];
-  for (let daysBefore = 3; daysBefore >= 1; daysBefore--) {
-    const d = new Date(signup);
-    d.setDate(d.getDate() - daysBefore);
-    keys.push(getLocalDayKey(d));
-  }
-  return keys;
-}
 
 export default function OnboardingQuestionsScreen() {
   const router = useRouter();
@@ -61,10 +51,7 @@ export default function OnboardingQuestionsScreen() {
   /** Number of questions answered (submitted) in this onboarding run; reward joker granted only if all 3 are answered. */
   const [answeredCount, setAnsweredCount] = useState(0);
 
-  const dayKeys = useMemo(() => {
-    if (!effectiveUser?.created_at) return [];
-    return getOnboardingDayKeys(effectiveUser.created_at);
-  }, [effectiveUser?.created_at]);
+  const dayKeys = useMemo(() => getOnboardingQuestionDayKeys(), []);
 
   useEffect(() => {
     if (!userId || userId === "dev-user") return;
@@ -203,7 +190,7 @@ export default function OnboardingQuestionsScreen() {
         setAnsweredCount((prev) => {
           const next = prev + 1;
           if (isLast) {
-            if (next === ONBOARDING_DAYS) {
+            if (next === ONBOARDING_QUESTION_COUNT) {
               setOnboardingCompletedAndGoHome(true);
             } else {
               setModalDismissed(true);

@@ -1,6 +1,7 @@
 // supabase/functions/send-evening-reminder/index.ts
 // Runs every 30 min via cron. Sends an evening reminder at 21:00 local time to users
 // with reminder_time morning or afternoon who have not answered today's question.
+// ?force=true skips the time window (keeps answered-today and dedup checks).
 // Saves Expo ticket IDs to push_tickets for receipt verification.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -55,6 +56,7 @@ serve(async (req) => {
   }
 
   const supabase = createClient(supabaseUrl, serviceRoleKey);
+  const force = new URL(req.url).searchParams.get("force") === "true";
 
   const { data: subs, error: subsErr } = await supabase
     .from("push_subscriptions")
@@ -80,7 +82,7 @@ serve(async (req) => {
     const tz = sub.timezone ?? "Europe/Amsterdam";
     const { hour, minute, dateStr } = getLocalHourMinute(tz);
     if (sub.last_evening_reminder_date === dateStr) continue;
-    if (!isInSlotWindow(hour, minute, EVENING_SLOT)) continue;
+    if (!force && !isInSlotWindow(hour, minute, EVENING_SLOT)) continue;
     eligibleSubs.push({ ...sub, _dateStr: dateStr });
   }
 
@@ -100,33 +102,6 @@ serve(async (req) => {
   const langByUser: Record<string, string> = {};
   for (const p of profs ?? []) langByUser[p.id] = p.language ?? "en";
 
-  const dateStrForTeasers = eligibleSubs[0]._dateStr;
-
-  const [nlTeaserRes, enTeaserRes] = await Promise.all([
-    supabase
-      .from("questions")
-      .select("notification_teaser")
-      .eq("day", dateStrForTeasers)
-      .maybeSingle(),
-    supabase
-      .from("daily_questions_en")
-      .select("notification_teaser")
-      .eq("question_date", dateStrForTeasers)
-      .maybeSingle(),
-  ]);
-
-  const nlTeaser: string | null =
-    typeof nlTeaserRes.data?.notification_teaser === "string" &&
-    nlTeaserRes.data.notification_teaser.trim().length > 0
-      ? nlTeaserRes.data.notification_teaser
-      : null;
-
-  const enTeaser: string | null =
-    typeof enTeaserRes.data?.notification_teaser === "string" &&
-    enTeaserRes.data.notification_teaser.trim().length > 0
-      ? enTeaserRes.data.notification_teaser
-      : null;
-
   const { data: answered } = await supabase
     .from("answers")
     .select("user_id, question_date")
@@ -144,13 +119,9 @@ serve(async (req) => {
     const lang = langByUser[sub.user_id] ?? "en";
 
     const body =
-      lang === "nl" && nlTeaser
-        ? nlTeaser
-        : lang === "en" && enTeaser
-          ? enTeaser
-          : lang === "nl"
-            ? "De vraag van vandaag wacht nog op je."
-            : "Today's question is still waiting for you.";
+      lang === "nl"
+        ? "De vraag van vandaag wacht nog op je."
+        : "Today's question is still waiting for you.";
 
     messages.push({
       to: sub.expo_push_token,
@@ -240,7 +211,7 @@ serve(async (req) => {
 
   const sent = successfulUserIds.length;
   return new Response(
-    JSON.stringify({ sent, total: messages.length }),
+    JSON.stringify({ sent, total: messages.length, force }),
     { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
   );
 });

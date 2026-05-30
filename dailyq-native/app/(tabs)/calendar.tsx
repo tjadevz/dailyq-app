@@ -41,6 +41,10 @@ import {
   type CalendarAnswerEntry,
 } from "@/src/context/CalendarAnswersContext";
 import { getNow, getLocalDayKey } from "@/src/lib/date";
+import {
+  getOnboardingQuestionDayKeys,
+  getOnboardingWindowStartKey,
+} from "@/src/lib/onboardingWindow";
 import { logEvent } from "@/lib/analytics";
 import { supabase } from "@/src/config/supabase";
 import { JokerModalBottomSheet } from "@/src/components/JokerModalBottomSheet";
@@ -120,7 +124,7 @@ function isOlderThan30Days(dayKey: string, todayKey: string): boolean {
   return dayKey < thirtyDaysAgoKey;
 }
 
-/** True when day is permanently locked: before account boundary or older than 30 days. Uses accountBoundaryDate (created_at - 4 when onboarding done). */
+/** True when day is permanently locked: before account boundary or older than 30 days. */
 function isPermanentlyLockedDay(
   dayKey: string,
   todayKey: string,
@@ -583,12 +587,15 @@ export default function CalendarScreen() {
     if (!effectiveUser?.created_at) return null;
     return getLocalDayKey(new Date(effectiveUser.created_at));
   }, [effectiveUser?.created_at]);
+  const onboardingWindowDayKeys = useMemo(() => {
+    if (!profile?.onboarding_completed) return null;
+    return new Set(getOnboardingQuestionDayKeys());
+  }, [profile?.onboarding_completed, todayKey]);
+
   const accountBoundaryDate = useMemo((): string | undefined => {
     if (!effectiveUser?.created_at) return undefined;
     if (profile?.onboarding_completed) {
-      const d = new Date(effectiveUser.created_at);
-      d.setDate(d.getDate() - 4);
-      return getLocalDayKey(d);
+      return getOnboardingWindowStartKey();
     }
     return getLocalDayKey(new Date(effectiveUser.created_at));
   }, [effectiveUser?.created_at, profile?.onboarding_completed]);
@@ -1003,10 +1010,8 @@ export default function CalendarScreen() {
               const isOnboardingWindowDay =
                 !isPlaceholder &&
                 profile?.onboarding_completed === true &&
-                !!accountBoundaryDate &&
-                !!createdAtDayKey &&
-                cell.dayKey! >= accountBoundaryDate &&
-                cell.dayKey! < createdAtDayKey;
+                !!onboardingWindowDayKeys &&
+                onboardingWindowDayKeys.has(cell.dayKey!);
               const isOnboardingAnswered = isOnboardingWindowDay && !!entry;
               const isOnboardingJokerAnswered = isOnboardingAnswered && entry?.isJoker === true;
               const isOnboardingNonJokerAnswered = isOnboardingAnswered && !isOnboardingJokerAnswered;
@@ -1391,7 +1396,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(156,163,175,0.3)",
   },
-  // Muted purple onboarding window days: D-7..D-1 (local day keys).
+  // Muted purple onboarding window days: day-before-yesterday .. today (3 days).
   cellOnboardingAnswered: {
     backgroundColor: "rgba(167, 139, 250, 0.35)",
     borderWidth: 2,

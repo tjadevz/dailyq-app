@@ -1,6 +1,7 @@
 // supabase/functions/send-daily-notifications/index.ts
 // Runs every 30 min via cron. Sends push notifications to users whose local time
 // matches their chosen slot: morning=07:30, afternoon=12:30, evening=21:00.
+// ?force=true skips the time window (keeps answered-today and dedup checks).
 // Saves Expo ticket IDs to push_tickets for receipt verification.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -59,6 +60,7 @@ serve(async (req) => {
   }
 
   const supabase = createClient(supabaseUrl, serviceRoleKey);
+  const force = new URL(req.url).searchParams.get("force") === "true";
 
   const { data: subs, error: subsErr } = await supabase
     .from("push_subscriptions")
@@ -86,7 +88,7 @@ serve(async (req) => {
     if (!slot) continue;
     const { hour, minute, dateStr } = getLocalHourMinute(tz);
     if (sub.last_notified_date === dateStr) continue;
-    if (!isInSlotWindow(hour, minute, slot)) continue;
+    if (!force && !isInSlotWindow(hour, minute, slot)) continue;
     eligibleSubs.push({ ...sub, _dateStr: dateStr });
   }
 
@@ -246,7 +248,7 @@ serve(async (req) => {
 
   const sent = successfulUserIds.length;
   return new Response(
-    JSON.stringify({ sent, total: messages.length }),
+    JSON.stringify({ sent, total: messages.length, force }),
     { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
   );
 });

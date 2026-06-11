@@ -40,7 +40,7 @@ import {
   useCalendarAnswers,
   type CalendarAnswerEntry,
 } from "@/src/context/CalendarAnswersContext";
-import { getNow, getLocalDayKey } from "@/src/lib/date";
+import { getNow, getLocalDayKey, daysBetween } from "@/src/lib/date";
 import {
   getOnboardingQuestionDayKeys,
   getOnboardingWindowStartKey,
@@ -589,13 +589,14 @@ export default function CalendarScreen() {
   }, [effectiveUser?.created_at]);
   const onboardingWindowDayKeys = useMemo(() => {
     if (!profile?.onboarding_completed) return null;
-    return new Set(getOnboardingQuestionDayKeys());
-  }, [profile?.onboarding_completed, todayKey]);
+    if (!effectiveUser?.created_at) return null;
+    return new Set(getOnboardingQuestionDayKeys(new Date(effectiveUser.created_at)));
+  }, [profile?.onboarding_completed, effectiveUser?.created_at]);
 
   const accountBoundaryDate = useMemo((): string | undefined => {
     if (!effectiveUser?.created_at) return undefined;
     if (profile?.onboarding_completed) {
-      return getOnboardingWindowStartKey();
+      return getOnboardingWindowStartKey(new Date(effectiveUser.created_at));
     }
     return getLocalDayKey(new Date(effectiveUser.created_at));
   }, [effectiveUser?.created_at, profile?.onboarding_completed]);
@@ -790,14 +791,10 @@ export default function CalendarScreen() {
     (dayKey: string | null, state: CellState) => {
       if (!dayKey) return;
       if (state === "answered" || state === "joker") {
-        const daysAgo = Math.round(
-          (new Date(todayKey + "T12:00:00").getTime() -
-            new Date(dayKey + "T12:00:00").getTime()) /
-            (1000 * 60 * 60 * 24)
-        );
-        logEvent("past_answer_viewed", { days_ago: daysAgo });
+        logEvent("past_answer_viewed", { days_ago: daysBetween(dayKey, todayKey) });
         setViewAnswerDay(dayKey);
       } else if (state === "missed" || state === "before") {
+        logEvent("missed_day_viewed", { days_ago: daysBetween(dayKey, todayKey), state });
         setMissedDay(dayKey);
       }
     },
@@ -821,8 +818,9 @@ export default function CalendarScreen() {
       refetch();
       const newStreak = await fetchStreak();
       const grants = await getAlreadyGranted(supabase, userId);
+      const maxGranted = grants.size > 0 ? Math.max(...grants) : -1;
       const crossed = getMilestonesCrossed(previousStreak, newStreak).filter(
-        (m) => !grants.has(m)
+        (m) => m > maxGranted
       );
       await grantMilestoneJokersForCrossed(supabase, userId, previousStreak, newStreak);
       if (crossed.length > 0) {
@@ -889,6 +887,11 @@ export default function CalendarScreen() {
           answerText: trimmed,
           isJoker: requiresJoker,
         });
+        if (requiresJoker) {
+          logEvent("joker_used", { days_ago: daysBetween(missedAnswerDay, todayKey) });
+        } else {
+          logEvent("missed_day_answered", { days_ago: daysBetween(missedAnswerDay, todayKey) });
+        }
         setMissedAnswerDay(null);
         setMissedAnswerQuestionText("");
         setShowSubmitSuccess(true);

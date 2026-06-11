@@ -23,6 +23,14 @@ export function getDayOfYear(dayKey: string): number {
   return Math.floor(diff / oneDay);
 }
 
+/** Days between two YYYY-MM-DD day keys (positive = fromKey is earlier). */
+export function daysBetween(fromKey: string, toKey: string): number {
+  return Math.round(
+    (new Date(toKey + "T12:00:00").getTime() - new Date(fromKey + "T12:00:00").getTime()) /
+      (1000 * 60 * 60 * 24)
+  );
+}
+
 export function isMonday(date: Date): boolean {
   return date.getDay() === 1;
 }

@@ -51,7 +51,12 @@ export default function OnboardingQuestionsScreen() {
   /** Number of questions answered (submitted) in this onboarding run; reward joker granted only if all 3 are answered. */
   const [answeredCount, setAnsweredCount] = useState(0);
 
-  const dayKeys = useMemo(() => getOnboardingQuestionDayKeys(), []);
+  const dayKeys = useMemo(
+    () => effectiveUser?.created_at
+      ? getOnboardingQuestionDayKeys(new Date(effectiveUser.created_at))
+      : getOnboardingQuestionDayKeys(),
+    [effectiveUser?.created_at]
+  );
 
   useEffect(() => {
     if (!userId || userId === "dev-user") return;

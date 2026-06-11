@@ -35,8 +35,6 @@ import { supabase } from "@/src/config/supabase";
 
 const { width, height } = Dimensions.get("window");
 
-const MAX_ANSWER_LENGTH = 280;
-
 export interface AnsweringExperienceProps {
   isOpen: boolean;
   onClose: () => void;
@@ -470,12 +468,12 @@ export function AnsweringExperience({
                         ref={inputRef}
                         value={userAnswer}
                         onChangeText={(text) => {
-                          if (text.length <= MAX_ANSWER_LENGTH) setUserAnswer(text);
+                          if (text.length <= 280) setUserAnswer(text);
                         }}
                         placeholder={placeholder}
                         placeholderTextColor="#9CA3AF"
                         multiline
-                        maxLength={MAX_ANSWER_LENGTH}
+                        maxLength={280}
                         style={styles.input}
                         selectionColor="#7C3AED"
                         textAlignVertical="top"

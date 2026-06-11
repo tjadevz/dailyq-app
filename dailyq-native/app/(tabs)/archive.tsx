@@ -1,5 +1,12 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  ActivityIndicator,
+  SectionList,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AnimatedReanimated, {
@@ -17,6 +24,7 @@ import { COLORS } from "@/src/config/constants";
 import { supabase } from "@/src/config/supabase";
 import { useAuth } from "@/src/context/AuthContext";
 import { useLanguage } from "@/src/context/LanguageContext";
+import { logEvent } from "@/lib/analytics";
 
 type AnswerRow = {
   question_date: string;
@@ -42,6 +50,8 @@ type ArchiveItem = {
   answerText: string;
 };
 
+type Section = { title: string; data: ArchiveItem[] };
+
 function isValidLanguage(value: string | null | undefined): value is "nl" | "en" {
   return value === "nl" || value === "en";
 }
@@ -54,6 +64,8 @@ export default function ArchiveScreen() {
 
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<ArchiveItem[]>([]);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const sectionListRef = useRef<SectionList<ArchiveItem, Section>>(null);
   const dotPulse = useSharedValue(1);
 
   const fetchArchiveData = useCallback(async () => {
@@ -78,7 +90,7 @@ export default function ArchiveScreen() {
       .select("question_date, answer_text")
       .eq("user_id", userId)
       .not("answer_text", "is", null)
-      .order("question_date", { ascending: true });
+      .order("question_date", { ascending: false });
 
     if (answersError) {
       console.error("[Archive] Answers fetch error:", answersError);
@@ -139,6 +151,7 @@ export default function ArchiveScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      logEvent("archive_opened");
       fetchArchiveData();
     }, [fetchArchiveData])
   );
@@ -193,6 +206,20 @@ export default function ArchiveScreen() {
     transform: [{ scale: dotPulse.value }],
     opacity: 0.78 + (dotPulse.value - 1) * 1.1,
   }));
+
+  const sections: Section[] = useMemo(() => {
+    const map = new Map<string, ArchiveItem[]>();
+    for (const item of items) {
+      const key = item.date.slice(0, 7); // YYYY-MM
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(item);
+    }
+    return Array.from(map.entries()).map(([monthKey, data]) => ({
+      title: monthKey,
+      data,
+    }));
+  }, [items]);
+
   if (loading) {
     return (
       <View style={styles.screen}>
@@ -239,64 +266,79 @@ export default function ArchiveScreen() {
           </View>
         </View>
 
-        <ScrollView
+        <SectionList
+          ref={sectionListRef}
+          sections={sections}
+          keyExtractor={(item) => item.date}
+          stickySectionHeadersEnabled={false}
           style={styles.scroll}
           contentContainerStyle={[
             styles.scrollContent,
             { paddingBottom: insets.bottom + 112 },
           ]}
           showsVerticalScrollIndicator
-        >
-          {items.map((item, index) => {
-            const isLast = index === items.length - 1;
-            const prevItem = index > 0 ? items[index - 1] : null;
-            const monthKey = item.date.slice(0, 7);
-            const prevMonthKey = prevItem?.date.slice(0, 7) ?? null;
-            const showMonthPill = monthKey !== prevMonthKey;
+          scrollEventThrottle={16}
+          onScroll={(e) => setShowScrollTop(e.nativeEvent.contentOffset.y > 300)}
+          renderSectionHeader={({ section }) => (
+            <View style={styles.monthSeparatorRow}>
+              <View style={styles.monthTimelineCol}>
+                <View style={styles.monthLine} />
+              </View>
+              <View style={styles.monthSeparatorContent}>
+                <Text style={styles.monthLabel}>
+                  {formatDate(new Date(`${section.data[0].date}T12:00:00`), {
+                    month: "long",
+                    year: "numeric",
+                  }).toLocaleUpperCase(lang === "nl" ? "nl-NL" : "en-US")}
+                </Text>
+                <View style={styles.monthDivider} />
+              </View>
+            </View>
+          )}
+          renderItem={({ item, index, section }) => {
+            const isLast =
+              section === sections[sections.length - 1] &&
+              index === section.data.length - 1;
             return (
-              <React.Fragment key={`${item.date}-${index}`}>
-                {showMonthPill ? (
-                  <View style={styles.monthSeparatorRow}>
-                    <View style={styles.monthTimelineCol}>
-                      <View style={styles.monthLine} />
-                    </View>
-                    <View style={styles.monthSeparatorContent}>
-                      <Text style={styles.monthLabel}>
-                        {formatDate(new Date(`${item.date}T12:00:00`), {
-                          month: "long",
-                          year: "numeric",
-                        }).toLocaleUpperCase(lang === "nl" ? "nl-NL" : "en-US")}
-                      </Text>
-                      <View style={styles.monthDivider} />
-                    </View>
-                  </View>
-                ) : null}
-
-                <View style={styles.row}>
-                  <View style={styles.timelineCol}>
-                    <AnimatedReanimated.View style={[styles.dot, dotPulseStyle]} />
-                    {!isLast ? <View style={styles.line} /> : null}
-                  </View>
-
-                  <AnimatedReanimated.View
-                    entering={FadeInUp.delay(250 + index * 80).duration(260)}
-                    style={styles.card}
-                  >
-                    <Text style={styles.cardDate}>
-                      {formatDate(new Date(`${item.date}T12:00:00`), {
-                        day: "numeric",
-                        month: "long",
-                        year: "numeric",
-                      })}
-                    </Text>
-                    <Text style={styles.cardQuestion}>{item.questionText}</Text>
-                    <Text style={styles.cardAnswer}>{item.answerText}</Text>
-                  </AnimatedReanimated.View>
+              <View style={styles.row}>
+                <View style={styles.timelineCol}>
+                  <AnimatedReanimated.View style={[styles.dot, dotPulseStyle]} />
+                  {!isLast ? <View style={styles.line} /> : null}
                 </View>
-              </React.Fragment>
+
+                <AnimatedReanimated.View
+                  entering={FadeInUp.duration(260)}
+                  style={styles.card}
+                >
+                  <Text style={styles.cardDate}>
+                    {formatDate(new Date(`${item.date}T12:00:00`), {
+                      day: "numeric",
+                      month: "long",
+                      year: "numeric",
+                    })}
+                  </Text>
+                  <Text style={styles.cardQuestion}>{item.questionText}</Text>
+                  <Text style={styles.cardAnswer}>{item.answerText}</Text>
+                </AnimatedReanimated.View>
+              </View>
             );
-          })}
-        </ScrollView>
+          }}
+        />
+
+        {showScrollTop && (
+          <TouchableOpacity
+            style={[styles.scrollTopButton, { bottom: insets.bottom + 80 }]}
+            onPress={() =>
+              sectionListRef.current?.scrollToLocation({
+                sectionIndex: 0,
+                itemIndex: 0,
+                animated: true,
+              })
+            }
+          >
+            <Text style={styles.scrollTopIcon}>↑</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
@@ -443,6 +485,27 @@ const styles = StyleSheet.create({
     textAlign: "center",
     color: COLORS.TEXT_SECONDARY,
     fontSize: 16,
+    lineHeight: 22,
+  },
+  scrollTopButton: {
+    position: "absolute",
+    right: 20,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#7C3AED",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  scrollTopIcon: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "700",
     lineHeight: 22,
   },
 });

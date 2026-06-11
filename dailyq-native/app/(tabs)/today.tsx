@@ -49,8 +49,8 @@ import MonthlyRecapShareCard, {
 } from "@/src/components/MonthlyRecapShareCard";
 import { useShareCard } from "@/src/hooks/useShareCard";
 import { useMonthlyRecap } from "@/src/hooks/useMonthlyRecap";
+import { logEvent } from "@/lib/analytics";
 
-const MAX_ANSWER_LENGTH = 280;
 const TODAY_PRIMARY_GRADIENT = ["rgba(139,92,246,0.96)", "rgba(124,58,237,0.96)"] as const;
 const MONTHLY_RECAP_DEV_TRIGGER_KEY = "dailyq-dev-force-monthly-recap";
 
@@ -185,12 +185,25 @@ export default function TodayScreen() {
     return daysSinceAccountCreated(iso);
   }, [profileCreatedAtForMilestone, profile?.created_at, effectiveUser?.created_at]);
 
+  const dayNumber = useMemo(() => {
+    const createdAt = profile?.created_at ?? effectiveUser?.created_at ?? null;
+    if (!createdAt) return null;
+    const start = new Date(createdAt);
+    start.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const diff = Math.floor((today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+    return Math.max(1, diff + 1);
+  }, [profile?.created_at, effectiveUser?.created_at]);
+
   const [modalQueue, setModalQueue] = useState<string[]>([]);
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const [milestoneAnswers, setMilestoneAnswers] = useState<AccountMilestoneAnswer[]>([]);
   const [activeAccountMilestone, setActiveAccountMilestone] = useState<10 | null>(null);
   const [jokerModalVisible, setJokerModalVisible] = useState(false);
   const [editConfirmVisible, setEditConfirmVisible] = useState(false);
+  const [answerCount, setAnswerCount] = useState<number>(0);
+  const [currentStreak, setCurrentStreak] = useState<number>(0);
   const [previousYearQueue, setPreviousYearQueue] = useState<{
     items: { question_date: string; answer_text: string }[];
     current: { question_date: string; answer_text: string };
@@ -247,6 +260,31 @@ export default function TodayScreen() {
     });
     return () => cancelAnimationFrame(id);
   }, [question, questionBlockOffset, buttonOpacity, buttonScale]);
+
+  useEffect(() => {
+    if (!userId || userId === "dev-user") return;
+    supabase
+      .from("answers")
+      .select("answer_text")
+      .eq("user_id", userId)
+      .not("answer_text", "is", null)
+      .then(({ data }) => {
+        if (data != null) {
+          setAnswerCount(data.filter((row) => Boolean(row.answer_text?.trim())).length);
+        }
+      });
+  }, [userId]);
+
+  useEffect(() => {
+    if (!userId || userId === "dev-user") return;
+    const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    supabase.rpc("get_user_streaks", { p_user_id: userId, p_timezone: userTimezone }).then(({ data }) => {
+      const row = Array.isArray(data) && data.length > 0 ? data[0] : null;
+      const r = row?.real_streak ?? 0;
+      const v = row?.visual_streak ?? 0;
+      setCurrentStreak(Math.max(Number(r), Number(v)));
+    });
+  }, [userId]);
 
   useEffect(() => {
     const show = Keyboard.addListener(
@@ -392,6 +430,7 @@ export default function TodayScreen() {
   useEffect(() => {
     if (activeModal !== "monthlyRecap") return;
     if (!recapData?.previousMonthKey) return;
+    logEvent("monthly_recap_viewed", { month: recapData.previousMonthKey });
     void markRecapSeen(recapData.previousMonthKey);
   }, [activeModal, recapData?.previousMonthKey, markRecapSeen]);
 
@@ -539,6 +578,7 @@ export default function TodayScreen() {
         void (async () => {
           const prior = await fetchPreviousYearSameDayAnswers(userId, dayKey);
           if (prior.length > 0) {
+            logEvent("previous_year_answer_viewed", { count: prior.length });
             setPreviousYearQueue({
               items: prior,
               current: { question_date: dayKey, answer_text: trimmed },
@@ -557,11 +597,13 @@ export default function TodayScreen() {
         const visual = row?.visual_streak ?? 0;
         const real = row?.real_streak ?? 0;
         const newStreak = Math.max(Number(visual), Number(real));
+        logEvent("answer_submitted", { is_edit: wasUpdate, streak: newStreak });
 
         try {
           const alreadyGranted = await getAlreadyGranted(supabase, userId);
+          const maxGranted = alreadyGranted.size > 0 ? Math.max(...alreadyGranted) : -1;
           const crossed = getMilestonesCrossed(previousStreak, newStreak).filter(
-            (m) => !alreadyGranted.has(m)
+            (m) => m > maxGranted
           );
           const grantSuccess = await grantMilestoneJokersForCrossed(
             supabase,
@@ -628,6 +670,7 @@ export default function TodayScreen() {
         message: `Answer one question a day — and see who you were a year from now. Join me on DailyQ: ${link}`,
         url: link,
       });
+      logEvent("invite_shared");
     } catch (e) {
       console.error("[Today] Share error:", e);
     }
@@ -677,77 +720,55 @@ export default function TodayScreen() {
           </View>
 
           <View style={styles.mainContent}>
-            <Animated.View
-              style={[styles.centerBlock, { transform: [{ translateY: questionBlockOffset }] }]}
-            >
-              {hasAnswer ? (
-                <View style={styles.answeredWrap}>
-                  <View style={styles.answeredCardOuter}>
-                    <View style={styles.answeredCardInnerWrap}>
-                      <LinearGradient
-                        colors={["rgba(255,255,255,0.8)", "rgba(255,255,255,0.6)"]}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={styles.answeredCardInner}
-                      >
-                        <LinearGradient
-                          colors={["rgba(139,92,246,0.08)", "rgba(139,92,246,0)"]}
-                          start={{ x: 0, y: 0 }}
-                          end={{ x: 1, y: 1 }}
-                          style={styles.cardCornerTL}
-                        />
-                        <LinearGradient
-                          colors={["rgba(139,92,246,0)", "rgba(139,92,246,0.08)"]}
-                          start={{ x: 0, y: 0 }}
-                          end={{ x: 1, y: 1 }}
-                          style={styles.cardCornerBR}
-                        />
-                        <View style={styles.answeredCheckCircleWrap}>
-                          <LinearGradient
-                            colors={["#FEF3C7", "#FACC15", "#FCD34D"]}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 1 }}
-                            style={styles.answeredCheckCircle}
-                          >
-                            <Feather name="check" size={24} color="#fff" strokeWidth={2.5} />
-                          </LinearGradient>
-                        </View>
-                        <Text style={styles.answeredQuestionText}>{question.text}</Text>
-                        <TouchableOpacity style={styles.shareButton} onPress={() => shareCard()}>
-                          <Feather name="upload" size={20} color="#7C3AED" />
-                        </TouchableOpacity>
-                      </LinearGradient>
-                    </View>
+            {dayNumber !== null && (
+              <View style={styles.progressSection}>
+                <View style={styles.progressRow}>
+                  <Text style={styles.progressLabel}>Dag {dayNumber} van 365</Text>
+                </View>
+                <View style={styles.progressTrack}>
+                  <View style={[styles.progressFill, { width: `${Math.min((dayNumber / 365) * 100, 100)}%` }]} />
+                </View>
+                <View style={styles.statsRow}>
+                  <View style={styles.statPill}>
+                    <Text style={styles.statPillNumber}>{currentStreak}</Text>
+                    <Text style={styles.statPillLabel}>streak</Text>
+                  </View>
+                  <View style={styles.statPill}>
+                    <Text style={styles.statPillNumber}>{answerCount}</Text>
+                    <Text style={styles.statPillLabel}>antwoorden</Text>
+                  </View>
+                  <View style={styles.statPill}>
+                    <Text style={styles.statPillNumber}>{Math.max(0, 365 - dayNumber)}</Text>
+                    <Text style={styles.statPillLabel}>dagen te gaan</Text>
                   </View>
                 </View>
-              ) : (
-                <View style={styles.cardOuterWrap}>
-                  <View style={styles.cardOuter}>
-                    <View style={styles.cardInnerWrap}>
-                      <LinearGradient
-                        colors={["rgba(255,255,255,0.8)", "rgba(255,255,255,0.6)"]}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={styles.cardInner}
+              </View>
+            )}
+            <Animated.View style={styles.centerBlock}>
+              <Animated.View
+                style={[{ width: "100%" }, { transform: [{ translateY: questionBlockOffset }] }]}
+              >
+                {hasAnswer ? (
+                  <View style={styles.questionBlock}>
+                    <View style={styles.questionEyebrowRow}>
+                      <Text style={styles.questionEyebrow}>Vraag van vandaag</Text>
+                      <TouchableOpacity
+                        style={styles.shareButton}
+                        onPress={() => { logEvent("answer_shared"); shareCard(); }}
                       >
-                        <LinearGradient
-                          colors={["rgba(139,92,246,0.08)", "rgba(139,92,246,0)"]}
-                          start={{ x: 0, y: 0 }}
-                          end={{ x: 1, y: 1 }}
-                          style={styles.cardCornerTL}
-                        />
-                        <LinearGradient
-                          colors={["rgba(139,92,246,0)", "rgba(139,92,246,0.08)"]}
-                          start={{ x: 0, y: 0 }}
-                          end={{ x: 1, y: 1 }}
-                          style={styles.cardCornerBR}
-                        />
-                        <Text style={styles.questionText}>{question.text}</Text>
-                      </LinearGradient>
+                        <Feather name="upload" size={18} color="#7C3AED" />
+                      </TouchableOpacity>
                     </View>
+                    <Text style={[styles.questionText, styles.questionTextDone]}>{question.text}</Text>
                   </View>
-                </View>
-              )}
+                ) : (
+                  <View style={styles.questionBlock}>
+                    <Text style={styles.questionEyebrow}>Vraag van vandaag</Text>
+                    <Text style={styles.questionText}>{question.text}</Text>
+                  </View>
+                )}
+              </Animated.View>
+              <View style={styles.questionDivider} />
               <Animated.View
                 style={[
                   styles.buttonArea,
@@ -895,7 +916,6 @@ const editConfirmStyles = StyleSheet.create({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "transparent",
   },
   buttonArea: {
     paddingHorizontal: 20,
@@ -930,14 +950,12 @@ const styles = StyleSheet.create({
   },
   mainContent: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
     paddingHorizontal: 20,
+    justifyContent: "center",
   },
   centerBlock: {
     width: "100%",
-    maxWidth: 480,
-    alignItems: "center",
+    marginTop: 40,
   },
   bottomBarKAV: {
     paddingHorizontal: 20,
@@ -980,93 +998,8 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginTop: 8,
   },
-  answeredWrap: {
-    width: "100%",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 24,
-    paddingHorizontal: 4,
-  },
-  answeredCardOuter: {
-    width: "100%",
-    marginBottom: 32,
-    borderRadius: 28,
-    padding: 1.5,
-    backgroundColor: "rgba(255,255,255,0.5)",
-    borderWidth: 1,
-    borderColor: "rgba(139,92,246,0.15)",
-    shadowColor: "#8B5CF6",
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.08,
-    shadowRadius: 40,
-    elevation: 4,
-  },
-  answeredCardInnerWrap: {
-    borderRadius: 27,
-    overflow: "hidden",
-  },
-  answeredCardInner: {
-    borderRadius: 27,
-    paddingVertical: 48,
-    paddingHorizontal: 16,
-    alignItems: "center",
-    position: "relative",
-  },
-  answeredDayLabel: {
-    position: "absolute",
-    top: 22,
-    left: 20,
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#7C3AED",
-    opacity: 0.78,
-  },
-  answeredDayLabelHash: {
-    fontWeight: "500",
-    fontFamily: "Inter",
-  },
-  answeredDayLabelNumber: {
-    fontWeight: "700",
-    fontFamily: "Inter",
-  },
-  answeredCheckCircleWrap: {
-    marginBottom: 28,
-  },
-  answeredCheckCircle: {
-    width: 51,
-    height: 51,
-    borderRadius: 25.5,
-    borderWidth: 1,
-    borderColor: "rgba(251,191,36,0.4)",
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#B45309",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.22,
-    shadowRadius: 12,
-    elevation: 3,
-  },
-  answeredQuestionText: {
-    fontSize: 23,
-    fontWeight: "500",
-    fontFamily: "Inter_500Medium",
-    color: "#374151",
-    textAlign: "center",
-    lineHeight: 32,
-  },
   shareButton: {
-    position: "absolute",
-    top: 12,
-    right: 12,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    padding: 8,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(243, 244, 246, 0.95)",
-    zIndex: 20,
-    elevation: 8,
+    padding: 4,
   },
   editAnswerButton: {
     width: "100%",
@@ -1182,67 +1115,15 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: JOKER.TEXT,
   },
-  cardOuterWrap: {
-    width: "100%",
-    marginBottom: 20,
-    paddingHorizontal: 4,
-  },
-  cardOuter: {
-    borderRadius: 28,
-    padding: 1.5,
-    backgroundColor: "rgba(255,255,255,0.5)",
-    borderWidth: 1,
-    borderColor: "rgba(139,92,246,0.15)",
-    shadowColor: "#8B5CF6",
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.08,
-    shadowRadius: 40,
-    elevation: 3,
-  },
-  cardInnerWrap: {
-    borderRadius: 27,
-    overflow: "hidden",
-  },
-  cardInner: {
-    borderRadius: 27,
-    paddingVertical: 58,
-    paddingHorizontal: 16,
-    minHeight: 168,
-    justifyContent: "center",
-  },
-  cardCornerTL: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    width: 48,
-    height: 48,
-    borderBottomRightRadius: 999,
-  },
-  cardCornerBR: {
-    position: "absolute",
-    bottom: 0,
-    right: 0,
-    width: 48,
-    height: 48,
-    borderTopLeftRadius: 999,
-  },
-  cardDayLabel: {
-    position: "absolute",
-    top: 16,
-    right: 20,
-    fontSize: 10,
-    fontWeight: "700",
-    color: "#7C3AED",
-    opacity: 0.78,
-  },
   questionText: {
-    fontSize: 23,
-    fontWeight: "500",
-    fontFamily: "Inter_500Medium",
-    color: "#374151",
-    textAlign: "center",
-    lineHeight: 32,
-    marginTop: 8,
+    fontSize: 26,
+    fontWeight: "600",
+    color: "#1F1135",
+    lineHeight: 34,
+    letterSpacing: -0.4,
+  },
+  questionTextDone: {
+    opacity: 0.45,
   },
   charCount: {
     fontSize: 12,
@@ -1282,26 +1163,6 @@ const styles = StyleSheet.create({
     marginTop: 12,
     textAlign: "center",
   },
-  readyRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 12,
-    marginTop: 24,
-  },
-  checkCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "#EAB308",
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#B45309",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.35,
-    shadowRadius: 6,
-    elevation: 3,
-  },
   readyText: {
     fontSize: 18,
     fontWeight: "600",
@@ -1312,5 +1173,101 @@ const styles = StyleSheet.create({
     left: -9999,
     top: -9999,
     opacity: 0.02,
+  },
+  questionAreaWrapper: {
+    justifyContent: "center",
+    width: "100%",
+  },
+  questionBlock: {
+    paddingHorizontal: 4,
+    paddingTop: 8,
+    paddingBottom: 24,
+  },
+  questionEyebrowRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  questionEyebrow: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#7C3AED",
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+    opacity: 0.7,
+    marginBottom: 12,
+  },
+  questionDivider: {
+    height: 1,
+    backgroundColor: "rgba(139,92,246,0.15)",
+    marginBottom: 14,
+  },
+  progressSection: {
+    position: "absolute",
+    top: "10%",
+    left: 0,
+    right: 0,
+    paddingHorizontal: 20,
+  },
+  progressRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 5,
+  },
+  progressLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#6D28D9",
+    letterSpacing: 0.2,
+  },
+  progressCount: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#7C3AED",
+    opacity: 0.7,
+  },
+  progressTrack: {
+    height: 4,
+    borderRadius: 999,
+    backgroundColor: "rgba(139,92,246,0.15)",
+    overflow: "hidden",
+    marginBottom: 12,
+  },
+  progressFill: {
+    height: "100%",
+    borderRadius: 999,
+    backgroundColor: "#7C3AED",
+  },
+  statsRow: {
+    flexDirection: "row",
+    gap: 6,
+    marginBottom: 0,
+  },
+  statPill: {
+    flex: 1,
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.6)",
+    borderWidth: 1,
+    borderColor: "rgba(139,92,246,0.12)",
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+    alignItems: "center",
+  },
+  statPillNumber: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#6D28D9",
+    lineHeight: 19,
+  },
+  statPillLabel: {
+    fontSize: 8.5,
+    fontWeight: "600",
+    color: "#7C3AED",
+    opacity: 0.65,
+    letterSpacing: 0.3,
+    marginTop: 2,
+    textTransform: "uppercase",
   },
 });

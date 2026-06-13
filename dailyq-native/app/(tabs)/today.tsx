@@ -597,6 +597,8 @@ export default function TodayScreen() {
         const visual = row?.visual_streak ?? 0;
         const real = row?.real_streak ?? 0;
         const newStreak = Math.max(Number(visual), Number(real));
+        setCurrentStreak(newStreak);
+        if (!wasUpdate) setAnswerCount((c) => c + 1);
         logEvent("answer_submitted", { is_edit: wasUpdate, streak: newStreak });
 
         try {

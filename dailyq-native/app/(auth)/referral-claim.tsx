@@ -62,8 +62,9 @@ export default function ReferralClaimScreen() {
         await clearPendingReferralCode();
 
         if (cancelled) return;
-        void data;
-        void error;
+        if (error) {
+          console.error("[ReferralClaim] handle_referral failed:", error);
+        }
       } catch (e) {
         await clearPendingReferralCode();
         if (cancelled) return;

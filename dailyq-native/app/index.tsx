@@ -11,8 +11,23 @@ import {
 } from "@/src/lib/resetPasswordLink";
 import { supabase } from "@/src/config/supabase";
 import { tryConsumeReferralFromClipboardOnFirstLaunch } from "@/src/lib/referralClipboard";
+import { setPendingReferralCode } from "@/src/lib/referralPending";
 import { getIncompleteOnboardingHref } from "@/src/lib/onboardingProgress";
 import { useTodayQuestion } from "@/src/hooks/useTodayQuestion";
+
+function extractInviteCodeFromUrl(url: string): string | null {
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname === "invite") {
+      const code = parsed.pathname.replace(/^\/+/, "").trim();
+      return code.length > 0 ? code : null;
+    }
+  } catch {
+    // fallback: look for /invite/<code> in path
+  }
+  const match = url.match(/\/invite\/([^/?#]+)/);
+  return match?.[1]?.trim() || null;
+}
 
 export default function Index() {
   const { user, authCheckDone } = useAuth();
@@ -34,8 +49,17 @@ export default function Index() {
           Linking.getInitialURL(),
           tryConsumeReferralFromClipboardOnFirstLaunch(),
         ]);
-        if (!cancelled && url && isResetPasswordUrl(url) && hasRecoveryTokens(url)) {
+        if (cancelled || !url) return;
+
+        if (isResetPasswordUrl(url) && hasRecoveryTokens(url)) {
           setPendingResetUrl(url);
+        } else {
+          // If the app launched via an invite link (dailyq://invite/<code>), save the
+          // referral code so onboarding can claim it even if Expo Router routes here first.
+          const inviteCode = extractInviteCodeFromUrl(url);
+          if (inviteCode) {
+            await setPendingReferralCode(inviteCode);
+          }
         }
       } finally {
         if (!cancelled) setInitialUrlChecked(true);

@@ -22,13 +22,14 @@ export default function InviteCodeRoute() {
 
   const code = useMemo(() => normalizeCodeParam(params.code), [params.code]);
 
+  // Save the referral code to AsyncStorage as soon as we have it.
   const [pendingSaved, setPendingSaved] = useState(false);
   useEffect(() => {
-    if (!code) return;
     let cancelled = false;
     (async () => {
-      // Keep the latest referral code. Claim only happens after signup.
-      await setPendingReferralCode(code);
+      if (code) {
+        await setPendingReferralCode(code);
+      }
       if (!cancelled) setPendingSaved(true);
     })();
     return () => {
@@ -36,45 +37,52 @@ export default function InviteCodeRoute() {
     };
   }, [code]);
 
+  // For logged-in users with incomplete onboarding: navigate to the right step.
   useEffect(() => {
-    if (!authCheckDone) return;
-    if (!pendingSaved && code) return;
+    if (!authCheckDone || !pendingSaved) return;
+    if (!user || !code) return;
+    if (profile == null) return; // wait for profile to load
+    if (profile.onboarding_completed === true) return; // handled by JSX below
 
-    if (!code) {
-      // If no code, just proceed to onboarding/today based on auth.
-      router.replace(user ? "/(tabs)/today" : "/(auth)/onboarding");
-      return;
-    }
-
-    if (!user) {
-      router.replace(`/(auth)/onboarding?ref=${encodeURIComponent(code)}`);
-      return;
-    }
-
-    const onboardingCompleted = profile?.onboarding_completed === true;
-    if (onboardingCompleted) {
-      router.replace("/(tabs)/today");
-      return;
-    }
-    void getIncompleteOnboardingHref(user.id).then((href) => {
-      router.replace(href);
+    let cancelled = false;
+    getIncompleteOnboardingHref(user.id).then((href) => {
+      if (!cancelled) router.replace(href);
     });
+    return () => {
+      cancelled = true;
+    };
   }, [authCheckDone, pendingSaved, code, user, profile, router]);
 
-  // While we wait for Auth/Profile to be ready, render a minimal loader.
-  if (!authCheckDone || (code && !pendingSaved)) {
-    return (
-      <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
-        <View style={styles.loading}>
-          <ActivityIndicator size="large" color={COLORS.ACCENT} />
-        </View>
-      </SafeAreaView>
-    );
+  // Show loading until the code is saved and auth is resolved.
+  if (!authCheckDone || !pendingSaved) {
+    return <LoadingView />;
   }
 
-  // For the case we ended up redirecting above, return null/Redirect-friendly.
-  // (Expo Router will replace before the user sees anything.)
-  return <Redirect href={user ? "/(tabs)/today" : "/(auth)/onboarding"} />;
+  if (!code) {
+    return <Redirect href={user ? "/(tabs)/today" : "/(auth)/onboarding"} />;
+  }
+
+  if (!user) {
+    // Pass code as param AND it's already in AsyncStorage as a double-guarantee.
+    return <Redirect href={`/(auth)/onboarding?ref=${encodeURIComponent(code)}`} />;
+  }
+
+  if (profile?.onboarding_completed === true) {
+    return <Redirect href="/(tabs)/today" />;
+  }
+
+  // Logged-in, onboarding incomplete (or profile loading): wait for useEffect above.
+  return <LoadingView />;
+}
+
+function LoadingView() {
+  return (
+    <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
+      <View style={styles.loading}>
+        <ActivityIndicator size="large" color={COLORS.ACCENT} />
+      </View>
+    </SafeAreaView>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -88,4 +96,3 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 });
-

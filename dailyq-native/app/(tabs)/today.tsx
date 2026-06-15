@@ -17,6 +17,7 @@ import {
 import Feather from "@expo/vector-icons/Feather";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { LinearGradient } from "expo-linear-gradient";
+import Svg, { Circle } from 'react-native-svg';
 import * as Notifications from "expo-notifications";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -528,27 +529,16 @@ export default function TodayScreen() {
         }
 
         try {
-          const { data, error: profileErr } = await supabase
-            .from("profiles")
-            .select(
-              "created_at, milestone_10_days_shown, milestone_100_days_shown"
-            )
-            .eq("id", userId)
-            .maybeSingle();
-          if (profileErr) {
-            console.error("[Today submit] Account milestone profile fetch:", profileErr);
-          } else if (data) {
-            const createdAtForMilestone = data.created_at ?? effectiveUser?.created_at ?? null;
+          const freshProfile = await refetchProfile();
+          if (freshProfile) {
+            const createdAtForMilestone =
+              freshProfile.created_at ?? effectiveUser?.created_at ?? null;
+            const milestoneToShow = resolveAccountMilestone(createdAtForMilestone, {
+              milestone_10_days_shown: freshProfile.milestone_10_days_shown ?? false,
+            });
+            setPendingMilestone(milestoneToShow);
             if (createdAtForMilestone) {
               setProfileCreatedAtForMilestone(createdAtForMilestone);
-            }
-            const milestoneToShow = resolveAccountMilestone(createdAtForMilestone, data);
-            setPendingMilestone(milestoneToShow);
-            // Persist the shown flag as soon as eligibility is hit so users do not get stuck
-            // on false when modal close/update is interrupted.
-            if (milestoneToShow === 10) {
-              await markAccountMilestoneShown(userId);
-              void refetchProfile();
             }
           }
         } catch (e) {
@@ -684,12 +674,30 @@ export default function TodayScreen() {
 
   if (questionError || !question) {
     return (
-      <View style={styles.centered}>
-        <Text style={styles.errorText}>
-          {questionError ?? t("today_no_question")}
-        </Text>
-        <Text style={styles.hintText}>{t("today_come_back_tomorrow")}</Text>
-      </View>
+      <GlassCardContainer>
+        <View style={[styles.container, { paddingTop: insets.top }]}>
+          <View style={styles.header}>
+            <View style={styles.headerLeft} />
+            <View style={styles.headerRight}>
+              <JokerBadge
+                count={profile?.joker_balance ?? 0}
+                onPress={() => setJokerModalVisible(true)}
+              />
+            </View>
+          </View>
+          <View style={styles.centered}>
+            <Text style={styles.errorText}>
+              {questionError ?? t("today_no_question")}
+            </Text>
+            <Text style={styles.hintText}>{t("today_come_back_tomorrow")}</Text>
+          </View>
+        </View>
+        <JokerModalBottomSheet
+          visible={jokerModalVisible}
+          onClose={() => setJokerModalVisible(false)}
+          jokerBalance={profile?.joker_balance ?? 0}
+        />
+      </GlassCardContainer>
     );
   }
 
@@ -723,26 +731,45 @@ export default function TodayScreen() {
 
           <View style={styles.mainContent}>
             {dayNumber !== null && (
-              <View style={styles.progressSection}>
-                <View style={styles.progressRow}>
-                  <Text style={styles.progressLabel}>Dag {dayNumber} van 365</Text>
+              <View style={styles.statsCard}>
+                <View style={styles.statsCardInner}>
+                  <View style={styles.ringContainer}>
+                    <Svg width={80} height={80} viewBox="0 0 80 80">
+                      <Circle
+                        cx={40} cy={40} r={33}
+                        fill="none"
+                        stroke="rgba(139,92,246,0.12)"
+                        strokeWidth={7}
+                      />
+                      <Circle
+                        cx={40} cy={40} r={33}
+                        fill="none"
+                        stroke="#7C3AED"
+                        strokeWidth={7}
+                        strokeDasharray={207}
+                        strokeDashoffset={207 - (207 * Math.min(dayNumber / 365, 1))}
+                        strokeLinecap="round"
+                        transform="rotate(-90 40 40)"
+                      />
+                    </Svg>
+                    <View style={styles.ringLabelWrap}>
+                      <Text style={styles.ringNum}>{dayNumber}</Text>
+                      <Text style={styles.ringSub}>van 365</Text>
+                    </View>
+                  </View>
+                  <View style={styles.statPillsCol}>
+                    <View style={styles.statPill}>
+                      <Text style={styles.statPillNumber}>{currentStreak}</Text>
+                      <Text style={styles.statPillLabel}>streak</Text>
+                    </View>
+                    <View style={styles.statPill}>
+                      <Text style={styles.statPillNumber}>{answerCount}</Text>
+                      <Text style={styles.statPillLabel}>antwoorden</Text>
+                    </View>
+                  </View>
                 </View>
-                <View style={styles.progressTrack}>
-                  <View style={[styles.progressFill, { width: `${Math.min((dayNumber / 365) * 100, 100)}%` }]} />
-                </View>
-                <View style={styles.statsRow}>
-                  <View style={styles.statPill}>
-                    <Text style={styles.statPillNumber}>{currentStreak}</Text>
-                    <Text style={styles.statPillLabel}>streak</Text>
-                  </View>
-                  <View style={styles.statPill}>
-                    <Text style={styles.statPillNumber}>{answerCount}</Text>
-                    <Text style={styles.statPillLabel}>antwoorden</Text>
-                  </View>
-                  <View style={styles.statPill}>
-                    <Text style={styles.statPillNumber}>{Math.max(0, 365 - dayNumber)}</Text>
-                    <Text style={styles.statPillLabel}>dagen te gaan</Text>
-                  </View>
+                <View style={styles.statsCardBar}>
+                  <View style={[styles.statsCardBarFill, { width: `${Math.min((dayNumber / 365) * 100, 100)}%` }]} />
                 </View>
               </View>
             )}
@@ -1205,71 +1232,86 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(139,92,246,0.15)",
     marginBottom: 14,
   },
-  progressSection: {
-    position: "absolute",
-    top: "10%",
-    left: 0,
-    right: 0,
-    paddingHorizontal: 20,
+  statsCard: {
+    position: 'absolute',
+    top: '10%',
+    left: 20,
+    right: 20,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.55)',
+    borderWidth: 1,
+    borderColor: 'rgba(139,92,246,0.18)',
+    overflow: 'hidden',
   },
-  progressRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 5,
+  statsCardInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 18,
+    gap: 16,
   },
-  progressLabel: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#6D28D9",
-    letterSpacing: 0.2,
+  ringContainer: {
+    width: 80,
+    height: 80,
+    position: 'relative',
+    flexShrink: 0,
   },
-  progressCount: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#7C3AED",
-    opacity: 0.7,
+  ringLabelWrap: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  progressTrack: {
-    height: 4,
-    borderRadius: 999,
-    backgroundColor: "rgba(139,92,246,0.15)",
-    overflow: "hidden",
-    marginBottom: 12,
+  ringNum: {
+    fontSize: 21,
+    fontWeight: '800',
+    color: '#6D28D9',
+    lineHeight: 24,
   },
-  progressFill: {
-    height: "100%",
-    borderRadius: 999,
-    backgroundColor: "#7C3AED",
+  ringSub: {
+    fontSize: 8,
+    fontWeight: '700',
+    color: '#7C3AED',
+    opacity: 0.55,
+    letterSpacing: 0.3,
+    marginTop: 1,
   },
-  statsRow: {
-    flexDirection: "row",
-    gap: 6,
-    marginBottom: 0,
+  statPillsCol: {
+    flex: 1,
+    flexDirection: 'row',
+    gap: 10,
   },
   statPill: {
     flex: 1,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.6)",
+    borderRadius: 14,
+    backgroundColor: 'rgba(139,92,246,0.07)',
     borderWidth: 1,
-    borderColor: "rgba(139,92,246,0.12)",
-    paddingVertical: 6,
-    paddingHorizontal: 4,
-    alignItems: "center",
+    borderColor: 'rgba(139,92,246,0.10)',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    alignItems: 'center',
   },
   statPillNumber: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#6D28D9",
-    lineHeight: 19,
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#6D28D9',
+    lineHeight: 26,
   },
   statPillLabel: {
-    fontSize: 8.5,
-    fontWeight: "600",
-    color: "#7C3AED",
-    opacity: 0.65,
-    letterSpacing: 0.3,
-    marginTop: 2,
-    textTransform: "uppercase",
+    fontSize: 9,
+    fontWeight: '600',
+    color: '#7C3AED',
+    opacity: 0.6,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+    marginTop: 3,
+  },
+  statsCardBar: {
+    height: 4,
+    backgroundColor: 'rgba(139,92,246,0.10)',
+    overflow: 'hidden',
+  },
+  statsCardBarFill: {
+    height: '100%',
+    backgroundColor: '#7C3AED',
   },
 });

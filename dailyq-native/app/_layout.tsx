@@ -32,24 +32,39 @@ type ReferralGivenEvent = {
   reason: string;
 };
 
+let coldStartLogged = false;
+
 function AnalyticsAppLifecycleGate() {
   const appStateRef = useRef(AppState.currentState);
+  const lastForegroundRef = useRef<number>(0);
+  const openedViaNotificationRef = useRef(false);
 
   useEffect(() => {
-    logEvent("app_open", { source: "cold_start" });
+    if (!coldStartLogged) {
+      coldStartLogged = true;
+      lastForegroundRef.current = Date.now();
+      logEvent("app_open", { source: "cold_start" });
+    }
 
     const appStateSubscription = AppState.addEventListener("change", (next) => {
       const prev = appStateRef.current;
       appStateRef.current = next;
-      if (
-        next === "active" &&
-        (prev === "background" || prev === "inactive")
-      ) {
-        logEvent("app_open", { source: "foreground" });
+      if (next === "active" && (prev === "background" || prev === "inactive")) {
+        const now = Date.now();
+        if (now - lastForegroundRef.current > 30_000) {
+          lastForegroundRef.current = now;
+          if (openedViaNotificationRef.current) {
+            openedViaNotificationRef.current = false;
+            logEvent("app_open", { source: "notification" });
+          } else {
+            logEvent("app_open", { source: "foreground" });
+          }
+        }
       }
     });
 
     const notificationSubscription = addNotificationResponseReceivedListener(() => {
+      openedViaNotificationRef.current = true;
       logEvent("notification_tapped");
     });
 

@@ -93,8 +93,6 @@ export function useMonthlyRecap(): MonthlyRecapHook {
 
   const [showRecap, setShowRecap] = useState(false);
   const [recapData, setRecapData] = useState<RecapData | null>(null);
-  const [, setLoading] = useState(false);
-  const [, setError] = useState<string | null>(null);
 
   const markRecapSeen = useCallback(
     async (previousMonthKey: string) => {
@@ -122,8 +120,6 @@ export function useMonthlyRecap(): MonthlyRecapHook {
       if (!userId || userId === "dev-user") {
         setShowRecap(false);
         setRecapData(null);
-        setLoading(false);
-        setError(null);
         return;
       }
 
@@ -133,13 +129,8 @@ export function useMonthlyRecap(): MonthlyRecapHook {
       if (!isRecapWindow && !isDevForceTrigger) {
         setShowRecap(false);
         setRecapData(null);
-        setLoading(false);
-        setError(null);
         return;
       }
-
-      setLoading(true);
-      setError(null);
 
         const { firstDayPrevMonth, lastDayPrevMonth, previousMonthKey, totalDaysInMonth } =
           getPreviousMonthRange(now);
@@ -194,16 +185,13 @@ export function useMonthlyRecap(): MonthlyRecapHook {
           .lt("created_at", prevMonthCreatedAtEndExclusiveIso);
         if (monthlyAnswersError) throw monthlyAnswersError;
 
-        const { data: totalAnswersData, error: totalAnswersError } = await supabase
+        const { count: totalAnswersCount, error: totalAnswersError } = await supabase
           .from("answers")
-          .select("answer_text")
+          .select("*", { count: "exact", head: true })
           .eq("user_id", userId)
-          .not("answer_text", "is", null);
+          .not("answer_text", "is", null)
+          .neq("answer_text", "");
         if (totalAnswersError) throw totalAnswersError;
-        const totalAnswersCount =
-          ((totalAnswersData as { answer_text: string | null }[] | null) ?? []).filter((row) =>
-            Boolean(row.answer_text?.trim())
-          ).length;
 
         const rows =
           (monthlyAnswers as {
@@ -252,7 +240,7 @@ export function useMonthlyRecap(): MonthlyRecapHook {
           totalDaysInMonth,
           jokersUsedThisMonth,
           wordsWrittenThisMonth,
-          totalAnswers: totalAnswersCount,
+          totalAnswers: totalAnswersCount ?? 0,
           monthsActive: calculateMonthsActive(createdAt, now),
           earliestAnswerTime,
           latestAnswerTime,
@@ -263,24 +251,16 @@ export function useMonthlyRecap(): MonthlyRecapHook {
         setRecapData(nextRecapData);
         setShowRecap(true);
     } catch (e) {
-      const message = e instanceof Error ? e.message : "Failed to load monthly recap";
       console.error("[MonthlyRecap] Fetch failed:", e);
-      setError(message);
       setShowRecap(false);
       setRecapData(null);
     } finally {
-      if (!cancelled) {
-        setLoading(false);
-      }
+      // no-op: loading state removed (was never exposed to callers)
     }
     return () => {
       cancelled = true;
     };
   }, [userId, lang, effectiveUser?.created_at]);
-
-  useEffect(() => {
-    void loadRecap();
-  }, [loadRecap]);
 
   useFocusEffect(
     useCallback(() => {

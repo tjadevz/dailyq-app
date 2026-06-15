@@ -1,6 +1,5 @@
 export type AccountMilestoneFlags = {
   milestone_10_days_shown: boolean;
-  milestone_100_days_shown: boolean;
 };
 
 /**

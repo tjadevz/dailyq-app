@@ -66,6 +66,7 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.9,
+    transform: [{ scale: 0.97 }],
   },
   gradientWrap: {
     position: "relative",

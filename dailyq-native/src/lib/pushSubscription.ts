@@ -74,9 +74,25 @@ export async function syncPushSubscriptionOnAppOpen(userId: string): Promise<voi
   try {
     const token = await getExpoPushTokenAsync();
     const reminderTime = (await AsyncStorage.getItem(REMINDER_TIME_KEY)) as ReminderTime | null;
-    const validReminder = reminderTime === "morning" || reminderTime === "afternoon" || reminderTime === "evening"
-      ? reminderTime
-      : null;
+    let validReminder: ReminderTime | null =
+      reminderTime === "morning" || reminderTime === "afternoon" || reminderTime === "evening"
+        ? reminderTime
+        : null;
+
+    // After reinstall, AsyncStorage is wiped but Supabase still has the user's preference.
+    // Restore it locally before upserting so we don't overwrite it with null.
+    if (!validReminder) {
+      const { data } = await supabase
+        .from("push_subscriptions")
+        .select("reminder_time")
+        .eq("user_id", userId)
+        .single();
+      const serverReminder = data?.reminder_time;
+      if (serverReminder === "morning" || serverReminder === "afternoon" || serverReminder === "evening") {
+        validReminder = serverReminder;
+        await AsyncStorage.setItem(REMINDER_TIME_KEY, validReminder);
+      }
+    }
 
     const { error: upsertErr } = await upsertPushSubscription(userId, token, validReminder);
     if (upsertErr) {

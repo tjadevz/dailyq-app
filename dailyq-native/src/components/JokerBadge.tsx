@@ -13,7 +13,7 @@ export function JokerBadge({
   scale?: number;
 }) {
   const content = (
-    <Pressable onPress={onPress} style={({ pressed }) => [pressed && { opacity: 0.9 }]}>
+    <Pressable onPress={onPress} style={({ pressed }) => [pressed && { opacity: 0.9, transform: [{ scale: 0.93 }] }]}>
       <LinearGradient
         colors={["#FFD84D", "#F5B800"]}
         start={{ x: 0, y: 0 }}

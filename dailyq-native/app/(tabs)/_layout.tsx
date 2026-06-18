@@ -112,14 +112,6 @@ export default function TabsLayout() {
           ),
         }}
       />
-      <Tabs.Screen
-        name="over"
-        options={{ tabBarButton: () => null, headerShown: false }}
-      />
-      <Tabs.Screen
-        name="account"
-        options={{ tabBarButton: () => null, headerShown: false }}
-      />
     </Tabs>
   );
 }

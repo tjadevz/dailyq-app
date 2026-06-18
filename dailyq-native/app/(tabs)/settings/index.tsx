@@ -24,7 +24,6 @@ import { useLanguage } from "@/src/context/LanguageContext";
 import { useAuth } from "@/src/context/AuthContext";
 import { useProfileContext } from "@/src/context/ProfileContext";
 import { supabase } from "@/src/config/supabase";
-import type { Lang } from "@/src/i18n/translations";
 import { clearOnboardingNotificationsDone } from "@/src/lib/onboardingProgress";
 import {
   upsertPushSubscription,
@@ -43,68 +42,6 @@ const FEEDBACK_EMAIL = "info@dailyqapp.com";
 
 const showDebugModals = __DEV__ && process.env.EXPO_PUBLIC_DEBUG_MODALS === "true";
 
-// ----- LanguageModal -----
-function LanguageModal({
-  visible,
-  currentLang,
-  onClose,
-  onSelect,
-}: {
-  visible: boolean;
-  currentLang: Lang;
-  onClose: () => void;
-  onSelect: (lang: Lang) => void;
-}) {
-  const { t } = useLanguage();
-  const opacity = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    if (visible) {
-      Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: true }).start();
-    } else {
-      Animated.timing(opacity, { toValue: 0, duration: MODAL_CLOSE_MS, useNativeDriver: true }).start();
-    }
-  }, [visible, opacity]);
-
-  if (!visible) return null;
-  return (
-    <Modal transparent visible={visible} animationType="none">
-      <Animated.View style={[styles.modalBackdrop, { opacity }]}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-        <View style={styles.modalCard}>
-          <Pressable style={MODAL.CLOSE_BUTTON} onPress={onClose}>
-            <Feather name="x" size={18} color={COLORS.TEXT_SECONDARY} strokeWidth={2.5} />
-          </Pressable>
-          <Text style={styles.modalTitle}>{t("settings_language")}</Text>
-          <Pressable
-            style={[styles.optionRow, currentLang === "en" && styles.optionRowSelected]}
-            onPress={() => {
-              onSelect("en");
-              onClose();
-            }}
-          >
-            <Text style={styles.optionText}>{t("settings_lang_en")}</Text>
-            {currentLang === "en" && (
-              <Feather name="check" size={20} color={COLORS.ACCENT} strokeWidth={2.5} />
-            )}
-          </Pressable>
-          <Pressable
-            style={[styles.optionRow, currentLang === "nl" && styles.optionRowSelected]}
-            onPress={() => {
-              onSelect("nl");
-              onClose();
-            }}
-          >
-            <Text style={styles.optionText}>{t("settings_lang_nl")}</Text>
-            {currentLang === "nl" && (
-              <Feather name="check" size={20} color={COLORS.ACCENT} strokeWidth={2.5} />
-            )}
-          </Pressable>
-        </View>
-      </Animated.View>
-    </Modal>
-  );
-}
 
 function getReminderSubtitle(
   t: (key: string) => string,
@@ -130,14 +67,26 @@ function ReminderModal({
 }) {
   const { t } = useLanguage();
   const opacity = useRef(new Animated.Value(0)).current;
+  const cardY = useRef(new Animated.Value(14)).current;
+  const cardScale = useRef(new Animated.Value(0.95)).current;
 
   useEffect(() => {
     if (visible) {
-      Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: true }).start();
+      cardY.setValue(14);
+      cardScale.setValue(0.95);
+      Animated.parallel([
+        Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+        Animated.timing(cardY, { toValue: 0, duration: 220, useNativeDriver: true }),
+        Animated.timing(cardScale, { toValue: 1, duration: 220, useNativeDriver: true }),
+      ]).start();
     } else {
-      Animated.timing(opacity, { toValue: 0, duration: MODAL_CLOSE_MS, useNativeDriver: true }).start();
+      Animated.parallel([
+        Animated.timing(opacity, { toValue: 0, duration: MODAL_CLOSE_MS, useNativeDriver: true }),
+        Animated.timing(cardY, { toValue: 14, duration: MODAL_CLOSE_MS, useNativeDriver: true }),
+        Animated.timing(cardScale, { toValue: 0.95, duration: MODAL_CLOSE_MS, useNativeDriver: true }),
+      ]).start();
     }
-  }, [visible, opacity]);
+  }, [visible]);
 
   if (!visible) return null;
 
@@ -152,7 +101,7 @@ function ReminderModal({
     <Modal transparent visible={visible} animationType="none">
       <Animated.View style={[styles.modalBackdrop, { opacity }]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-        <View style={styles.modalCard}>
+        <Animated.View style={[styles.modalCard, { transform: [{ translateY: cardY }, { scale: cardScale }] }]}>
           <Pressable style={MODAL.CLOSE_BUTTON} onPress={onClose}>
             <Feather name="x" size={18} color={COLORS.TEXT_SECONDARY} strokeWidth={2.5} />
           </Pressable>
@@ -177,7 +126,7 @@ function ReminderModal({
               )}
             </Pressable>
           ))}
-        </View>
+        </Animated.View>
       </Animated.View>
     </Modal>
   );
@@ -185,13 +134,12 @@ function ReminderModal({
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
-  const { t, lang, setLang } = useLanguage();
+  const { t } = useLanguage();
   const { effectiveUser, signOut } = useAuth();
   const { refetch: refetchProfile } = useProfileContext();
   const { showMilestone } = useStreakMilestone();
   const router = useRouter();
 
-  const [languageModalVisible, setLanguageModalVisible] = useState(false);
   const [reminderModalVisible, setReminderModalVisible] = useState(false);
   const [reminderTime, setReminderTime] = useState<ReminderTime | null>(null);
   const [replayOnboardingLoading, setReplayOnboardingLoading] = useState(false);
@@ -238,14 +186,12 @@ export default function SettingsScreen() {
     [effectiveUser?.id]
   );
 
-  const currentLangLabel = lang === "en" ? t("settings_lang_en") : t("settings_lang_nl");
-
   const handleOverDailyQ = useCallback(() => {
-    router.push("/(tabs)/over");
+    router.push("/(tabs)/settings/over");
   }, [router]);
 
   const handleAccount = useCallback(() => {
-    router.push("/(tabs)/account");
+    router.push("/(tabs)/settings/account");
   }, [router]);
 
   const handleReplayOnboarding = useCallback(async () => {
@@ -404,6 +350,10 @@ export default function SettingsScreen() {
     }
   }, [t]);
 
+  const handleOpenInstagram = useCallback(() => {
+    Linking.openURL("https://www.instagram.com/dailyqapp/");
+  }, []);
+
   return (
     <GlassCardContainer>
       <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -414,7 +364,10 @@ export default function SettingsScreen() {
           <Text style={styles.title}>{t("settings_title")}</Text>
 
           {/* Notifications */}
-          <Pressable style={styles.card} onPress={() => setReminderModalVisible(true)}>
+          <Pressable
+            style={({ pressed }) => [styles.card, pressed && { opacity: 0.82, transform: [{ scale: 0.98 }] }]}
+            onPress={() => setReminderModalVisible(true)}
+          >
             <View style={styles.cardIconWrap}>
               <View style={[styles.cardIcon, styles.cardIconPurple]}>
                 <Feather name="bell" size={16} strokeWidth={2} color={COLORS.ACCENT} />
@@ -429,22 +382,11 @@ export default function SettingsScreen() {
             </View>
           </Pressable>
 
-          {/* Taal */}
-          <Pressable style={styles.card} onPress={() => setLanguageModalVisible(true)}>
-            <View style={styles.cardIconWrap}>
-              <View style={[styles.cardIcon, styles.cardIconBlue]}>
-                <Feather name="globe" size={16} strokeWidth={2} color="#3B82F6" />
-              </View>
-              <View style={styles.cardTextWrap}>
-                <Text style={styles.cardTitle}>{t("settings_language")}</Text>
-                <Text style={styles.cardSubtitle}>{currentLangLabel}</Text>
-              </View>
-              <Feather name="chevron-right" size={20} color={COLORS.TEXT_MUTED} />
-            </View>
-          </Pressable>
-
           {/* Account */}
-          <Pressable style={styles.card} onPress={handleAccount}>
+          <Pressable
+            style={({ pressed }) => [styles.card, pressed && { opacity: 0.82, transform: [{ scale: 0.98 }] }]}
+            onPress={handleAccount}
+          >
             <View style={styles.cardIconWrap}>
               <View style={[styles.cardIcon, styles.cardIconIndigo]}>
                 <Feather name="user" size={16} strokeWidth={2} color="#6366F1" />
@@ -457,7 +399,10 @@ export default function SettingsScreen() {
           </Pressable>
 
           {/* Over DailyQ */}
-          <Pressable style={styles.card} onPress={handleOverDailyQ}>
+          <Pressable
+            style={({ pressed }) => [styles.card, pressed && { opacity: 0.82, transform: [{ scale: 0.98 }] }]}
+            onPress={handleOverDailyQ}
+          >
             <View style={styles.cardIconWrap}>
               <View style={[styles.cardIcon, styles.cardIconIndigo]}>
                 <Feather name="info" size={16} strokeWidth={2} color="#6366F1" />
@@ -469,8 +414,28 @@ export default function SettingsScreen() {
             </View>
           </Pressable>
 
+          {/* Instagram */}
+          <Pressable
+            style={({ pressed }) => [styles.card, styles.cardInstagram, pressed && { opacity: 0.82, transform: [{ scale: 0.98 }] }]}
+            onPress={handleOpenInstagram}
+          >
+            <View style={styles.cardIconWrap}>
+              <View style={[styles.cardIcon, styles.cardIconInstagram]}>
+                <MaterialCommunityIcons name="instagram" size={18} color="#E1306C" />
+              </View>
+              <View style={styles.cardTextWrap}>
+                <Text style={styles.cardTitle}>Volg DailyQ op Instagram</Text>
+                <Text style={styles.cardSubtitle}>@dailyqapp</Text>
+              </View>
+              <Feather name="chevron-right" size={20} color={COLORS.TEXT_MUTED} />
+            </View>
+          </Pressable>
+
           {/* Send Feedback */}
-          <Pressable style={styles.card} onPress={handleSendFeedback}>
+          <Pressable
+            style={({ pressed }) => [styles.card, pressed && { opacity: 0.82, transform: [{ scale: 0.98 }] }]}
+            onPress={handleSendFeedback}
+          >
             <View style={styles.cardIconWrap}>
               <View style={[styles.cardIcon, styles.cardIconBlue]}>
                 <MaterialCommunityIcons name="email-outline" size={18} color="#3B82F6" />
@@ -483,7 +448,10 @@ export default function SettingsScreen() {
           </Pressable>
 
           {/* Uitloggen */}
-          <Pressable style={styles.card} onPress={handleSignOut}>
+          <Pressable
+            style={({ pressed }) => [styles.card, pressed && { opacity: 0.82, transform: [{ scale: 0.98 }] }]}
+            onPress={handleSignOut}
+          >
             <View style={styles.cardIconWrap}>
               <View style={[styles.cardIcon, styles.cardIconRed]}>
                 <Feather name="log-out" size={16} strokeWidth={2} color="#DC2626" />
@@ -497,7 +465,7 @@ export default function SettingsScreen() {
           {/* Replay onboarding (dev only; tap does nothing when logged in as dev-user) */}
           {__DEV__ && (
             <Pressable
-              style={[styles.card, replayOnboardingLoading && styles.cardDisabled]}
+              style={({ pressed }) => [styles.card, replayOnboardingLoading && styles.cardDisabled, !replayOnboardingLoading && pressed && { opacity: 0.82, transform: [{ scale: 0.98 }] }]}
               onPress={handleReplayOnboarding}
               disabled={replayOnboardingLoading}
             >
@@ -523,7 +491,7 @@ export default function SettingsScreen() {
           {/* Start referral onboarding (dev only; hidden for dev-user) */}
           {__DEV__ && effectiveUser?.id && effectiveUser.id !== "dev-user" && (
             <Pressable
-              style={[styles.card, startReferralLoading && styles.cardDisabled]}
+              style={({ pressed }) => [styles.card, startReferralLoading && styles.cardDisabled, !startReferralLoading && pressed && { opacity: 0.82, transform: [{ scale: 0.98 }] }]}
               onPress={handleOpenReferralDevModal}
               disabled={startReferralLoading}
             >
@@ -543,7 +511,7 @@ export default function SettingsScreen() {
           {/* Trigger referral_given app-open modal (dev only) */}
           {__DEV__ && (
             <Pressable
-              style={[styles.card, triggerReferralGivenModalLoading && styles.cardDisabled]}
+              style={({ pressed }) => [styles.card, triggerReferralGivenModalLoading && styles.cardDisabled, !triggerReferralGivenModalLoading && pressed && { opacity: 0.82, transform: [{ scale: 0.98 }] }]}
               onPress={handleTriggerReferralGivenModal}
               disabled={triggerReferralGivenModalLoading}
             >
@@ -567,7 +535,7 @@ export default function SettingsScreen() {
           {/* Trigger monthly recap (dev only) */}
           {__DEV__ && (
             <Pressable
-              style={[styles.card, triggerMonthlyRecapLoading && styles.cardDisabled]}
+              style={({ pressed }) => [styles.card, triggerMonthlyRecapLoading && styles.cardDisabled, !triggerMonthlyRecapLoading && pressed && { opacity: 0.82, transform: [{ scale: 0.98 }] }]}
               onPress={handleTriggerMonthlyRecap}
               disabled={triggerMonthlyRecapLoading}
             >
@@ -595,7 +563,7 @@ export default function SettingsScreen() {
               {STREAK_MILESTONES.map((milestone) => (
                 <Pressable
                   key={milestone}
-                  style={styles.card}
+                  style={({ pressed }) => [styles.card, pressed && { opacity: 0.82, transform: [{ scale: 0.98 }] }]}
                   onPress={() => showMilestone(milestone)}
                 >
                   <View style={styles.cardIconWrap}>
@@ -619,12 +587,6 @@ export default function SettingsScreen() {
         current={reminderTime}
         onClose={() => setReminderModalVisible(false)}
         onSelect={handleReminderSelect}
-      />
-      <LanguageModal
-        visible={languageModalVisible}
-        currentLang={lang}
-        onClose={() => setLanguageModalVisible(false)}
-        onSelect={setLang}
       />
       <Modal
         transparent
@@ -739,6 +701,10 @@ const styles = StyleSheet.create({
   cardIconIndigo: { backgroundColor: "rgba(224,231,255,0.7)" },
   cardIconRed: { backgroundColor: "rgba(254,226,226,0.7)" },
   cardIconRedDark: { backgroundColor: "rgba(254,202,202,0.7)" },
+  cardIconInstagram: { backgroundColor: "rgba(255,220,230,0.7)" },
+  cardInstagram: {
+    borderColor: "rgba(225,48,108,0.15)",
+  },
   cardTextWrap: { flex: 1, minWidth: 0 },
   cardTextWrapFlex: { flex: 1 },
   cardTitle: {

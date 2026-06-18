@@ -15,15 +15,10 @@ export function TabBarWithPill({ state, descriptors, navigation }: BottomTabBarP
     (r) =>
       r.name !== "index" &&
       r.name !== "onboarding-notifications" &&
-      r.name !== "onboarding-questions" &&
-      r.name !== "over" &&
-      r.name !== "account"
+      r.name !== "onboarding-questions"
   );
   const currentRouteName = state.routes[state.index]?.name;
-  let visibleIndex = visibleRoutes.findIndex(r => r.key === state.routes[state.index]?.key);
-  if (currentRouteName === "over" || currentRouteName === "account") {
-    visibleIndex = visibleRoutes.findIndex(r => r.name === "settings");
-  }
+  const visibleIndex = visibleRoutes.findIndex(r => r.key === state.routes[state.index]?.key);
 
   const onLayout = (e: LayoutChangeEvent) => {
     const w = e.nativeEvent.layout.width;
@@ -80,15 +75,11 @@ export function TabBarWithPill({ state, descriptors, navigation }: BottomTabBarP
           return (
             <Pressable
               key={route.key}
-              style={styles.tab}
+              style={({ pressed }) => [
+                styles.tab,
+                pressed && { transform: [{ scale: 0.85 }], opacity: 0.7 },
+              ]}
               onPress={() => {
-                if (
-                  route.name === "settings" &&
-                  (currentRouteName === "over" || currentRouteName === "account")
-                ) {
-                  navigation.navigate("settings");
-                  return;
-                }
                 const event = navigation.emit({ type: "tabPress", target: route.key, canPreventDefault: true });
                 if (!isFocused && !event.defaultPrevented) navigation.navigate(route.name);
               }}

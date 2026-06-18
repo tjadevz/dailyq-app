@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -8,7 +8,6 @@ import {
   Modal,
   Animated,
   ActivityIndicator,
-  PanResponder,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -18,6 +17,76 @@ import { COLORS, MODAL, MODAL_CLOSE_MS } from "@/src/config/constants";
 import { GlassCardContainer } from "@/src/components/GlassCardContainer";
 import { useLanguage } from "@/src/context/LanguageContext";
 import { useAuth } from "@/src/context/AuthContext";
+import type { Lang } from "@/src/i18n/translations";
+
+// ----- LanguageModal -----
+function LanguageModal({
+  visible,
+  currentLang,
+  onClose,
+  onSelect,
+}: {
+  visible: boolean;
+  currentLang: Lang;
+  onClose: () => void;
+  onSelect: (lang: Lang) => void;
+}) {
+  const { t } = useLanguage();
+  const opacity = useRef(new Animated.Value(0)).current;
+  const cardY = useRef(new Animated.Value(14)).current;
+  const cardScale = useRef(new Animated.Value(0.95)).current;
+
+  useEffect(() => {
+    if (visible) {
+      cardY.setValue(14);
+      cardScale.setValue(0.95);
+      Animated.parallel([
+        Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+        Animated.timing(cardY, { toValue: 0, duration: 220, useNativeDriver: true }),
+        Animated.timing(cardScale, { toValue: 1, duration: 220, useNativeDriver: true }),
+      ]).start();
+    } else {
+      Animated.parallel([
+        Animated.timing(opacity, { toValue: 0, duration: MODAL_CLOSE_MS, useNativeDriver: true }),
+        Animated.timing(cardY, { toValue: 14, duration: MODAL_CLOSE_MS, useNativeDriver: true }),
+        Animated.timing(cardScale, { toValue: 0.95, duration: MODAL_CLOSE_MS, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [visible]);
+
+  if (!visible) return null;
+  return (
+    <Modal transparent visible={visible} animationType="none">
+      <Animated.View style={[accountStyles.modalBackdrop, { opacity }]}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <Animated.View style={[accountStyles.modalCard, { transform: [{ translateY: cardY }, { scale: cardScale }] }]}>
+          <Pressable style={MODAL.CLOSE_BUTTON} onPress={onClose}>
+            <Feather name="x" size={18} color={COLORS.TEXT_SECONDARY} strokeWidth={2.5} />
+          </Pressable>
+          <Text style={accountStyles.modalTitle}>{t("settings_language")}</Text>
+          <Pressable
+            style={[accountStyles.optionRow, currentLang === "en" && accountStyles.optionRowSelected]}
+            onPress={() => { onSelect("en"); onClose(); }}
+          >
+            <Text style={accountStyles.optionText}>{t("settings_lang_en")}</Text>
+            {currentLang === "en" && (
+              <Feather name="check" size={20} color={COLORS.ACCENT} strokeWidth={2.5} />
+            )}
+          </Pressable>
+          <Pressable
+            style={[accountStyles.optionRow, currentLang === "nl" && accountStyles.optionRowSelected]}
+            onPress={() => { onSelect("nl"); onClose(); }}
+          >
+            <Text style={accountStyles.optionText}>{t("settings_lang_nl")}</Text>
+            {currentLang === "nl" && (
+              <Feather name="check" size={20} color={COLORS.ACCENT} strokeWidth={2.5} />
+            )}
+          </Pressable>
+        </Animated.View>
+      </Animated.View>
+    </Modal>
+  );
+}
 
 // ----- DeleteAccountModal -----
 function DeleteAccountModal({
@@ -32,14 +101,26 @@ function DeleteAccountModal({
   const { t } = useLanguage();
   const [deleting, setDeleting] = useState(false);
   const opacity = useRef(new Animated.Value(0)).current;
+  const cardY = useRef(new Animated.Value(14)).current;
+  const cardScale = useRef(new Animated.Value(0.95)).current;
 
   useEffect(() => {
     if (visible) {
-      Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: true }).start();
+      cardY.setValue(14);
+      cardScale.setValue(0.95);
+      Animated.parallel([
+        Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+        Animated.timing(cardY, { toValue: 0, duration: 220, useNativeDriver: true }),
+        Animated.timing(cardScale, { toValue: 1, duration: 220, useNativeDriver: true }),
+      ]).start();
     } else {
-      Animated.timing(opacity, { toValue: 0, duration: MODAL_CLOSE_MS, useNativeDriver: true }).start();
+      Animated.parallel([
+        Animated.timing(opacity, { toValue: 0, duration: MODAL_CLOSE_MS, useNativeDriver: true }),
+        Animated.timing(cardY, { toValue: 14, duration: MODAL_CLOSE_MS, useNativeDriver: true }),
+        Animated.timing(cardScale, { toValue: 0.95, duration: MODAL_CLOSE_MS, useNativeDriver: true }),
+      ]).start();
     }
-  }, [visible, opacity]);
+  }, [visible]);
 
   const handleConfirm = useCallback(async () => {
     setDeleting(true);
@@ -56,7 +137,7 @@ function DeleteAccountModal({
     <Modal transparent visible={visible} animationType="none">
       <Animated.View style={[accountStyles.modalBackdrop, { opacity }]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-        <View style={accountStyles.modalCard}>
+        <Animated.View style={[accountStyles.modalCard, { transform: [{ translateY: cardY }, { scale: cardScale }] }]}>
           <Text style={accountStyles.modalTitle}>{t("settings_delete_account")}</Text>
           <Text style={accountStyles.modalBody}>{t("settings_delete_confirm")}</Text>
           <View style={accountStyles.modalActions}>
@@ -79,7 +160,7 @@ function DeleteAccountModal({
               )}
             </Pressable>
           </View>
-        </View>
+        </Animated.View>
       </Animated.View>
     </Modal>
   );
@@ -88,22 +169,10 @@ function DeleteAccountModal({
 export default function AccountScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { t } = useLanguage();
+  const { t, lang, setLang } = useLanguage();
   const { deleteUser } = useAuth();
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
-  const swipeBackResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onMoveShouldSetPanResponder: (_, gestureState) =>
-          gestureState.dx > 14 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.2,
-        onPanResponderRelease: (_, gestureState) => {
-          if (gestureState.dx > 70 && gestureState.vx > 0.15) {
-            router.replace("/(tabs)/settings");
-          }
-        },
-      }),
-    [router]
-  );
+  const [languageModalVisible, setLanguageModalVisible] = useState(false);
 
   const handleDeleteAccount = useCallback(async () => {
     const { error } = await deleteUser();
@@ -112,16 +181,15 @@ export default function AccountScreen() {
     }
   }, [deleteUser, router]);
 
+  const currentLangLabel = lang === "en" ? t("settings_lang_en") : t("settings_lang_nl");
+
   return (
     <GlassCardContainer>
-      <View
-        style={[accountStyles.container, { paddingTop: insets.top }]}
-        {...swipeBackResponder.panHandlers}
-      >
+      <View style={[accountStyles.container, { paddingTop: insets.top }]}>
         <View style={accountStyles.header}>
           <Pressable
             style={accountStyles.backButton}
-            onPress={() => router.replace("/(tabs)/settings")}
+            onPress={() => router.back()}
             hitSlop={12}
           >
             <Feather name="chevron-left" size={24} color={COLORS.TEXT_PRIMARY} strokeWidth={2.5} />
@@ -133,7 +201,28 @@ export default function AccountScreen() {
           contentContainerStyle={accountStyles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          <Pressable style={accountStyles.card} onPress={() => setDeleteModalVisible(true)}>
+          {/* Taal */}
+          <Pressable
+            style={({ pressed }) => [accountStyles.card, pressed && { opacity: 0.82, transform: [{ scale: 0.98 }] }]}
+            onPress={() => setLanguageModalVisible(true)}
+          >
+            <View style={accountStyles.cardIconWrap}>
+              <View style={[accountStyles.cardIcon, accountStyles.cardIconBlue]}>
+                <Feather name="globe" size={16} strokeWidth={2} color="#3B82F6" />
+              </View>
+              <View style={accountStyles.cardTextWrap}>
+                <Text style={accountStyles.cardTitle}>{t("settings_language")}</Text>
+                <Text style={accountStyles.cardSubtitle}>{currentLangLabel}</Text>
+              </View>
+              <Feather name="chevron-right" size={20} color={COLORS.TEXT_MUTED} />
+            </View>
+          </Pressable>
+
+          {/* Account verwijderen */}
+          <Pressable
+            style={({ pressed }) => [accountStyles.card, pressed && { opacity: 0.82, transform: [{ scale: 0.98 }] }]}
+            onPress={() => setDeleteModalVisible(true)}
+          >
             <View style={accountStyles.cardIconWrap}>
               <View style={[accountStyles.cardIcon, accountStyles.cardIconRedDark]}>
                 <Feather name="trash-2" size={16} strokeWidth={2} color="#B91C1C" />
@@ -145,6 +234,12 @@ export default function AccountScreen() {
           </Pressable>
         </ScrollView>
       </View>
+      <LanguageModal
+        visible={languageModalVisible}
+        currentLang={lang}
+        onClose={() => setLanguageModalVisible(false)}
+        onSelect={setLang}
+      />
       <DeleteAccountModal
         visible={deleteModalVisible}
         onClose={() => setDeleteModalVisible(false)}
@@ -218,8 +313,19 @@ const accountStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  cardIconBlue: { backgroundColor: "rgba(219,234,254,0.7)" },
   cardIconRedDark: { backgroundColor: "rgba(254,202,202,0.7)" },
   cardTextWrap: { flex: 1, minWidth: 0 },
+  cardTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: COLORS.TEXT_PRIMARY,
+    marginBottom: 1,
+  },
+  cardSubtitle: {
+    fontSize: 13,
+    color: COLORS.TEXT_SECONDARY,
+  },
   cardTitleDanger: {
     fontSize: 14,
     fontWeight: "600",
@@ -243,6 +349,22 @@ const accountStyles = StyleSheet.create({
     color: COLORS.TEXT_SECONDARY,
     lineHeight: 24,
     marginBottom: 20,
+  },
+  optionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    marginBottom: 6,
+  },
+  optionRowSelected: {
+    backgroundColor: "rgba(139,92,246,0.1)",
+  },
+  optionText: {
+    fontSize: 17,
+    color: COLORS.TEXT_PRIMARY,
   },
   modalActions: {
     flexDirection: "row",

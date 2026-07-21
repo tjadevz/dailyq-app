@@ -21,6 +21,7 @@ import Svg, { Circle } from 'react-native-svg';
 import * as Notifications from "expo-notifications";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "expo-router/react-navigation";
+import { useLocalSearchParams } from "expo-router";
 
 import { COLORS, JOKER, MODAL, MODAL_ENTER_MS, MODAL_CLOSE_MS } from "@/src/config/constants";
 import { useLanguage } from "@/src/context/LanguageContext";
@@ -36,6 +37,12 @@ import { JokerModalBottomSheet } from "@/src/components/JokerModalBottomSheet";
 import { JokerBadge } from "@/src/components/JokerBadge";
 import { PrimaryButton } from "@/src/components/PrimaryButton";
 import { GlassCardContainer } from "@/src/components/GlassCardContainer";
+import { WidgetAnnouncementModal } from "@/src/components/modals/WidgetAnnouncementModal";
+import { syncWidgetInstalledStatus } from "@/src/lib/widgetStatus";
+import {
+  getWidgetAnnouncementDismissed,
+  setWidgetAnnouncementDismissed,
+} from "@/src/lib/widgetAnnouncement";
 import DailyQLoadingScreen from "@/src/components/DailyQLoadingScreen";
 import { AnsweringExperience } from "@/src/components/AnsweringExperience";
 import { SubmitSuccessModal } from "@/src/components/SubmitSuccessModal";
@@ -174,6 +181,39 @@ export default function TodayScreen() {
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const [answerModalOpen, setAnswerModalOpen] = useState(false);
+  const { openAnswer, source } = useLocalSearchParams<{ openAnswer?: string; source?: string }>();
+  const openedFromWidgetRef = useRef(false);
+  useEffect(() => {
+    if (openAnswer === "1") {
+      setAnswerModalOpen(true);
+    }
+    if (source === "widget") {
+      openedFromWidgetRef.current = true;
+      logEvent("widget_opened");
+    }
+  }, [openAnswer, source]);
+
+  const [widgetAnnouncementDismissed, setWidgetAnnouncementDismissedState] = useState(true);
+  useEffect(() => {
+    if (!userId || userId === "dev-user") return;
+    let cancelled = false;
+    getWidgetAnnouncementDismissed(userId).then((dismissed) => {
+      if (!cancelled) setWidgetAnnouncementDismissedState(dismissed);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+  useFocusEffect(
+    useCallback(() => {
+      if (!userId) return;
+      void syncWidgetInstalledStatus(userId, profile?.widget_installed).then((installed) => {
+        if (installed !== null) void refetchProfile();
+      });
+    }, [userId, profile?.widget_installed, refetchProfile])
+  );
+  const shouldQueueWidgetAnnouncement =
+    profile?.widget_installed !== true && !widgetAnnouncementDismissed;
   const [showSubmitSuccess, setShowSubmitSuccess] = useState(false);
   const [pendingStreakMilestone, setPendingStreakMilestone] = useState<ReturnType<typeof getHighestMilestoneCrossed>>(null);
   const [pendingMilestone, setPendingMilestone] = useState<10 | null>(null);
@@ -374,6 +414,10 @@ export default function TodayScreen() {
         queue.push("monthlyRecap");
       }
 
+      if (shouldQueueWidgetAnnouncement) {
+        queue.push("widgetAnnouncement");
+      }
+
       if (!cancelled) {
         justSubmittedRef.current = false;
         advanceQueue(queue);
@@ -391,8 +435,21 @@ export default function TodayScreen() {
     lang,
     showRecap,
     previousYearQueue,
+    shouldQueueWidgetAnnouncement,
     advanceQueue,
   ]);
+
+  const handleWidgetAnnouncementClose = useCallback(() => {
+    setWidgetAnnouncementDismissedState(true);
+    if (userId) void setWidgetAnnouncementDismissed(userId);
+    logEvent("widget_announcement_dismissed");
+    advanceQueue(modalQueue);
+  }, [userId, modalQueue, advanceQueue]);
+  useEffect(() => {
+    if (activeModal === "widgetAnnouncement") {
+      logEvent("widget_announcement_shown");
+    }
+  }, [activeModal]);
 
   useEffect(() => {
     if (activeModal !== "streak" || !pendingStreakMilestone) return;
@@ -608,7 +665,11 @@ export default function TodayScreen() {
         const newStreak = Math.max(Number(visual), Number(real));
         setCurrentStreak(newStreak);
         if (!wasUpdate) setAnswerCount((c) => c + 1);
-        logEvent("answer_submitted", { is_edit: wasUpdate, streak: newStreak });
+        logEvent("answer_submitted", {
+          is_edit: wasUpdate,
+          streak: newStreak,
+          source: openedFromWidgetRef.current ? "widget" : "app",
+        });
 
         try {
           const alreadyGranted = await getAlreadyGranted(supabase, userId);
@@ -678,7 +739,7 @@ export default function TodayScreen() {
     const link = `https://dailyqapp.com/invite/${profile.referral_code}`;
     try {
       await Share.share({
-        message: `Answer one question a day — and see who you were a year from now. Join me on DailyQ: ${link}`,
+        message: t("today_invite_share_message", { link }),
         url: link,
       });
       logEvent("invite_shared");
@@ -774,7 +835,7 @@ export default function TodayScreen() {
                     </Svg>
                     <View style={styles.ringLabelWrap}>
                       <Text style={styles.ringNum}>{dayNumber}</Text>
-                      <Text style={styles.ringSub}>van 365</Text>
+                      <Text style={styles.ringSub}>{t("today_stats_of_365")}</Text>
                     </View>
                   </View>
                   <View style={styles.statPillsCol}>
@@ -784,7 +845,7 @@ export default function TodayScreen() {
                     </View>
                     <View style={styles.statPill}>
                       <Text style={styles.statPillNumber}>{answerCount}</Text>
-                      <Text style={styles.statPillLabel}>antwoorden</Text>
+                      <Text style={styles.statPillLabel}>{t("today_stats_answers")}</Text>
                     </View>
                   </View>
                 </View>
@@ -800,7 +861,7 @@ export default function TodayScreen() {
                 {hasAnswer ? (
                   <View style={styles.questionBlock}>
                     <View style={styles.questionEyebrowRow}>
-                      <Text style={styles.questionEyebrow}>Vraag van vandaag</Text>
+                      <Text style={styles.questionEyebrow}>{t("today_question_label")}</Text>
                       <TouchableOpacity
                         style={styles.shareButton}
                         onPress={() => { logEvent("answer_shared"); shareCard(); }}
@@ -812,7 +873,7 @@ export default function TodayScreen() {
                   </View>
                 ) : (
                   <View style={styles.questionBlock}>
-                    <Text style={styles.questionEyebrow}>Vraag van vandaag</Text>
+                    <Text style={styles.questionEyebrow}>{t("today_question_label")}</Text>
                     <Text style={styles.questionText}>{question.text}</Text>
                   </View>
                 )}
@@ -903,6 +964,10 @@ export default function TodayScreen() {
             onClose={handlePreviousYearClose}
           />
           <EditConfirmModal visible={editConfirmVisible} message={t("today_answer_changed")} />
+          <WidgetAnnouncementModal
+            visible={activeModal === "widgetAnnouncement"}
+            onClose={handleWidgetAnnouncementClose}
+          />
         </View>
       </TouchableWithoutFeedback>
       {hasAnswer ? (

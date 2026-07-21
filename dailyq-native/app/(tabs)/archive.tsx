@@ -223,7 +223,9 @@ export default function ArchiveScreen() {
   if (loading) {
     return (
       <View style={styles.screen}>
-        <BackgroundLayer />
+        <View style={StyleSheet.absoluteFill} pointerEvents="none">
+          <BackgroundLayer style={{ position: "relative", flex: 1 }} />
+        </View>
         <View style={[styles.content, { paddingTop: insets.top + 32 }]}>
           <View style={[styles.center, styles.centerFill]}>
             <ActivityIndicator size="small" color="#7C3AED" />
@@ -237,7 +239,9 @@ export default function ArchiveScreen() {
   if (items.length === 0) {
     return (
       <View style={styles.screen}>
-        <BackgroundLayer />
+        <View style={StyleSheet.absoluteFill} pointerEvents="none">
+          <BackgroundLayer style={{ position: "relative", flex: 1 }} />
+        </View>
         <View style={[styles.content, { paddingTop: insets.top + 32 }]}>
           <View style={styles.header}>
             <View style={styles.heroCard}>
@@ -256,7 +260,9 @@ export default function ArchiveScreen() {
 
   return (
     <View style={styles.screen}>
-      <BackgroundLayer />
+      <View style={StyleSheet.absoluteFill} pointerEvents="none">
+        <BackgroundLayer style={{ position: "relative", flex: 1 }} />
+      </View>
       <View style={[styles.content, { paddingTop: insets.top + 32 }]}>
         <View style={styles.header}>
           <View style={styles.heroCard}>
@@ -347,7 +353,6 @@ export default function ArchiveScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: COLORS.BACKGROUND,
   },
   content: {
     flex: 1,

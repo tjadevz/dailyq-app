@@ -111,7 +111,7 @@ export function AnsweringExperience({
     insets.top,
     initialWindowMetrics?.insets.top ?? 0
   );
-  const { lang: contextLang, formatDate } = useLanguage();
+  const { lang: contextLang, formatDate, t } = useLanguage();
   const [userAnswer, setUserAnswer] = useState(initialAnswer);
   const [question, setQuestion] = useState(questionProp);
   const [questionLoading, setQuestionLoading] = useState(false);
@@ -325,7 +325,7 @@ export function AnsweringExperience({
           style={[styles.backdrop, { width, height }]}
           onPress={handleCloseWithAnimation}
           accessibilityRole="button"
-          accessibilityLabel="Close"
+          accessibilityLabel={t("common_close")}
         >
           <View style={{ position: "absolute", top: 0, left: 0, width, height, backgroundColor: "rgba(0,0,0,0.5)" }} pointerEvents="none" />
           <View style={[styles.backdropOverlay, { width, height }]} pointerEvents="none" />
@@ -366,7 +366,7 @@ export function AnsweringExperience({
                 style={styles.closeButton}
                 hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                 accessibilityRole="button"
-                accessibilityLabel="Close"
+                accessibilityLabel={t("common_close")}
               >
                 <Feather name="x" size={20} color="#FFFFFF" strokeWidth={2.5} />
               </Pressable>
@@ -392,7 +392,7 @@ export function AnsweringExperience({
                       style={styles.closeButton}
                       hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                       accessibilityRole="button"
-                      accessibilityLabel="Close"
+                      accessibilityLabel={t("common_close")}
                     >
                       <Feather name="x" size={20} color="#FFFFFF" strokeWidth={2.5} />
                     </Pressable>
@@ -471,13 +471,10 @@ export function AnsweringExperience({
                       <TextInput
                         ref={inputRef}
                         value={userAnswer}
-                        onChangeText={(text) => {
-                          if (text.length <= 280) setUserAnswer(text);
-                        }}
+                        onChangeText={setUserAnswer}
                         placeholder={placeholder}
                         placeholderTextColor="#9CA3AF"
                         multiline
-                        maxLength={280}
                         style={styles.input}
                         selectionColor="#7C3AED"
                         textAlignVertical="top"

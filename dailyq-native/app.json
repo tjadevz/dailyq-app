@@ -11,7 +11,7 @@
       "fallbackToCacheTimeout": 0
     },
     "slug": "dailyq",
-    "version": "1.5.3",
+    "version": "1.6.0",
     "orientation": "portrait",
     "scheme": "dailyq",
     "icon": "./assets/images/icon.png",
@@ -48,10 +48,12 @@
       ],
       "@sentry/react-native",
       "expo-localization",
-      "expo-sharing"
+      "expo-sharing",
+      "@bacons/apple-targets"
     ],
     "ios": {
       "bundleIdentifier": "com.tjade.dailyq",
+      "appleTeamId": "JLKA6S8UWH",
       "supportsTablet": false,
       "associatedDomains": [],
       "entitlements": {

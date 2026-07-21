@@ -1,0 +1,9 @@
+{
+  "name": "dailyq-widget-status",
+  "version": "1.0.0",
+  "description": "Local Expo module: reports whether the DailyQ WidgetKit widget is placed on the home screen.",
+  "main": "index.ts",
+  "platforms": ["ios"],
+  "license": "UNLICENSED",
+  "private": true
+}

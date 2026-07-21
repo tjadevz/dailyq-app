@@ -19,6 +19,7 @@ export function TabBarWithPill({ state, descriptors, navigation }: BottomTabBarP
     (r) =>
       r.name !== "index" &&
       r.name !== "onboarding-notifications" &&
+      r.name !== "onboarding-widget" &&
       r.name !== "onboarding-questions"
   );
   const currentRouteName = state.routes[state.index]?.name;
@@ -49,7 +50,11 @@ export function TabBarWithPill({ state, descriptors, navigation }: BottomTabBarP
     indexRef.current = visibleIndex;
   }, [visibleIndex, barWidth]);
 
-  if (currentRouteName === "onboarding-notifications" || currentRouteName === "onboarding-questions") {
+  if (
+    currentRouteName === "onboarding-notifications" ||
+    currentRouteName === "onboarding-widget" ||
+    currentRouteName === "onboarding-questions"
+  ) {
     return null;
   }
 
@@ -129,10 +134,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,255,255,1)",
     shadowColor: "#7C3AED",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 20,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.16,
+    shadowRadius: 10,
+    elevation: 4,
   },
   tab: {
     flex: 1,

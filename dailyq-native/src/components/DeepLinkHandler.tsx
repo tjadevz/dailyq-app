@@ -6,6 +6,7 @@ import * as Linking from "expo-linking";
 import { useRouter } from "expo-router";
 import { supabase } from "@/src/config/supabase";
 import { useAuth } from "@/src/context/AuthContext";
+import { useLanguage } from "@/src/context/LanguageContext";
 
 const RESET_PASSWORD_PATH = "reset-password";
 
@@ -66,6 +67,7 @@ async function processResetPasswordUrl(
 
 export function DeepLinkHandler({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const { t } = useLanguage();
   const { authCheckDone } = useAuth();
   const [initialCheckDone, setInitialCheckDone] = useState(false);
   const [initialUrlFetched, setInitialUrlFetched] = useState(false);
@@ -111,7 +113,7 @@ export function DeepLinkHandler({ children }: { children: React.ReactNode }) {
     return (
       <View style={gateStyles.wrap}>
         <ActivityIndicator size="large" color="#8B5CF6" />
-        <Text style={gateStyles.text}>Loading…</Text>
+        <Text style={gateStyles.text}>{t("loading")}</Text>
       </View>
     );
   }

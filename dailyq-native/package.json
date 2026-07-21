@@ -1,7 +1,7 @@
 {
   "name": "dailyq-native",
   "main": "expo-router/entry",
-  "version": "1.5.2",
+  "version": "1.6.0",
   "scripts": {
     "start": "EXPO_PUBLIC_DEBUG_MODALS=true expo start",
     "start:no-debug": "expo start --clear",
@@ -12,6 +12,7 @@
     "postinstall": "patch-package"
   },
   "dependencies": {
+    "@bacons/apple-targets": "^5.0.0",
     "@expo-google-fonts/inter": "^0.4.2",
     "@expo/vector-icons": "^15.0.3",
     "@react-native-async-storage/async-storage": "2.2.0",

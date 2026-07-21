@@ -21,7 +21,7 @@ import {
   ONBOARDING_QUESTION_COUNT,
   getOnboardingQuestionDayKeys,
 } from "@/src/lib/onboardingWindow";
-import { getOnboardingNotificationsDone } from "@/src/lib/onboardingProgress";
+import { getOnboardingNotificationsDone, getOnboardingWidgetDone } from "@/src/lib/onboardingProgress";
 import { logEvent } from "@/lib/analytics";
 
 type OnboardingQuestion = {
@@ -61,9 +61,15 @@ export default function OnboardingQuestionsScreen() {
   useEffect(() => {
     if (!userId || userId === "dev-user") return;
     let cancelled = false;
-    getOnboardingNotificationsDone(userId).then((done) => {
-      if (!cancelled && !done) {
+    getOnboardingNotificationsDone(userId).then(async (notificationsDone) => {
+      if (cancelled) return;
+      if (!notificationsDone) {
         router.replace("/(tabs)/onboarding-notifications");
+        return;
+      }
+      const widgetDone = await getOnboardingWidgetDone(userId);
+      if (!cancelled && !widgetDone) {
+        router.replace("/(tabs)/onboarding-widget");
       }
     });
     return () => {
@@ -241,7 +247,7 @@ export default function OnboardingQuestionsScreen() {
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <BackgroundLayer />
         <View style={styles.centered}>
-          <Text style={styles.errorText}>{error ?? "No questions found"}</Text>
+          <Text style={styles.errorText}>{error ?? t("onboarding_questions_no_questions_found")}</Text>
           <Pressable style={styles.dismissBtn} onPress={handleDismiss} disabled={exiting}>
             <Text style={styles.dismissBtnText}>×</Text>
           </Pressable>

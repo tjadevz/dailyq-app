@@ -11,6 +11,7 @@ export type Profile = {
   /** From profiles.created_at — used for account-age UI (e.g. milestone modal). */
   created_at?: string | null;
   milestone_10_days_shown?: boolean | null;
+  widget_installed?: boolean | null;
 };
 
 type ProfileContextValue = {
@@ -49,7 +50,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
 
     const { data: prof, error: fetchErr } = await supabase
       .from("profiles")
-      .select("id, joker_balance, language, onboarding_completed, referral_code, created_at, milestone_10_days_shown")
+      .select("id, joker_balance, language, onboarding_completed, referral_code, created_at, milestone_10_days_shown, widget_installed")
       .eq("id", userId)
       .maybeSingle();
 

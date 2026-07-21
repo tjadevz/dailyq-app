@@ -58,8 +58,8 @@ export default function OnboardingNotificationsScreen() {
           console.error("[onboarding-notifications] Push subscription upsert failed:", upsertErr);
         }
         await setOnboardingNotificationsDone(userId);
-        console.log("[NOTIF] navigating to onboarding-questions");
-        router.navigate("/(tabs)/onboarding-questions");
+        console.log("[NOTIF] navigating to onboarding-widget");
+        router.navigate("/(tabs)/onboarding-widget");
       } finally {
         setContinuing(false);
       }
@@ -74,7 +74,9 @@ export default function OnboardingNotificationsScreen() {
 
   return (
     <View style={styles.container}>
-      <BackgroundLayer />
+      <View style={StyleSheet.absoluteFill} pointerEvents="none">
+        <BackgroundLayer style={{ position: "relative", flex: 1 }} />
+      </View>
       <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
         <OnboardingNotificationsStep
           onContinue={handleContinue}

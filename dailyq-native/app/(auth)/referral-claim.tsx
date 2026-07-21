@@ -97,7 +97,7 @@ export default function ReferralClaimScreen() {
         <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
           <View style={styles.loadingWrap}>
             <ActivityIndicator size="large" color={COLORS.ACCENT} />
-            <Text style={styles.loadingText}>Claiming your free joker…</Text>
+            <Text style={styles.loadingText}>{t("referral_claim_loading")}</Text>
           </View>
         </SafeAreaView>
       </View>
@@ -122,7 +122,7 @@ export default function ReferralClaimScreen() {
               </View>
             </View>
             <Text style={styles.introTitle}>{t("onboarding_intro_title")}</Text>
-            <Text style={styles.introSubtitle}>Je eerste 7 vragen wachten op je.</Text>
+            <Text style={styles.introSubtitle}>{t("referral_claim_subtitle")}</Text>
             <Pressable
               onPress={() => void goNext()}
               disabled={navigating}

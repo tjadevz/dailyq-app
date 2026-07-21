@@ -28,6 +28,10 @@ export default function TabsLayout() {
         options={{ tabBarButton: () => null, headerShown: false }}
       />
       <Tabs.Screen
+        name="onboarding-widget"
+        options={{ tabBarButton: () => null, headerShown: false }}
+      />
+      <Tabs.Screen
         name="onboarding-questions"
         options={{ tabBarButton: () => null, headerShown: false }}
       />

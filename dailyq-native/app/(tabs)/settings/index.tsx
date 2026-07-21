@@ -24,7 +24,7 @@ import { useLanguage } from "@/src/context/LanguageContext";
 import { useAuth } from "@/src/context/AuthContext";
 import { useProfileContext } from "@/src/context/ProfileContext";
 import { supabase } from "@/src/config/supabase";
-import { clearOnboardingNotificationsDone } from "@/src/lib/onboardingProgress";
+import { clearOnboardingNotificationsDone, clearOnboardingWidgetDone } from "@/src/lib/onboardingProgress";
 import {
   upsertPushSubscription,
   getStoredExpoPushToken,
@@ -206,6 +206,7 @@ export default function SettingsScreen() {
       if (error) throw error;
       await refetchProfile();
       await clearOnboardingNotificationsDone(userId);
+      await clearOnboardingWidgetDone(userId);
       router.replace("/(tabs)/onboarding-notifications");
     } catch (e) {
       console.error("[Settings] Replay onboarding failed:", e);
@@ -424,7 +425,7 @@ export default function SettingsScreen() {
                 <MaterialCommunityIcons name="instagram" size={18} color="#E1306C" />
               </View>
               <View style={styles.cardTextWrap}>
-                <Text style={styles.cardTitle}>Volg DailyQ op Instagram</Text>
+                <Text style={styles.cardTitle}>{t("settings_instagram_follow")}</Text>
                 <Text style={styles.cardSubtitle}>@dailyqapp</Text>
               </View>
               <Feather name="chevron-right" size={20} color={COLORS.TEXT_MUTED} />

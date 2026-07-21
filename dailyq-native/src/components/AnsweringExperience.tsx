@@ -9,7 +9,7 @@ import {
   Platform,
   TouchableWithoutFeedback,
   Keyboard,
-  Dimensions,
+  useWindowDimensions,
   ActivityIndicator,
   Pressable,
   Image,
@@ -21,9 +21,9 @@ import Animated, {
   Easing,
   runOnJS,
 } from "react-native-reanimated";
-import { BlurView } from "expo-blur";
 import Feather from "@expo/vector-icons/Feather";
 import { LinearGradient } from "expo-linear-gradient";
+import { BlurView } from "expo-blur";
 import {
   useSafeAreaInsets,
   initialWindowMetrics,
@@ -32,8 +32,6 @@ import { COLORS } from "@/src/config/constants";
 import { useLanguage } from "@/src/context/LanguageContext";
 import { getDayOfYear } from "@/src/lib/date";
 import { supabase } from "@/src/config/supabase";
-
-const { width, height } = Dimensions.get("window");
 
 export interface AnsweringExperienceProps {
   isOpen: boolean;
@@ -105,6 +103,9 @@ export function AnsweringExperience({
     progressCurrent != null &&
     progressCurrent >= 1;
   const showTopChrome = showProgress || isIntroCard;
+  // Fabric doesn't reliably size flex:1/absoluteFillObject content inside <Modal> —
+  // the modal's own root needs an explicit numeric size (see facebook/react-native#49717).
+  const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const topInset = Math.max(
     insets.top,
@@ -319,12 +320,15 @@ export function AnsweringExperience({
       statusBarTranslucent
       onRequestClose={handleCloseWithAnimation}
     >
-      <View style={styles.modalRoot}>
-        <Pressable style={styles.backdrop} onPress={handleCloseWithAnimation} accessibilityRole="button" accessibilityLabel="Close">
-          <View style={styles.backdropVisual} pointerEvents="none">
-            <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
-            <View style={styles.backdropOverlay} />
-          </View>
+      <View style={[styles.modalRoot, { width, height }]}>
+        <Pressable
+          style={[styles.backdrop, { width, height }]}
+          onPress={handleCloseWithAnimation}
+          accessibilityRole="button"
+          accessibilityLabel="Close"
+        >
+          <View style={{ position: "absolute", top: 0, left: 0, width, height, backgroundColor: "rgba(0,0,0,0.5)" }} pointerEvents="none" />
+          <View style={[styles.backdropOverlay, { width, height }]} pointerEvents="none" />
         </Pressable>
 
         {showTopChrome ? (
@@ -547,16 +551,19 @@ export function AnsweringExperience({
 
 const styles = StyleSheet.create({
   modalRoot: {
-    ...StyleSheet.absoluteFillObject,
+    position: "relative",
+    overflow: "hidden",
   },
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  backdropVisual: {
-    ...StyleSheet.absoluteFillObject,
+    position: "absolute",
+    top: 0,
+    left: 0,
+    zIndex: 0,
   },
   backdropOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    position: "absolute",
+    top: 0,
+    left: 0,
     backgroundColor: "rgba(76, 29, 149, 0.25)",
   },
   keyboardContainer: {
@@ -564,6 +571,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
+    zIndex: 1,
   },
   bottomAnchor: {
     paddingBottom: Platform.OS === "ios" ? 320 : 280,

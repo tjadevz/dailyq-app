@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useMemo } from "react";
 import {
-  Dimensions,
   Modal,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { BlurView } from "expo-blur";
 import Feather from "@expo/vector-icons/Feather";
@@ -25,8 +25,6 @@ import AnimatedReanimated, {
 import { BackgroundLayer } from "@/src/components/BackgroundLayer";
 import { COLORS } from "@/src/config/constants";
 import { useLanguage } from "@/src/context/LanguageContext";
-
-const FULL_HEIGHT = Dimensions.get("window").height;
 
 export type AccountMilestoneAnswer = {
   date: string;
@@ -57,10 +55,15 @@ export default function AccountMilestoneModal({
   answers,
   onClose,
 }: Props) {
+  // Fabric doesn't reliably size flex:1/absoluteFillObject (right/bottom-based)
+  // content inside <Modal> — needs explicit numeric width/height, and window
+  // size must be read reactively (useWindowDimensions), not at module scope.
+  const { width, height } = useWindowDimensions();
+  const fullHeight = height;
   const insets = useSafeAreaInsets();
   const { lang } = useLanguage();
   const backdropOpacity = useSharedValue(0);
-  const slideY = useSharedValue(FULL_HEIGHT);
+  const slideY = useSharedValue(fullHeight);
   const dragY = useSharedValue(0);
 
   const closeModal = useCallback(() => onClose(), [onClose]);
@@ -85,7 +88,7 @@ export default function AccountMilestoneModal({
             dragY.value = 0;
             backdropOpacity.value = withTiming(0, { duration: 180 });
             slideY.value = withTiming(
-              FULL_HEIGHT,
+              fullHeight,
               { duration: 220, easing: Easing.inOut(Easing.cubic) },
               (finished) => {
                 if (finished) runOnJS(closeModal)();
@@ -101,7 +104,7 @@ export default function AccountMilestoneModal({
   useEffect(() => {
     if (visible) {
       dragY.value = 0;
-      slideY.value = FULL_HEIGHT;
+      slideY.value = fullHeight;
       backdropOpacity.value = 0;
       slideY.value = withSpring(0, { damping: 22, stiffness: 140, mass: 0.8 });
       backdropOpacity.value = withTiming(1, { duration: 200 });
@@ -113,7 +116,7 @@ export default function AccountMilestoneModal({
     dragY.value = 0;
     backdropOpacity.value = withTiming(0, { duration: 180 });
     slideY.value = withTiming(
-      FULL_HEIGHT,
+      fullHeight,
       { duration: 220, easing: Easing.inOut(Easing.cubic) },
       (finished) => {
         if (finished) runOnJS(closeModal)();
@@ -133,22 +136,28 @@ export default function AccountMilestoneModal({
 
   return (
     <Modal transparent visible={visible} animationType="none">
-      <GestureHandlerRootView style={StyleSheet.absoluteFill}>
-        <AnimatedReanimated.View style={[styles.modalBackdrop, backdropStyle]}>
-          <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
+      <GestureHandlerRootView style={{ width, height }}>
+        <AnimatedReanimated.View style={[styles.modalBackdrop, { width, height }, backdropStyle]}>
+          <BlurView
+            intensity={40}
+            tint="dark"
+            style={{ position: "absolute", top: 0, left: 0, width, height }}
+          />
           <View
-            style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(76, 29, 149, 0.25)" }]}
+            style={{ position: "absolute", top: 0, left: 0, width, height, backgroundColor: "rgba(76, 29, 149, 0.25)" }}
             pointerEvents="none"
           />
-          <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
+          <Pressable style={{ position: "absolute", top: 0, left: 0, width, height }} onPress={handleClose} />
           <GestureDetector gesture={panGesture}>
             <AnimatedReanimated.View
-              style={[styles.fullPanel, sheetStyle, { height: FULL_HEIGHT }]}
+              style={[styles.fullPanel, sheetStyle, { width, height: fullHeight }]}
               pointerEvents="box-none"
             >
               {/* Same stack as GlassCardContainer: lavender base + BackgroundLayer (#FAFAFF + glows/silk) */}
               <View style={styles.panelRoot} pointerEvents="box-none">
-                <BackgroundLayer />
+                <BackgroundLayer
+                  style={{ position: "absolute", top: 0, left: 0, right: undefined, bottom: undefined, width, height: fullHeight }}
+                />
                 <View style={styles.panelContent} pointerEvents="box-none">
                   <View style={[styles.header, { paddingTop: insets.top + 32 }]}>
                     <Pressable onPress={handleClose} style={styles.closeBtn} hitSlop={12}>
@@ -225,13 +234,16 @@ export default function AccountMilestoneModal({
 
 const styles = StyleSheet.create({
   modalBackdrop: {
-    ...StyleSheet.absoluteFillObject,
+    position: "absolute",
+    top: 0,
+    left: 0,
+    zIndex: 0,
   },
   fullPanel: {
     position: "absolute",
     left: 0,
-    right: 0,
     bottom: 0,
+    zIndex: 1,
     overflow: "hidden",
   },
   panelRoot: {

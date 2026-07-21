@@ -1,8 +1,8 @@
 diff --git a/node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios/ReactCommon/RCTTurboModule.mm b/node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios/ReactCommon/RCTTurboModule.mm
-index 6646570..f020d38 100644
+index a2c71d8..55051a5 100644
 --- a/node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios/ReactCommon/RCTTurboModule.mm
 +++ b/node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios/ReactCommon/RCTTurboModule.mm
-@@ -398,18 +398,26 @@ id convertJSIValueToObjCObject(
+@@ -393,18 +393,26 @@ id convertJSIValueToObjCObject(
        TurboModulePerfLogger::asyncMethodCallExecutionStart(moduleName, methodName, asyncCallCounter);
      }
  
@@ -33,9 +33,9 @@ index 6646570..f020d38 100644
      }
  
      if (!isSync) {
-@@ -467,13 +475,19 @@ TraceSection s(
-       TurboModulePerfLogger::asyncMethodCallExecutionStart(moduleName, methodName, asyncCallCounter);
-     }
+@@ -458,15 +466,21 @@ TraceSection s(
+ 
+     TurboModulePerfLogger::asyncMethodCallExecutionStart(moduleName, methodName, asyncCallCounter);
  
 +    // iOS 26 fix: defer C++ throw until AFTER @catch exits to avoid
 +    // objc_exception_rethrow -> __cxa_rethrow -> std::terminate on iOS 26+
@@ -43,14 +43,18 @@ index 6646570..f020d38 100644
      @try {
        [inv invokeWithTarget:strongModule];
      } @catch (NSException *exception) {
--      throw convertNSExceptionToJSError(runtime, exception, std::string{moduleName}, methodNameStr);
+-      // Void methods are always async, re-throw instead of converting to
+-      // JSError, same as the async branch in performMethodInvocation.
+-      @throw exception;
 +      _caughtException = exception;
      } @finally {
        [retainedObjectsForInvocation removeAllObjects];
      }
 +    if (_caughtException) {
-+      throw convertNSExceptionToJSError(runtime, _caughtException, std::string{moduleName}, methodNameStr);
++      // For async void methods, log and continue — cannot propagate to JS
++      RCTLogError(@"[TurboModule] NSException in void async method %s::%s — %@: %@",
++                  moduleName, methodName, _caughtException.name, _caughtException.reason);
 +    }
  
-     if (shouldVoidMethodsExecuteSync_) {
-       TurboModulePerfLogger::syncMethodCallExecutionEnd(moduleName, methodName);
+     TurboModulePerfLogger::asyncMethodCallExecutionEnd(moduleName, methodName, asyncCallCounter);
+ 

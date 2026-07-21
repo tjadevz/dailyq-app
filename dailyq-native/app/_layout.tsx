@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { AppState, InteractionManager, View } from "react-native";
+import { AppState, StyleSheet, View } from "react-native";
 import { addNotificationResponseReceivedListener } from "expo-notifications";
 import Constants from "expo-constants";
-import { Slot, usePathname } from "expo-router";
+import { Slot, usePathname, useSegments } from "expo-router";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useFonts, Inter_500Medium } from "@expo-google-fonts/inter";
 import { AuthProvider } from "@/src/context/AuthContext";
@@ -34,16 +34,29 @@ type ReferralGivenEvent = {
 
 let coldStartLogged = false;
 
+function NavLogger() {
+  const pathname = usePathname();
+  const segments = useSegments();
+  const prev = useRef<string>("");
+  useEffect(() => {
+    const ts = new Date().toISOString().slice(11, 23);
+    console.log(`[NAV] ${ts}  ${prev.current || "(start)"} → ${pathname}  segs=${JSON.stringify(segments)}`);
+    prev.current = pathname;
+  }, [pathname]);
+  return null;
+}
+
 function AnalyticsAppLifecycleGate() {
   const appStateRef = useRef(AppState.currentState);
   const lastForegroundRef = useRef<number>(0);
   const openedViaNotificationRef = useRef(false);
+  const coldStartSentRef = useRef(false);
+  const { user, authCheckDone } = useAuth();
 
   useEffect(() => {
     if (!coldStartLogged) {
       coldStartLogged = true;
       lastForegroundRef.current = Date.now();
-      logEvent("app_open", { source: "cold_start" });
     }
 
     const appStateSubscription = AppState.addEventListener("change", (next) => {
@@ -73,6 +86,16 @@ function AnalyticsAppLifecycleGate() {
       notificationSubscription.remove();
     };
   }, []);
+
+  // Log cold_start only once auth is resolved and user is available.
+  // This handles new users who have no session at app launch (e.g. Apple Sign-In):
+  // the event would silently drop without a session, so we defer until auth is done.
+  useEffect(() => {
+    if (!authCheckDone || !user?.id || user.id === "dev-user") return;
+    if (coldStartSentRef.current) return;
+    coldStartSentRef.current = true;
+    logEvent("app_open", { source: "cold_start" });
+  }, [authCheckDone, user?.id]);
 
   return null;
 }
@@ -199,6 +222,7 @@ export default function RootLayout() {
                     <AnalyticsAppLifecycleGate />
                     <SyncProfileAppVersionGate />
                     <ReferralGivenAppOpenGate />
+                    <NavLogger />
                   </View>
                 </CalendarAnswersProvider>
               </StreakMilestoneProvider>

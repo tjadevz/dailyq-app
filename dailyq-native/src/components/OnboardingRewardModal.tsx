@@ -6,6 +6,7 @@ import {
   Pressable,
   Modal,
   Animated,
+  useWindowDimensions,
 } from "react-native";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { BlurView } from "expo-blur";
@@ -21,6 +22,9 @@ export function OnboardingRewardModal({
   visible: boolean;
   onLetsGo: () => void;
 }) {
+  // Fabric doesn't reliably size flex:1/absoluteFillObject (right/bottom-based)
+  // content inside <Modal> — needs explicit numeric width/height.
+  const { width, height } = useWindowDimensions();
   const { t } = useLanguage();
   const opacity = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(0.9)).current;
@@ -64,9 +68,13 @@ export function OnboardingRewardModal({
 
   return (
     <Modal transparent visible={visible} animationType="none">
-      <Animated.View style={[styles.wrapper, { opacity }]}>
-        <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
-        <View style={styles.backdrop} />
+      <Animated.View style={[styles.wrapper, { width, height, opacity }]}>
+        <BlurView
+          intensity={40}
+          tint="dark"
+          style={{ position: "absolute", top: 0, left: 0, width, height }}
+        />
+        <View style={[styles.backdrop, { width, height }]} />
         <Animated.View style={[styles.card, { transform: [{ scale }] }]}>
           <View style={styles.iconRow}>
             <View style={styles.iconWrap}>
@@ -105,9 +113,13 @@ export function OnboardingRewardModal({
 const styles = StyleSheet.create({
   wrapper: {
     ...MODAL.WRAPPER,
+    right: undefined,
+    bottom: undefined,
   },
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    position: "absolute",
+    top: 0,
+    left: 0,
     backgroundColor: "rgba(76, 29, 149, 0.25)",
   },
   card: {

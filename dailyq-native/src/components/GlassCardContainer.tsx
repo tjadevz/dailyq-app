@@ -7,8 +7,10 @@ import { BackgroundLayer } from "@/src/components/BackgroundLayer";
 
 export function GlassCardContainer({ children }: { children: React.ReactNode }) {
   return (
-    <View style={[styles.card, { backgroundColor: "#EDE9FE" }]} pointerEvents="box-none">
-      <BackgroundLayer />
+    <View style={styles.card} pointerEvents="box-none">
+      <View style={StyleSheet.absoluteFill} pointerEvents="none">
+        <BackgroundLayer style={{ position: "relative", flex: 1 }} />
+      </View>
       <View style={styles.content} pointerEvents="box-none">
         {children}
       </View>

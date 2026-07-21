@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { Animated, Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { Animated, Modal, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
@@ -21,6 +21,9 @@ export default function ReferralGivenModal({
   ctaLabel,
   onClose,
 }: ReferralGivenModalProps) {
+  // Fabric doesn't reliably size flex:1/absoluteFillObject (right/bottom-based)
+  // content inside <Modal> — needs explicit numeric width/height.
+  const { width, height } = useWindowDimensions();
   const opacity = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(0.9)).current;
   const iconScale = useRef(new Animated.Value(0.7)).current;
@@ -67,10 +70,14 @@ export default function ReferralGivenModal({
 
   return (
     <Modal transparent visible={visible} animationType="none" statusBarTranslucent>
-      <Animated.View style={[styles.backdrop, { opacity }]}>
-        <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
-        <View style={styles.backdropOverlay} />
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+      <Animated.View style={[styles.backdrop, { width, height, opacity }]}>
+        <BlurView
+          intensity={40}
+          tint="dark"
+          style={{ position: "absolute", top: 0, left: 0, width, height }}
+        />
+        <View style={[styles.backdropOverlay, { width, height }]} />
+        <Pressable style={{ position: "absolute", top: 0, left: 0, width, height }} onPress={onClose} />
         <Animated.View style={[styles.card, { transform: [{ scale }] }]}>
           <View style={styles.iconRow}>
             <View style={styles.iconWrap}>
@@ -108,11 +115,15 @@ export default function ReferralGivenModal({
 const styles = StyleSheet.create({
   backdrop: {
     ...MODAL.WRAPPER,
+    right: undefined,
+    bottom: undefined,
     justifyContent: "center",
     alignItems: "center",
   },
   backdropOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    position: "absolute",
+    top: 0,
+    left: 0,
     backgroundColor: "rgba(76, 29, 149, 0.25)",
   },
   card: {

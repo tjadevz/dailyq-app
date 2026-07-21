@@ -21,8 +21,8 @@ import { LinearGradient } from "expo-linear-gradient";
 
 import * as AppleAuthentication from "expo-apple-authentication";
 
+import { GlassCardContainer } from "@/src/components/GlassCardContainer";
 import { COLORS } from "@/src/config/constants";
-import { BackgroundLayer } from "@/src/components/BackgroundLayer";
 import { useLanguage } from "@/src/context/LanguageContext";
 import { useAuth, useAppleSignIn } from "@/src/context/AuthContext";
 import { supabase } from "@/src/config/supabase";
@@ -296,8 +296,7 @@ export default function OnboardingScreen() {
   }, [step]);
 
   return (
-    <View style={styles.safe}>
-      <BackgroundLayer />
+    <GlassCardContainer>
       <SafeAreaView
         style={styles.safeArea}
         edges={step === "intro" ? ["bottom"] : ["top", "bottom"]}
@@ -405,21 +404,31 @@ export default function OnboardingScreen() {
                             : t("onboarding_auth_create_account")}
                         </Text>
                       </View>
-                      {Platform.OS === "ios" && appleAuthAvailable && (
+                      {Platform.OS === "ios" && (__DEV__ || appleAuthAvailable) && (
                         <>
                           <View style={styles.appleButtonWrap}>
-                            <AppleAuthentication.AppleAuthenticationButton
-                              buttonType={
-                                AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN
-                              }
-                              buttonStyle={
-                                AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
-                              }
-                              cornerRadius={9999}
-                              style={styles.appleButton}
-                              onPress={handleAppleSignIn}
-                              disabled={appleLoading || submitting}
-                            />
+                            {appleAuthAvailable ? (
+                              <AppleAuthentication.AppleAuthenticationButton
+                                buttonType={
+                                  AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN
+                                }
+                                buttonStyle={
+                                  AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
+                                }
+                                cornerRadius={9999}
+                                style={styles.appleButton}
+                                onPress={handleAppleSignIn}
+                                disabled={appleLoading || submitting}
+                              />
+                            ) : (
+                              <Pressable
+                                style={({ pressed }) => [styles.appleDevButton, pressed && { opacity: 0.8 }]}
+                                onPress={handleAppleSignIn}
+                                disabled={appleLoading || submitting}
+                              >
+                                <Text style={styles.appleDevButtonText}>Sign in with Apple</Text>
+                              </Pressable>
+                            )}
                             {appleLoading && (
                               <ActivityIndicator
                                 size="small"
@@ -579,7 +588,7 @@ export default function OnboardingScreen() {
           </ScrollView>
       </KeyboardAvoidingView>
       </SafeAreaView>
-    </View>
+    </GlassCardContainer>
   );
 }
 
@@ -1134,6 +1143,19 @@ const styles = StyleSheet.create({
   appleButton: {
     width: "100%",
     height: 52,
+  },
+  appleDevButton: {
+    width: "100%",
+    height: 52,
+    borderRadius: 9999,
+    backgroundColor: "#000",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  appleDevButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
   },
   appleButtonLoader: {
     position: "absolute",

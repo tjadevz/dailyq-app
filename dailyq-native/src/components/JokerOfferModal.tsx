@@ -7,9 +7,9 @@ import {
   TouchableWithoutFeedback,
   StyleSheet,
   Animated,
-  Dimensions,
   Platform,
   ActivityIndicator,
+  useWindowDimensions,
 } from "react-native";
 import { BlurView } from "expo-blur";
 import Feather from "@expo/vector-icons/Feather";
@@ -18,9 +18,6 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useLanguage } from "@/src/context/LanguageContext";
 import { supabase } from "@/src/config/supabase";
 import { JOKER } from "@/src/config/constants";
-
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const MODAL_WIDTH = SCREEN_WIDTH * 0.88;
 
 interface JokerOfferModalProps {
   visible: boolean;
@@ -44,6 +41,10 @@ export default function JokerOfferModal({
   onClose,
   onUseJoker,
 }: JokerOfferModalProps) {
+  // Fabric doesn't reliably size flex:1/absoluteFillObject (right/bottom-based)
+  // content inside <Modal> — needs explicit numeric width/height.
+  const { width, height } = useWindowDimensions();
+  const modalWidth = width * 0.88;
   const { t, lang, formatDate } = useLanguage();
   const [questionText, setQuestionText] = useState("");
   const [questionLoading, setQuestionLoading] = useState(false);
@@ -152,25 +153,27 @@ export default function JokerOfferModal({
     >
       <TouchableWithoutFeedback onPress={onClose}>
         <Animated.View
-          style={[StyleSheet.absoluteFillObject, { opacity: backdropOpacity }]}
+          style={{ position: "absolute", top: 0, left: 0, width, height, opacity: backdropOpacity }}
         >
-          <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFillObject} />
+          <BlurView
+            intensity={40}
+            tint="dark"
+            style={{ position: "absolute", top: 0, left: 0, width, height }}
+          />
           <View
-            style={[
-              StyleSheet.absoluteFillObject,
-              { backgroundColor: "rgba(76, 29, 149, 0.25)" },
-            ]}
+            style={{ position: "absolute", top: 0, left: 0, width, height, backgroundColor: "rgba(76, 29, 149, 0.25)" }}
             pointerEvents="none"
           />
         </Animated.View>
       </TouchableWithoutFeedback>
 
-      <View style={styles.centeredView} pointerEvents="box-none">
+      <View style={[styles.centeredView, { width, height }]} pointerEvents="box-none">
         <View>
           <Animated.View
             style={[
               styles.cardWrapper,
               {
+                width: modalWidth,
                 opacity: cardOpacity,
                 transform: [{ scale: cardScale }, { translateY: cardY }],
               },
@@ -265,12 +268,14 @@ export default function JokerOfferModal({
 
 const styles = StyleSheet.create({
   centeredView: {
-    flex: 1,
+    position: "absolute",
+    top: 0,
+    left: 0,
+    zIndex: 1,
     alignItems: "center",
     justifyContent: "center",
   },
   cardWrapper: {
-    width: MODAL_WIDTH,
     maxWidth: 420,
     borderRadius: 32,
     overflow: "hidden",

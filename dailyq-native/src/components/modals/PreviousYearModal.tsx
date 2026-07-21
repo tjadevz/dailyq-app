@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo } from "react";
-import { Dimensions, Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { Modal, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { BlurView } from "expo-blur";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
@@ -21,9 +21,6 @@ import AnimatedReanimated, {
 import { BackgroundLayer } from "@/src/components/BackgroundLayer";
 import { COLORS } from "@/src/config/constants";
 import { useLanguage } from "@/src/context/LanguageContext";
-
-const SCREEN_HEIGHT = Dimensions.get("window").height;
-const SHEET_HEIGHT = Math.round(SCREEN_HEIGHT * 0.75);
 
 export type PreviousYearAnswerItem = {
   question_date: string;
@@ -75,10 +72,15 @@ export default function PreviousYearModal({
   questionText,
   onClose,
 }: Props) {
+  // Fabric doesn't reliably size flex:1/absoluteFillObject (right/bottom-based)
+  // content inside <Modal> — needs explicit numeric width/height, and window
+  // size must be read reactively (useWindowDimensions), not at module scope.
+  const { width, height } = useWindowDimensions();
+  const sheetHeight = Math.round(height * 0.75);
   const insets = useSafeAreaInsets();
   const { lang, t } = useLanguage();
   const backdropOpacity = useSharedValue(0);
-  const slideY = useSharedValue(SHEET_HEIGHT);
+  const slideY = useSharedValue(sheetHeight);
   const dragY = useSharedValue(0);
 
   const closeModal = useCallback(() => onClose(), [onClose]);
@@ -113,7 +115,7 @@ export default function PreviousYearModal({
             dragY.value = 0;
             backdropOpacity.value = withTiming(0, { duration: 180 });
             slideY.value = withTiming(
-              SHEET_HEIGHT,
+              sheetHeight,
               { duration: 220, easing: Easing.inOut(Easing.cubic) },
               (finished) => {
                 if (finished) runOnJS(closeModal)();
@@ -129,7 +131,7 @@ export default function PreviousYearModal({
   useEffect(() => {
     if (visible) {
       dragY.value = 0;
-      slideY.value = SHEET_HEIGHT;
+      slideY.value = sheetHeight;
       backdropOpacity.value = 0;
       slideY.value = withSpring(0, { damping: 22, stiffness: 140, mass: 0.8 });
       backdropOpacity.value = withTiming(1, { duration: 200 });
@@ -139,7 +141,7 @@ export default function PreviousYearModal({
   const handleClose = useCallback(() => {
     backdropOpacity.value = withTiming(0, { duration: 180 });
     slideY.value = withTiming(
-      SHEET_HEIGHT,
+      sheetHeight,
       { duration: 220, easing: Easing.inOut(Easing.cubic) },
       (finished) => {
         if (finished) {
@@ -162,20 +164,26 @@ export default function PreviousYearModal({
 
   return (
     <Modal transparent visible={visible} animationType="none" onRequestClose={handleClose}>
-      <GestureHandlerRootView style={StyleSheet.absoluteFill}>
-        <AnimatedReanimated.View style={[styles.modalBackdrop, backdropStyle]}>
-          <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
+      <GestureHandlerRootView style={{ width, height }}>
+        <AnimatedReanimated.View style={[styles.modalBackdrop, { width, height }, backdropStyle]}>
+          <BlurView
+            intensity={40}
+            tint="dark"
+            style={{ position: "absolute", top: 0, left: 0, width, height }}
+          />
           <View
-            style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(76, 29, 149, 0.25)" }]}
+            style={{ position: "absolute", top: 0, left: 0, width, height, backgroundColor: "rgba(76, 29, 149, 0.25)" }}
             pointerEvents="none"
           />
-          <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
+          <Pressable style={{ position: "absolute", top: 0, left: 0, width, height }} onPress={handleClose} />
           <GestureDetector gesture={panGesture}>
             <AnimatedReanimated.View
-              style={[styles.draggableSurface, sheetStyle, { height: SHEET_HEIGHT }]}
+              style={[styles.draggableSurface, sheetStyle, { width, height: sheetHeight }]}
             >
-              <View style={styles.backgroundLayer} pointerEvents="none">
-                <BackgroundLayer />
+              <View style={[styles.backgroundLayer, { width, height: sheetHeight }]} pointerEvents="none">
+                <BackgroundLayer
+                  style={{ position: "absolute", top: 0, left: 0, right: undefined, bottom: undefined, width, height: sheetHeight }}
+                />
               </View>
 
               <View style={styles.topHandleWrap} pointerEvents="none">
@@ -230,13 +238,16 @@ export default function PreviousYearModal({
 
 const styles = StyleSheet.create({
   modalBackdrop: {
-    ...StyleSheet.absoluteFillObject,
+    position: "absolute",
+    top: 0,
+    left: 0,
+    zIndex: 0,
   },
   draggableSurface: {
     position: "absolute",
     left: 0,
-    right: 0,
     bottom: 0,
+    zIndex: 1,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     overflow: "hidden",
@@ -247,7 +258,9 @@ const styles = StyleSheet.create({
     minHeight: 0,
   },
   backgroundLayer: {
-    ...StyleSheet.absoluteFillObject,
+    position: "absolute",
+    top: 0,
+    left: 0,
   },
   topHandleWrap: {
     paddingTop: 10,

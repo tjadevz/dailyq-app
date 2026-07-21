@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { View, Text, Modal, StyleSheet, Animated } from "react-native";
+import { View, Text, Modal, StyleSheet, Animated, useWindowDimensions } from "react-native";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import Feather from "@expo/vector-icons/Feather";
@@ -36,6 +36,9 @@ const SAVE_MESSAGES_EN = [
 ];
 
 export function SubmitSuccessModal({ visible }: SubmitSuccessModalProps) {
+  // Fabric doesn't reliably size flex:1/absoluteFillObject (right/bottom-based)
+  // content inside <Modal> — needs explicit numeric width/height.
+  const { width, height } = useWindowDimensions();
   const { lang } = useLanguage();
   const [messageIndex] = useState(() =>
     Math.floor(Math.random() * SAVE_MESSAGES_NL.length)
@@ -87,14 +90,14 @@ export function SubmitSuccessModal({ visible }: SubmitSuccessModalProps) {
       animationType="none"
       statusBarTranslucent
     >
-      <View style={styles.fullscreen} pointerEvents="none">
+      <View style={[styles.fullscreen, { width, height }]} pointerEvents="none">
         <BlurView
           intensity={40}
           tint="dark"
-          style={StyleSheet.absoluteFill}
+          style={{ position: "absolute", top: 0, left: 0, width, height }}
         />
         <View
-          style={[StyleSheet.absoluteFill, styles.purpleOverlay]}
+          style={[styles.purpleOverlay, { position: "absolute", top: 0, left: 0, width, height }]}
         />
         <Animated.View
           style={[styles.contentColumn, { opacity, transform: [{ scale }] }]}
@@ -116,7 +119,9 @@ export function SubmitSuccessModal({ visible }: SubmitSuccessModalProps) {
 
 const styles = StyleSheet.create({
   fullscreen: {
-    ...StyleSheet.absoluteFillObject,
+    position: "absolute",
+    top: 0,
+    left: 0,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -124,6 +129,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(76, 29, 149, 0.25)",
   },
   contentColumn: {
+    zIndex: 1,
     alignItems: "center",
     maxWidth: "88%",
   },

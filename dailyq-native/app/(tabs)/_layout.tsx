@@ -9,12 +9,14 @@ export default function TabsLayout() {
   return (
     <Tabs
       tabBar={(props) => <TabBarWithPill {...props} />}
+      sceneContainerStyle={{ backgroundColor: "transparent" }}
       screenOptions={{
         tabBarActiveTintColor: "#8B5CF6",
         tabBarInactiveTintColor: "#9CA3AF",
         tabBarStyle: { position: "absolute", backgroundColor: "transparent" },
         headerShown: true,
         headerTitle: "DailyQ",
+        contentStyle: { backgroundColor: "transparent" },
       }}
     >
       <Tabs.Screen

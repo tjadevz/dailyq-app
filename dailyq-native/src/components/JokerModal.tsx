@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { View, Text, StyleSheet, Modal, Pressable, Animated } from "react-native";
+import { View, Text, StyleSheet, Modal, Pressable, Animated, useWindowDimensions } from "react-native";
 import { BlurView } from "expo-blur";
 import Feather from "@expo/vector-icons/Feather";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
@@ -19,6 +19,9 @@ export function JokerModal({
   jokerBalance: number;
   t: (key: string, params?: Record<string, string | number>) => string;
 }) {
+  // Fabric doesn't reliably size flex:1/absoluteFillObject (right/bottom-based)
+  // content inside <Modal> — needs explicit numeric width/height.
+  const { width, height } = useWindowDimensions();
   const opacity = useRef(new Animated.Value(0)).current;
   const crownScale = useRef(new Animated.Value(0)).current;
   const ringScale = useRef(new Animated.Value(1)).current;
@@ -91,13 +94,17 @@ export function JokerModal({
 
   return (
     <Modal transparent visible={visible} animationType="none">
-      <Animated.View style={[styles.backdrop, { opacity }]}>
-        <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
+      <Animated.View style={[styles.backdrop, { width, height, opacity }]}>
+        <BlurView
+          intensity={40}
+          tint="dark"
+          style={{ position: "absolute", top: 0, left: 0, width, height }}
+        />
         <View
-          style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(76, 29, 149, 0.25)" }]}
+          style={{ position: "absolute", top: 0, left: 0, width, height, backgroundColor: "rgba(76, 29, 149, 0.25)" }}
           pointerEvents="none"
         />
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <Pressable style={{ position: "absolute", top: 0, left: 0, width, height }} onPress={onClose} />
         <View style={styles.card}>
           <Pressable style={MODAL.CLOSE_BUTTON} onPress={onClose}>
             <Feather name="x" size={18} color={COLORS.TEXT_SECONDARY} strokeWidth={2.5} />
@@ -136,7 +143,10 @@ export function JokerModal({
 
 const styles = StyleSheet.create({
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    position: "absolute",
+    top: 0,
+    left: 0,
+    zIndex: 0,
     justifyContent: "center",
     alignItems: "center",
     padding: 16,

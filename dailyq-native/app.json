@@ -24,7 +24,10 @@
       [
         "expo-build-properties",
         {
-          "buildReactNativeFromSource": false
+          "buildReactNativeFromSource": false,
+          "ios": {
+            "deploymentTarget": "16.4"
+          }
         }
       ],
       [

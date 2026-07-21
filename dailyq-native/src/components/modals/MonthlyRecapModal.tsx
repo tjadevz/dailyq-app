@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo } from "react";
-import { Dimensions, Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { Modal, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { BlurView } from "expo-blur";
 import Feather from "@expo/vector-icons/Feather";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -15,8 +15,6 @@ import AnimatedReanimated, {
 import { useLanguage } from "@/src/context/LanguageContext";
 import type { RecapData } from "@/src/hooks/useMonthlyRecap";
 
-const FULL_HEIGHT = Dimensions.get("window").height;
-
 type Props = {
   visible: boolean;
   recapData: RecapData;
@@ -25,10 +23,15 @@ type Props = {
 };
 
 export default function MonthlyRecapModal({ visible, recapData, onClose, onShare }: Props) {
+  // Fabric doesn't reliably size flex:1/absoluteFillObject (right/bottom-based)
+  // content inside <Modal> — needs explicit numeric width/height, and window
+  // size must be read reactively (useWindowDimensions), not at module scope.
+  const { width, height } = useWindowDimensions();
+  const fullHeight = height;
   const insets = useSafeAreaInsets();
   const { lang, t } = useLanguage();
   const backdropOpacity = useSharedValue(0);
-  const slideY = useSharedValue(FULL_HEIGHT);
+  const slideY = useSharedValue(fullHeight);
 
   const copy = lang === "nl"
     ? {
@@ -75,7 +78,7 @@ export default function MonthlyRecapModal({ visible, recapData, onClose, onShare
 
   useEffect(() => {
     if (visible) {
-      slideY.value = FULL_HEIGHT;
+      slideY.value = fullHeight;
       backdropOpacity.value = 0;
       slideY.value = withTiming(0, { duration: 240, easing: Easing.out(Easing.cubic) });
       backdropOpacity.value = withTiming(1, { duration: 200 });
@@ -85,7 +88,7 @@ export default function MonthlyRecapModal({ visible, recapData, onClose, onShare
   const handleClose = useCallback(() => {
     backdropOpacity.value = withTiming(0, { duration: 180 });
     slideY.value = withTiming(
-      FULL_HEIGHT,
+      fullHeight,
       { duration: 220, easing: Easing.inOut(Easing.cubic) },
       (finished) => {
         if (finished) runOnJS(closeModal)();
@@ -105,12 +108,19 @@ export default function MonthlyRecapModal({ visible, recapData, onClose, onShare
 
   return (
     <Modal transparent visible={visible} animationType="none">
-      <GestureHandlerRootView style={StyleSheet.absoluteFill}>
-        <AnimatedReanimated.View style={[styles.modalBackdrop, backdropStyle]}>
-          <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
-          <View style={[StyleSheet.absoluteFill, styles.backdropTint]} pointerEvents="none" />
+      <GestureHandlerRootView style={{ width, height }}>
+        <AnimatedReanimated.View style={[styles.modalBackdrop, { width, height }, backdropStyle]}>
+          <BlurView
+            intensity={40}
+            tint="dark"
+            style={{ position: "absolute", top: 0, left: 0, width, height }}
+          />
+          <View
+            style={[styles.backdropTint, { position: "absolute", top: 0, left: 0, width, height }]}
+            pointerEvents="none"
+          />
           <AnimatedReanimated.View
-            style={[styles.fullPanel, sheetStyle, { height: FULL_HEIGHT }]}
+            style={[styles.fullPanel, sheetStyle, { width, height: fullHeight }]}
             pointerEvents="box-none"
           >
             <View style={styles.panelRoot} pointerEvents="box-none">
@@ -185,7 +195,10 @@ export default function MonthlyRecapModal({ visible, recapData, onClose, onShare
 
 const styles = StyleSheet.create({
   modalBackdrop: {
-    ...StyleSheet.absoluteFillObject,
+    position: "absolute",
+    top: 0,
+    left: 0,
+    zIndex: 0,
   },
   backdropTint: {
     backgroundColor: "rgba(26, 16, 51, 0.45)",
@@ -193,8 +206,8 @@ const styles = StyleSheet.create({
   fullPanel: {
     position: "absolute",
     left: 0,
-    right: 0,
     bottom: 0,
+    zIndex: 1,
     overflow: "hidden",
   },
   panelRoot: {

@@ -7,6 +7,7 @@ import {
   Modal,
   Animated,
   Dimensions,
+  useWindowDimensions,
 } from "react-native";
 import Feather from "@expo/vector-icons/Feather";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
@@ -15,6 +16,8 @@ import { LinearGradient } from "expo-linear-gradient";
 
 import { COLORS, JOKER, MODAL, MODAL_CLOSE_MS, MODAL_ENTER_MS } from "@/src/config/constants";
 
+// Only used for decorative aurora-blob sizing below; a stale snapshot here is
+// a harmless cosmetic detail (unlike the Modal-root sizing, which must be reactive).
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 const STREAK_MILESTONE_TYPE = [7, 14, 30, 60, 100, 180, 365] as const;
@@ -43,6 +46,9 @@ export function StreakCelebrationModal({
   onClose: () => void;
   t: (key: string, params?: Record<string, string | number>) => string;
 }) {
+  // Fabric doesn't reliably size flex:1/absoluteFillObject (right/bottom-based)
+  // content inside <Modal> — needs explicit numeric width/height.
+  const { width, height } = useWindowDimensions();
   const opacity = React.useRef(new Animated.Value(0)).current;
   const badgeScale = useRef(new Animated.Value(0)).current;
   const confettiAnims = useRef<Animated.Value[]>([]).current;
@@ -172,14 +178,18 @@ export function StreakCelebrationModal({
 
   return (
     <Modal transparent visible animationType="none">
-      <Animated.View style={[streakModalStyles.backdrop, { opacity }]}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
-        <BlurView intensity={40} tint="dark" style={streakModalStyles.blurLayer} />
+      <Animated.View style={[streakModalStyles.backdrop, { width, height, opacity }]}>
+        <Pressable style={{ position: "absolute", top: 0, left: 0, width, height }} onPress={handleClose} />
+        <BlurView
+          intensity={40}
+          tint="dark"
+          style={{ position: "absolute", top: 0, left: 0, width, height }}
+        />
         <View
-          style={[StyleSheet.absoluteFill, streakModalStyles.purpleOverlay]}
+          style={[streakModalStyles.purpleOverlay, { position: "absolute", top: 0, left: 0, width, height }]}
           pointerEvents="none"
         />
-        <View style={streakModalStyles.auroraWrap} pointerEvents="none">
+        <View style={[streakModalStyles.auroraWrap, { width, height }]} pointerEvents="none">
           <Animated.View style={[streakModalStyles.auroraOrb, streakModalStyles.aurora1, { opacity: aurora1 }]}>
             <LinearGradient
               colors={["transparent", "rgba(245,158,11,0.4)", "rgba(253,230,138,0.25)"]}
@@ -342,7 +352,10 @@ export function StreakCelebrationModal({
 
 const streakModalStyles = StyleSheet.create({
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    position: "absolute",
+    top: 0,
+    left: 0,
+    zIndex: 0,
     justifyContent: "center",
     alignItems: "center",
     padding: 28,
@@ -350,11 +363,10 @@ const streakModalStyles = StyleSheet.create({
   purpleOverlay: {
     backgroundColor: "rgba(76, 29, 149, 0.25)",
   },
-  blurLayer: {
-    ...StyleSheet.absoluteFillObject,
-  },
   auroraWrap: {
-    ...StyleSheet.absoluteFillObject,
+    position: "absolute",
+    top: 0,
+    left: 0,
     overflow: "hidden",
   },
   auroraOrb: {

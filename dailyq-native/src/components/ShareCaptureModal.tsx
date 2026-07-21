@@ -1,5 +1,5 @@
 import React from "react";
-import { Modal, StyleSheet, View } from "react-native";
+import { Modal, StyleSheet, View, useWindowDimensions } from "react-native";
 
 /**
  * Host for on-demand share image capture: mounts ShareCard on-screen briefly
@@ -12,10 +12,14 @@ export default function ShareCaptureModal({
   visible: boolean;
   children: React.ReactNode;
 }) {
+  // Fabric doesn't reliably size flex:1 content inside <Modal> — needs explicit
+  // numeric width/height, which matters here since view-shot needs real layout
+  // bounds to capture from.
+  const { width, height } = useWindowDimensions();
   if (!open) return null;
   return (
     <Modal visible={open} transparent animationType="none" statusBarTranslucent>
-      <View style={styles.host} collapsable={false} pointerEvents="none">
+      <View style={[styles.host, { width, height }]} collapsable={false} pointerEvents="none">
         <View style={styles.captureHidden} collapsable={false}>
           {children}
         </View>
@@ -26,7 +30,6 @@ export default function ShareCaptureModal({
 
 const styles = StyleSheet.create({
   host: {
-    flex: 1,
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "transparent",

@@ -3,7 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
-  Dimensions,
+  useWindowDimensions,
   Animated,
   Modal,
   Pressable,
@@ -31,26 +31,30 @@ type JokerModalBottomSheetProps = {
   t: (key: string, params?: Record<string, string | number>) => string;
 };
 
-const SHEET_HEIGHT = Math.round(Dimensions.get("window").height * 0.78);
-const CONTENT_OFFSET_Y = Math.round(SHEET_HEIGHT * 0.1);
-
 export function JokerModalBottomSheet({
   visible,
   onClose,
   t,
 }: JokerModalBottomSheetProps) {
+  // Fabric doesn't reliably size flex:1/absoluteFillObject (right/bottom-based)
+  // content inside <Modal> — needs explicit numeric width/height, and window
+  // size must be read reactively (useWindowDimensions), not at module scope.
+  const { width, height } = useWindowDimensions();
+  const sheetHeight = Math.round(height * 0.78);
+  const contentOffsetY = Math.round(sheetHeight * 0.1);
+
   const crownTranslateY = useRef(new Animated.Value(20)).current;
   const crownEntryScale = useRef(new Animated.Value(0.9)).current;
   const crownPulseScale = useRef(new Animated.Value(1)).current;
   const crownEntryOpacity = useRef(new Animated.Value(0)).current;
   const crownPulseLoopRef = useRef<Animated.CompositeAnimation | null>(null);
-  const slideY = useSharedValue(SHEET_HEIGHT);
+  const slideY = useSharedValue(sheetHeight);
   const backdropOpacity = useSharedValue(0);
   const dragY = useSharedValue(0);
 
   useEffect(() => {
     if (visible) {
-      slideY.value = SHEET_HEIGHT;
+      slideY.value = sheetHeight;
       backdropOpacity.value = 0;
       dragY.value = 0;
       crownTranslateY.setValue(20);
@@ -124,7 +128,7 @@ export function JokerModalBottomSheet({
   const handleClose = () => {
     backdropOpacity.value = withTiming(0, { duration: 180 });
     slideY.value = withTiming(
-      SHEET_HEIGHT,
+      sheetHeight,
       { duration: 220, easing: Easing.inOut(Easing.cubic) },
       (finished) => {
         if (finished) {
@@ -152,7 +156,7 @@ export function JokerModalBottomSheet({
         dragY.value = 0;
         backdropOpacity.value = withTiming(0, { duration: 180 });
         slideY.value = withTiming(
-          SHEET_HEIGHT,
+          sheetHeight,
           { duration: 220, easing: Easing.inOut(Easing.cubic) },
           (finished) => {
             if (finished) runOnJS(closeSheet)();
@@ -175,18 +179,20 @@ export function JokerModalBottomSheet({
 
   return (
     <Modal transparent visible={visible} animationType="none" onRequestClose={handleClose}>
-      <GestureHandlerRootView style={StyleSheet.absoluteFill}>
-        <AnimatedReanimated.View style={[styles.modalBackdrop, backdropStyle]}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
+      <GestureHandlerRootView style={{ width, height }}>
+        <AnimatedReanimated.View style={[styles.modalBackdrop, { width, height }, backdropStyle]}>
+          <Pressable style={{ position: "absolute", top: 0, left: 0, width, height }} onPress={handleClose} />
           <GestureDetector gesture={panGesture}>
-            <AnimatedReanimated.View style={[styles.draggableSurface, dragAnimatedStyle]}>
-        <View style={styles.backgroundLayer} pointerEvents="none">
-          <BackgroundLayer />
+            <AnimatedReanimated.View style={[styles.draggableSurface, { width, height: sheetHeight }, dragAnimatedStyle]}>
+        <View style={[styles.backgroundLayer, { width, height: sheetHeight }]} pointerEvents="none">
+          <BackgroundLayer
+            style={{ position: "absolute", top: 0, left: 0, right: undefined, bottom: undefined, width, height: sheetHeight }}
+          />
         </View>
         <View style={styles.topHandleWrap} pointerEvents="none">
           <View style={styles.topHandle} />
         </View>
-        <View style={[styles.content, { transform: [{ translateY: CONTENT_OFFSET_Y }] }]}>
+        <View style={[styles.content, { transform: [{ translateY: contentOffsetY }] }]}>
           <Animated.View
             style={[
               styles.crownAnimWrap,
@@ -256,7 +262,10 @@ export function JokerModalBottomSheet({
 
 const styles = StyleSheet.create({
   modalBackdrop: {
-    ...StyleSheet.absoluteFillObject,
+    position: "absolute",
+    top: 0,
+    left: 0,
+    zIndex: 0,
     backgroundColor: "rgba(76,29,149,0.32)",
   },
   topHandleWrap: {
@@ -274,9 +283,8 @@ const styles = StyleSheet.create({
   draggableSurface: {
     position: "absolute",
     left: 0,
-    right: 0,
     bottom: 0,
-    height: SHEET_HEIGHT,
+    zIndex: 1,
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     overflow: "hidden",
@@ -289,7 +297,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   backgroundLayer: {
-    ...StyleSheet.absoluteFillObject,
+    position: "absolute",
+    top: 0,
+    left: 0,
   },
   crownBadge: {
     width: 74,

@@ -284,6 +284,7 @@ export default function OnboardingQuestionsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "transparent",
   },
   centered: {
     flex: 1,

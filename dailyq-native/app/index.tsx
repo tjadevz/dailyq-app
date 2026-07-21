@@ -37,7 +37,11 @@ export default function Index() {
   const [onboardingChecked, setOnboardingChecked] = useState(false);
   const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
   const [incompleteOnboardingHref, setIncompleteOnboardingHref] = useState<string | null>(null);
+  // Track which userId the onboarding state was fetched for. The null-user branch sets
+  // onboardingCompleted=true; we must not use that value when a real user has loaded.
+  const [onboardingFetchedForUserId, setOnboardingFetchedForUserId] = useState<string | null>(null);
   const userId = user?.id ?? null;
+  const onboardingCheckedForCurrentUser = onboardingChecked && onboardingFetchedForUserId === userId;
   const { loading: questionLoading } = useTodayQuestion(lang, userId);
 
   // Step 1: cold-start deep link + one-time clipboard referral (before routing)
@@ -72,7 +76,9 @@ export default function Index() {
 
   // When user exists, fetch onboarding_completed to decide redirect
   useEffect(() => {
-    if (!user?.id || user.id === "dev-user") {
+    const currentUserId = user?.id ?? null;
+    if (!currentUserId || currentUserId === "dev-user") {
+      setOnboardingFetchedForUserId(currentUserId);
       setOnboardingChecked(true);
       setOnboardingCompleted(true);
       setIncompleteOnboardingHref(null);
@@ -84,13 +90,13 @@ export default function Index() {
         const { data } = await supabase
           .from("profiles")
           .select("onboarding_completed")
-          .eq("id", user.id)
+          .eq("id", currentUserId)
           .maybeSingle();
         if (cancelled) return;
         const completed = data?.onboarding_completed ?? false;
         setOnboardingCompleted(completed);
         if (!completed) {
-          const href = await getIncompleteOnboardingHref(user.id);
+          const href = await getIncompleteOnboardingHref(currentUserId);
           if (!cancelled) setIncompleteOnboardingHref(href);
         } else {
           setIncompleteOnboardingHref(null);
@@ -98,10 +104,13 @@ export default function Index() {
       } catch {
         if (cancelled) return;
         setOnboardingCompleted(false);
-        const href = await getIncompleteOnboardingHref(user.id);
+        const href = await getIncompleteOnboardingHref(currentUserId);
         if (!cancelled) setIncompleteOnboardingHref(href);
       } finally {
-        if (!cancelled) setOnboardingChecked(true);
+        if (!cancelled) {
+          setOnboardingFetchedForUserId(currentUserId);
+          setOnboardingChecked(true);
+        }
       }
     })();
     return () => {
@@ -128,15 +137,17 @@ export default function Index() {
   }
 
   if (user) {
-    if (!onboardingChecked) {
+    if (!onboardingCheckedForCurrentUser) {
       return <DailyQLoadingScreen />;
     }
     if (onboardingCompleted === true) {
       // Wait for the daily question so the tab bar doesn't appear mid-loading.
       if (questionLoading) return <DailyQLoadingScreen />;
+      console.log("[INDEX] Redirect → /(tabs)/today");
       return <Redirect href="/(tabs)/today" />;
     }
     if (!incompleteOnboardingHref) return <DailyQLoadingScreen />;
+    console.log(`[INDEX] Redirect → ${incompleteOnboardingHref}`);
     return <Redirect href={incompleteOnboardingHref} />;
   }
 

@@ -20,6 +20,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import Svg, { Circle } from 'react-native-svg';
 import * as Notifications from "expo-notifications";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect } from "expo-router/react-navigation";
 
 import { COLORS, JOKER, MODAL, MODAL_ENTER_MS, MODAL_CLOSE_MS } from "@/src/config/constants";
 import { useLanguage } from "@/src/context/LanguageContext";
@@ -262,7 +263,7 @@ export default function TodayScreen() {
     return () => cancelAnimationFrame(id);
   }, [question, questionBlockOffset, buttonOpacity, buttonScale]);
 
-  useEffect(() => {
+  const fetchAnswerCount = useCallback(() => {
     if (!userId || userId === "dev-user") return;
     supabase
       .from("answers")
@@ -276,7 +277,7 @@ export default function TodayScreen() {
       });
   }, [userId]);
 
-  useEffect(() => {
+  const fetchCurrentStreak = useCallback(() => {
     if (!userId || userId === "dev-user") return;
     const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
     supabase.rpc("get_user_streaks", { p_user_id: userId, p_timezone: userTimezone }).then(({ data }) => {
@@ -286,6 +287,24 @@ export default function TodayScreen() {
       setCurrentStreak(Math.max(Number(r), Number(v)));
     });
   }, [userId]);
+
+  useEffect(() => {
+    fetchAnswerCount();
+  }, [fetchAnswerCount]);
+
+  useEffect(() => {
+    fetchCurrentStreak();
+  }, [fetchCurrentStreak]);
+
+  // Refetch when Today tab gains focus (e.g. after answering a missed day
+  // with a joker from the Calendar tab — that flow updates calendar's own
+  // state, not Today's, so Today must re-pull on return).
+  useFocusEffect(
+    useCallback(() => {
+      fetchAnswerCount();
+      fetchCurrentStreak();
+    }, [fetchAnswerCount, fetchCurrentStreak])
+  );
 
   useEffect(() => {
     const show = Keyboard.addListener(
@@ -696,6 +715,7 @@ export default function TodayScreen() {
           visible={jokerModalVisible}
           onClose={() => setJokerModalVisible(false)}
           jokerBalance={profile?.joker_balance ?? 0}
+          t={t}
         />
       </GlassCardContainer>
     );

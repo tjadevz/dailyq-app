@@ -20,5 +20,13 @@ public class DailyqWidgetStatusModule: Module {
                 }
             }
         }
+
+        // Forces the widget to refetch today's question now, instead of waiting for
+        // its own once-a-day schedule — called on app open so a widget stuck on the
+        // "open DailyQ" fallback (e.g. after a failed overnight refresh) recovers
+        // immediately rather than staying stale until the next scheduled reload.
+        Function("reload") {
+            WidgetCenter.shared.reloadTimelines(ofKind: self.widgetKind)
+        }
     }
 }

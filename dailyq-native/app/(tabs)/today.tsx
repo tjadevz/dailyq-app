@@ -12,12 +12,9 @@ import {
   Platform,
   Modal,
   Animated,
-  Share,
 } from "react-native";
 import Feather from "@expo/vector-icons/Feather";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
-import { LinearGradient } from "expo-linear-gradient";
-import Svg, { Circle } from 'react-native-svg';
 import * as Notifications from "expo-notifications";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "expo-router/react-navigation";
@@ -26,7 +23,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { COLORS, JOKER, MODAL, MODAL_ENTER_MS, MODAL_CLOSE_MS } from "@/src/config/constants";
 import { useLanguage } from "@/src/context/LanguageContext";
 import { useAuth } from "@/src/context/AuthContext";
-import { useStreakMilestone, getAlreadyGranted, getHighestMilestoneCrossed, getMilestonesCrossed, grantMilestoneJokersForCrossed } from "@/src/context/StreakMilestoneContext";
+import { useStreakMilestone, getAlreadyGranted, getHighestMilestoneCrossed, getMilestonesCrossed, grantMilestoneJokersForCrossed, STREAK_MILESTONES } from "@/src/context/StreakMilestoneContext";
 import { useCalendarAnswersContext } from "@/src/context/CalendarAnswersContext";
 import { useTodayQuestion } from "@/src/hooks/useTodayQuestion";
 import { useProfileContext } from "@/src/context/ProfileContext";
@@ -34,12 +31,13 @@ import { daysSinceAccountCreated, resolveAccountMilestone } from "@/src/lib/acco
 import { shouldShowArchiveMoment } from "@/src/lib/archiveMoment";
 import { supabase } from "@/src/config/supabase";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { JokerBadge } from "@/src/components/JokerBadge";
+import Svg, { Circle } from "react-native-svg";
 import { JokerShopModal } from "@/src/components/JokerShopModal";
 import { PrimaryButton } from "@/src/components/PrimaryButton";
 import { GlassCardContainer } from "@/src/components/GlassCardContainer";
 import { WidgetAnnouncementModal } from "@/src/components/modals/WidgetAnnouncementModal";
 import { syncWidgetInstalledStatus } from "@/src/lib/widgetStatus";
+import { reloadDailyQWidget } from "@/modules/dailyq-widget-status";
 import {
   getWidgetAnnouncementDismissed,
   setWidgetAnnouncementDismissed,
@@ -59,12 +57,15 @@ import MonthlyRecapShareCard, {
   type MonthlyRecapShareCardRef,
 } from "@/src/components/MonthlyRecapShareCard";
 import MissedDayModal from "@/src/components/modals/MissedDayModal";
+import StreakOverviewModal from "@/src/components/modals/StreakOverviewModal";
 import { useShareCard } from "@/src/hooks/useShareCard";
 import { useMonthlyRecap } from "@/src/hooks/useMonthlyRecap";
 import { getYesterdayDayKey } from "@/src/lib/date";
 import { logEvent } from "@/lib/analytics";
 
 const TODAY_PRIMARY_GRADIENT = ["rgba(139,92,246,0.96)", "rgba(124,58,237,0.96)"] as const;
+const STREAK_RING_RADIUS = 13;
+const STREAK_RING_CIRCUMFERENCE = 2 * Math.PI * STREAK_RING_RADIUS;
 const MONTHLY_RECAP_DEV_TRIGGER_KEY = "dailyq-dev-force-monthly-recap";
 
 /** Answers + question text for AccountMilestoneModal (same as post-submit milestone flow). */
@@ -241,6 +242,10 @@ export default function TodayScreen() {
       void syncWidgetInstalledStatus(userId, profile?.widget_installed).then((installed) => {
         if (installed !== null) void refetchProfile();
       });
+      // Forces a widget refresh on every app open, so a widget stuck on the
+      // "open DailyQ" fallback (e.g. after a failed overnight refresh) recovers
+      // immediately instead of waiting for its own daily/retry schedule.
+      reloadDailyQWidget();
     }, [userId, profile?.widget_installed, refetchProfile])
   );
   const shouldQueueWidgetAnnouncement =
@@ -277,7 +282,7 @@ export default function TodayScreen() {
   const [archiveMomentAnswers, setArchiveMomentAnswers] = useState<AccountMilestoneAnswer[]>([]);
   const [editConfirmVisible, setEditConfirmVisible] = useState(false);
   const [jokerModalVisible, setJokerModalVisible] = useState(false);
-  const [answerCount, setAnswerCount] = useState<number>(0);
+  const [streakOverviewVisible, setStreakOverviewVisible] = useState(false);
   const [currentStreak, setCurrentStreak] = useState<number>(0);
   const [previousYearQueue, setPreviousYearQueue] = useState<{
     items: { question_date: string; answer_text: string }[];
@@ -336,20 +341,6 @@ export default function TodayScreen() {
     return () => cancelAnimationFrame(id);
   }, [question, questionBlockOffset, buttonOpacity, buttonScale]);
 
-  const fetchAnswerCount = useCallback(() => {
-    if (!userId || userId === "dev-user") return;
-    supabase
-      .from("answers")
-      .select("answer_text")
-      .eq("user_id", userId)
-      .not("answer_text", "is", null)
-      .then(({ data }) => {
-        if (data != null) {
-          setAnswerCount(data.filter((row) => Boolean(row.answer_text?.trim())).length);
-        }
-      });
-  }, [userId]);
-
   const fetchCurrentStreak = useCallback(() => {
     if (!userId || userId === "dev-user") return;
     const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -362,10 +353,6 @@ export default function TodayScreen() {
   }, [userId]);
 
   useEffect(() => {
-    fetchAnswerCount();
-  }, [fetchAnswerCount]);
-
-  useEffect(() => {
     fetchCurrentStreak();
   }, [fetchCurrentStreak]);
 
@@ -374,9 +361,8 @@ export default function TodayScreen() {
   // state, not Today's, so Today must re-pull on return).
   useFocusEffect(
     useCallback(() => {
-      fetchAnswerCount();
       fetchCurrentStreak();
-    }, [fetchAnswerCount, fetchCurrentStreak])
+    }, [fetchCurrentStreak])
   );
 
   useEffect(() => {
@@ -753,7 +739,6 @@ export default function TodayScreen() {
         const real = row?.real_streak ?? 0;
         const newStreak = Math.max(Number(visual), Number(real));
         setCurrentStreak(newStreak);
-        if (!wasUpdate) setAnswerCount((c) => c + 1);
         logEvent("answer_submitted", {
           is_edit: wasUpdate,
           streak: newStreak,
@@ -823,19 +808,65 @@ export default function TodayScreen() {
       year: "numeric",
     }).format(dt);
   }, [question?.day]);
-  const handleInvite = useCallback(async () => {
-    if (!profile?.referral_code) return;
-    const link = `https://dailyqapp.com/invite/${profile.referral_code}`;
-    try {
-      await Share.share({
-        message: t("today_invite_share_message", { link }),
-        url: link,
-      });
-      logEvent("invite_shared");
-    } catch (e) {
-      console.error("[Today] Share error:", e);
-    }
-  }, [profile?.referral_code]);
+  const nextStreakMilestone = STREAK_MILESTONES.find((m) => m > currentStreak) ?? null;
+  const streakProgressPercent =
+    nextStreakMilestone != null ? Math.min(100, (currentStreak / nextStreakMilestone) * 100) : 100;
+  const streakRingDashoffset = STREAK_RING_CIRCUMFERENCE * (1 - streakProgressPercent / 100);
+  const dayProgressPercent =
+    dayNumber != null ? Math.max(4, Math.min(100, (dayNumber / 365) * 100)) : 4;
+
+  const statusRow = dayNumber !== null ? (
+    <View style={styles.statusRow}>
+      <View style={styles.statusBar}>
+        <Pressable
+          onPress={() => router.push("/(tabs)/archive")}
+          style={({ pressed }) => [styles.statusDayCell, pressed && styles.statusCellPressed]}
+        >
+          <Text style={styles.statusDayText}>
+            {dayNumber}
+            <Text style={styles.statusDaySuffix}>/365</Text>
+          </Text>
+          <View style={styles.statusDayTrack}>
+            <View style={[styles.statusDayFill, { width: `${dayProgressPercent}%` }]} />
+          </View>
+        </Pressable>
+        <View style={styles.statusHairline} />
+        <Pressable
+          onPress={() => setStreakOverviewVisible(true)}
+          style={({ pressed }) => [styles.statusStreakCell, pressed && styles.statusCellPressed]}
+        >
+          <View style={styles.statusStreakRingWrap}>
+            <Svg width={32} height={32} style={styles.statusStreakRingSvg}>
+              <Circle cx={16} cy={16} r={STREAK_RING_RADIUS} stroke="rgba(239,68,68,0.15)" strokeWidth={3} fill="none" />
+              <Circle
+                cx={16}
+                cy={16}
+                r={STREAK_RING_RADIUS}
+                stroke="#EF4444"
+                strokeWidth={3}
+                fill="none"
+                strokeLinecap="round"
+                strokeDasharray={STREAK_RING_CIRCUMFERENCE}
+                strokeDashoffset={streakRingDashoffset}
+              />
+            </Svg>
+            <MaterialCommunityIcons name="fire" size={15} color="#EF4444" />
+          </View>
+          <Text style={styles.statusStreakNum}>{currentStreak}</Text>
+        </Pressable>
+        <View style={styles.statusHairline} />
+        <Pressable
+          onPress={() => setJokerModalVisible(true)}
+          style={({ pressed }) => [styles.statusJokerCell, pressed && styles.statusCellPressed]}
+        >
+          <View style={styles.statusJokerChip}>
+            <MaterialCommunityIcons name="crown" size={16} color="#D4AF37" />
+          </View>
+          <Text style={styles.statusJokerNum}>{profile?.joker_balance ?? 0}</Text>
+        </Pressable>
+      </View>
+    </View>
+  ) : null;
 
   if (questionLoading) {
     return <DailyQLoadingScreen />;
@@ -845,15 +876,7 @@ export default function TodayScreen() {
     return (
       <GlassCardContainer>
         <View style={[styles.container, { paddingTop: insets.top }]}>
-          <View style={styles.header}>
-            <View style={styles.headerLeft} />
-            <View style={styles.headerRight}>
-              <JokerBadge
-                count={profile?.joker_balance ?? 0}
-                onPress={() => setJokerModalVisible(true)}
-              />
-            </View>
-          </View>
+          {statusRow}
           <View style={styles.centered}>
             <Text style={styles.errorText}>
               {questionError ?? t("today_no_question")}
@@ -870,90 +893,24 @@ export default function TodayScreen() {
     <GlassCardContainer>
       <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
         <View style={[styles.container, { paddingTop: insets.top }]}>
-          <View style={styles.header}>
-            <View style={styles.headerLeft}>
-              <Pressable
-                onPress={() => void handleInvite()}
-                style={({ pressed }) => [styles.inviteIconButton, pressed && styles.inviteIconButtonPressed]}
-              >
-                <LinearGradient
-                  colors={["rgba(139,92,246,0.96)", "rgba(124,58,237,0.96)"]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.inviteIconGradient}
-                >
-                  <MaterialCommunityIcons name="account-plus" size={20} color="#FFFFFF" />
-                </LinearGradient>
-              </Pressable>
-            </View>
-            <View style={styles.headerRight}>
-              <JokerBadge
-                count={profile?.joker_balance ?? 0}
-                onPress={() => setJokerModalVisible(true)}
-              />
-            </View>
-          </View>
+          {statusRow}
 
           <View style={styles.mainContent}>
-            {dayNumber !== null && (
-              <View style={styles.statsCard}>
-                <View style={styles.statsCardInner}>
-                  <View style={styles.ringContainer}>
-                    <Svg width={80} height={80} viewBox="0 0 80 80">
-                      <Circle
-                        cx={40} cy={40} r={33}
-                        fill="none"
-                        stroke="rgba(139,92,246,0.12)"
-                        strokeWidth={7}
-                      />
-                      <Circle
-                        cx={40} cy={40} r={33}
-                        fill="none"
-                        stroke="#7C3AED"
-                        strokeWidth={7}
-                        strokeDasharray={207}
-                        strokeDashoffset={207 - (207 * Math.min(dayNumber / 365, 1))}
-                        strokeLinecap="round"
-                        transform="rotate(-90 40 40)"
-                      />
-                    </Svg>
-                    <View style={styles.ringLabelWrap}>
-                      <Text style={styles.ringNum}>{dayNumber}</Text>
-                      <Text style={styles.ringSub}>{t("today_stats_of_365")}</Text>
-                    </View>
-                  </View>
-                  <View style={styles.statPillsCol}>
-                    <View style={styles.statPill}>
-                      <Text style={styles.statPillNumber}>{currentStreak}</Text>
-                      <Text style={styles.statPillLabel}>streak</Text>
-                    </View>
-                    <View style={styles.statPill}>
-                      <Text style={styles.statPillNumber}>{answerCount}</Text>
-                      <Text style={styles.statPillLabel}>{t("today_stats_answers")}</Text>
-                    </View>
-                  </View>
-                </View>
-                <View style={styles.statsCardBar}>
-                  <View style={[styles.statsCardBarFill, { width: `${Math.min((dayNumber / 365) * 100, 100)}%` }]} />
-                </View>
-              </View>
-            )}
             <Animated.View style={styles.centerBlock}>
               <Animated.View
                 style={[{ width: "100%" }, { transform: [{ translateY: questionBlockOffset }] }]}
               >
                 {hasAnswer ? (
                   <View style={styles.questionBlock}>
-                    <View style={styles.questionEyebrowRow}>
-                      <Text style={styles.questionEyebrow}>{t("today_question_label")}</Text>
-                      <TouchableOpacity
-                        style={styles.shareButton}
-                        onPress={() => { logEvent("answer_shared"); shareCard(); }}
-                      >
-                        <Feather name="upload" size={18} color="#7C3AED" />
-                      </TouchableOpacity>
-                    </View>
+                    <Text style={styles.questionEyebrow}>{t("today_question_label")}</Text>
                     <Text style={[styles.questionText, styles.questionTextDone]}>{question.text}</Text>
+                    <TouchableOpacity
+                      style={styles.shareButton}
+                      onPress={() => { logEvent("answer_shared"); shareCard(); }}
+                    >
+                      <Feather name="upload" size={15} color="#7C3AED" />
+                      <Text style={styles.shareButtonText}>{t("today_share_answer")}</Text>
+                    </TouchableOpacity>
                   </View>
                 ) : (
                   <View style={styles.questionBlock}>
@@ -962,7 +919,6 @@ export default function TodayScreen() {
                   </View>
                 )}
               </Animated.View>
-              <View style={styles.questionDivider} />
               <Animated.View
                 style={[
                   styles.buttonArea,
@@ -1012,6 +968,11 @@ export default function TodayScreen() {
 
           <SubmitSuccessModal visible={showSubmitSuccess} />
           <JokerShopModal visible={jokerModalVisible} onClose={() => setJokerModalVisible(false)} />
+          <StreakOverviewModal
+            visible={streakOverviewVisible}
+            currentStreak={currentStreak}
+            onClose={() => setStreakOverviewVisible(false)}
+          />
           <AccountMilestoneModal
             visible={activeModal === "milestone"}
             daysSinceCreation={accountMilestoneDaysSinceCreation}
@@ -1131,26 +1092,6 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     marginTop: 16,
   },
-  inviteIconButton: {
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 9999,
-    overflow: "hidden",
-  },
-  inviteIconGradient: {
-    minHeight: 30,
-    minWidth: 56,
-    paddingVertical: 6,
-    paddingHorizontal: 15,
-    borderRadius: 9999,
-    borderWidth: 1,
-    borderColor: "rgba(109, 40, 217, 0.55)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  inviteIconButtonPressed: {
-    opacity: 0.7,
-  },
   tabBarSpacer: {
     height: 92,
   },
@@ -1205,7 +1146,17 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   shareButton: {
-    padding: 4,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 16,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
+  shareButtonText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#7C3AED",
   },
   editAnswerButton: {
     width: "100%",
@@ -1280,25 +1231,102 @@ const styles = StyleSheet.create({
     marginTop: 8,
     textAlign: "center",
   },
-  header: {
+  statusRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    marginTop: 4,
-    minHeight: 32,
+    justifyContent: "center",
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 2,
   },
-  headerLeft: {
-    flex: 1,
+  statusBar: {
     flexDirection: "row",
-    justifyContent: "flex-start",
     alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.8)",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(31,41,55,0.08)",
+    overflow: "hidden",
   },
-  headerRight: {
-    flex: 1,
+  statusHairline: {
+    width: 1,
+    alignSelf: "stretch",
+    marginVertical: 11,
+    backgroundColor: "rgba(31,41,55,0.1)",
+  },
+  statusCellPressed: {
+    opacity: 0.6,
+  },
+  statusDayCell: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    gap: 6,
+  },
+  statusDayText: {
+    fontSize: 17,
+    fontWeight: "800",
+    color: COLORS.TEXT_PRIMARY,
+  },
+  statusDaySuffix: {
+    fontSize: 17,
+    fontWeight: "600",
+    color: "#9CA3AF",
+  },
+  statusDayTrack: {
+    width: 44,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: "rgba(139,92,246,0.15)",
+    overflow: "hidden",
+  },
+  statusDayFill: {
+    height: "100%",
+    borderRadius: 2,
+    backgroundColor: COLORS.ACCENT,
+  },
+  statusStreakCell: {
     flexDirection: "row",
-    justifyContent: "flex-end",
     alignItems: "center",
+    gap: 9,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+  },
+  statusStreakRingWrap: {
+    width: 32,
+    height: 32,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  statusStreakRingSvg: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    transform: [{ rotate: "-90deg" }],
+  },
+  statusStreakNum: {
+    fontSize: 17,
+    fontWeight: "800",
+    color: COLORS.TEXT_PRIMARY,
+  },
+  statusJokerCell: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+  },
+  statusJokerChip: {
+    width: 29,
+    height: 29,
+    borderRadius: 14.5,
+    backgroundColor: "rgba(240,192,64,0.18)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  statusJokerNum: {
+    fontSize: 17,
+    fontWeight: "800",
+    color: COLORS.TEXT_PRIMARY,
   },
   headerTitle: {
     fontSize: 24,
@@ -1322,11 +1350,12 @@ const styles = StyleSheet.create({
     color: JOKER.TEXT,
   },
   questionText: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: "600",
     color: "#1F1135",
-    lineHeight: 34,
+    lineHeight: 31,
     letterSpacing: -0.4,
+    textAlign: "center",
   },
   questionTextDone: {
     opacity: 0.45,
@@ -1388,12 +1417,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     paddingTop: 8,
     paddingBottom: 24,
-  },
-  questionEyebrowRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 12,
+    position: "relative",
   },
   questionEyebrow: {
     fontSize: 11,
@@ -1403,92 +1428,6 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     opacity: 0.7,
     marginBottom: 12,
-  },
-  questionDivider: {
-    height: 1,
-    backgroundColor: "rgba(139,92,246,0.15)",
-    marginBottom: 14,
-  },
-  statsCard: {
-    position: 'absolute',
-    top: '10%',
-    left: 20,
-    right: 20,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255,255,255,0.55)',
-    borderWidth: 1,
-    borderColor: 'rgba(139,92,246,0.18)',
-    overflow: 'hidden',
-  },
-  statsCardInner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 18,
-    gap: 16,
-  },
-  ringContainer: {
-    width: 80,
-    height: 80,
-    position: 'relative',
-    flexShrink: 0,
-  },
-  ringLabelWrap: {
-    position: 'absolute',
-    top: 0, left: 0, right: 0, bottom: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  ringNum: {
-    fontSize: 21,
-    fontWeight: '800',
-    color: '#6D28D9',
-    lineHeight: 24,
-  },
-  ringSub: {
-    fontSize: 8,
-    fontWeight: '700',
-    color: '#7C3AED',
-    opacity: 0.55,
-    letterSpacing: 0.3,
-    marginTop: 1,
-  },
-  statPillsCol: {
-    flex: 1,
-    flexDirection: 'row',
-    gap: 10,
-  },
-  statPill: {
-    flex: 1,
-    borderRadius: 14,
-    backgroundColor: 'rgba(139,92,246,0.07)',
-    borderWidth: 1,
-    borderColor: 'rgba(139,92,246,0.10)',
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    alignItems: 'center',
-  },
-  statPillNumber: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#6D28D9',
-    lineHeight: 26,
-  },
-  statPillLabel: {
-    fontSize: 9,
-    fontWeight: '600',
-    color: '#7C3AED',
-    opacity: 0.6,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-    marginTop: 3,
-  },
-  statsCardBar: {
-    height: 4,
-    backgroundColor: 'rgba(139,92,246,0.10)',
-    overflow: 'hidden',
-  },
-  statsCardBarFill: {
-    height: '100%',
-    backgroundColor: '#7C3AED',
+    textAlign: "center",
   },
 });

@@ -26,7 +26,7 @@ struct DailyQuestionView: View {
             Spacer(minLength: 4)
 
             Text(entry.questionText)
-                .font(.custom("Poppins-Regular", size: 22))
+                .font(.system(size: 22, weight: .regular))
                 .foregroundColor(.white)
                 .minimumScaleFactor(0.5)
                 .lineLimit(4)

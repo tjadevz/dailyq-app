@@ -17,7 +17,7 @@ import {
 } from "react-native";
 import { BlurView } from "expo-blur";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import { useFocusEffect } from "expo-router/react-navigation";
 import Feather from "@expo/vector-icons/Feather";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
@@ -51,6 +51,7 @@ import { supabase } from "@/src/config/supabase";
 import JokerOfferModal from "@/src/components/JokerOfferModal";
 import JokerIntroModal from "@/src/components/JokerIntroModal";
 import { JokerShopModal } from "@/src/components/JokerShopModal";
+import StreakOverviewModal from "@/src/components/modals/StreakOverviewModal";
 import { JokerBadge } from "@/src/components/JokerBadge";
 import { GlassCardContainer } from "@/src/components/GlassCardContainer";
 import { PrimaryButton } from "@/src/components/PrimaryButton";
@@ -653,6 +654,7 @@ export default function CalendarScreen() {
   const [missedDay, setMissedDay] = useState<string | null>(null);
   const [introDayKey, setIntroDayKey] = useState<string | null>(null);
   const [jokerModalVisible, setJokerModalVisible] = useState(false);
+  const [streakModalVisible, setStreakModalVisible] = useState(false);
   const [missedAnswerDay, setMissedAnswerDay] = useState<string | null>(null);
   const [missedAnswerQuestionText, setMissedAnswerQuestionText] = useState("");
   const [missedAnswerRequiresJoker, setMissedAnswerRequiresJoker] = useState(true);
@@ -847,59 +849,6 @@ export default function CalendarScreen() {
     },
     []
   );
-
-  // Opened from the Today tab's MissedDayModal ("you missed yesterday's question").
-  // The user already confirmed intent to answer with a joker there, so this skips
-  // straight past the JokerOfferModal confirmation card (which would just re-ask
-  // the same thing) and goes directly into the answer flow — while still reusing
-  // the joker-intro one-time gate and the 0-joker → JokerShopModal redirect as-is.
-  const { openMissedDay } = useLocalSearchParams<{ openMissedDay?: string }>();
-  const handledMissedDayParamRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (!openMissedDay) return;
-    if (handledMissedDayParamRef.current === openMissedDay) return;
-    handledMissedDayParamRef.current = openMissedDay;
-
-    const dayKey = openMissedDay;
-    const withinWindow =
-      isWithinMissedAnswerWindow(dayKey, todayKey) && !isBeforeAccountStart(dayKey, accountBoundaryDate);
-
-    if (!withinWindow) {
-      // Shouldn't happen for "yesterday", but fall back to the normal locked/closed messaging.
-      setMissedDay(dayKey);
-      return;
-    }
-
-    if (!profile?.joker_intro_shown) {
-      setIntroDayKey(dayKey);
-      if (userId && userId !== "dev-user") {
-        supabase
-          .from("profiles")
-          .update({ joker_intro_shown: true })
-          .eq("id", userId)
-          .then(({ error }) => {
-            if (error) console.error("[Calendar] mark joker_intro_shown failed:", error);
-          });
-        refetchProfile();
-      }
-      return;
-    }
-
-    if ((profile?.joker_balance ?? 0) > 0) {
-      openMissedAnswer(dayKey);
-    } else {
-      setJokerModalVisible(true);
-    }
-  }, [
-    openMissedDay,
-    todayKey,
-    accountBoundaryDate,
-    profile?.joker_intro_shown,
-    profile?.joker_balance,
-    userId,
-    refetchProfile,
-    openMissedAnswer,
-  ]);
 
   const handleMissedSaved = useCallback(
     async (previousStreak: number) => {
@@ -1168,7 +1117,10 @@ export default function CalendarScreen() {
         ))}
         <View style={styles.cardDivider} />
         {nextMilestone != null && (
-          <View style={styles.nextRewardBlock}>
+          <Pressable
+            style={styles.nextRewardBlock}
+            onPress={() => setStreakModalVisible(true)}
+          >
             <LinearGradient
               colors={[
                 "rgba(254,243,199,0.4)",
@@ -1233,7 +1185,7 @@ export default function CalendarScreen() {
                 </View>
               </View>
             </View>
-          </View>
+          </Pressable>
         )}
         </AnimatedReanimated.View>
       </View>
@@ -1323,6 +1275,11 @@ export default function CalendarScreen() {
       <SubmitSuccessModal visible={showSubmitSuccess} />
       </ScrollView>
       <JokerShopModal visible={jokerModalVisible} onClose={() => setJokerModalVisible(false)} />
+      <StreakOverviewModal
+        visible={streakModalVisible}
+        currentStreak={realStreak}
+        onClose={() => setStreakModalVisible(false)}
+      />
     </GlassCardContainer>
   );
 }

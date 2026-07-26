@@ -41,18 +41,46 @@ export function JokerShopModal({ visible, onClose }: JokerShopModalProps) {
 
   // Refresh streak/milestone data every time the sheet opens, not just on mount —
   // it stays mounted (hidden) between opens like any other modal in this app.
+  // Retries once on failure: right after a cold app start the Supabase client's
+  // session can still be attaching, so the very first RPC after launch can fail
+  // silently (this effect previously had no error handling at all, so a failed
+  // fetch just left the old/0 streak on screen until the modal was closed and
+  // reopened, which gave the retry a second, later chance to succeed).
   useEffect(() => {
     if (!visible || !userId || userId === "dev-user") return;
-    const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    supabase
-      .rpc("get_user_streaks", { p_user_id: userId, p_timezone: userTimezone })
-      .then(({ data }: { data: { real_streak?: number; visual_streak?: number }[] | null }) => {
-        const row = Array.isArray(data) && data.length > 0 ? data[0] : null;
-        const r = row?.real_streak ?? 0;
-        const v = row?.visual_streak ?? 0;
-        setRealStreak(Math.max(Number(r), Number(v)));
+    let cancelled = false;
+
+    const fetchStreak = async (isRetry: boolean): Promise<void> => {
+      const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const { data, error } = await supabase.rpc("get_user_streaks", {
+        p_user_id: userId,
+        p_timezone: userTimezone,
       });
-    getAlreadyGranted(supabase, userId).then(setGrantedMilestones);
+      if (cancelled) return;
+      if (error) {
+        console.error("[JokerShop] get_user_streaks failed:", error);
+        if (!isRetry) {
+          await new Promise((resolve) => setTimeout(resolve, 900));
+          if (!cancelled) await fetchStreak(true);
+        }
+        return;
+      }
+      const row = Array.isArray(data) && data.length > 0 ? data[0] : null;
+      const r = row?.real_streak ?? 0;
+      const v = row?.visual_streak ?? 0;
+      setRealStreak(Math.max(Number(r), Number(v)));
+    };
+
+    fetchStreak(false).catch((e) => console.error("[JokerShop] streak fetch threw:", e));
+    getAlreadyGranted(supabase, userId)
+      .then((granted) => {
+        if (!cancelled) setGrantedMilestones(granted);
+      })
+      .catch((e) => console.error("[JokerShop] getAlreadyGranted failed:", e));
+
+    return () => {
+      cancelled = true;
+    };
   }, [visible, userId]);
 
   useEffect(() => {
@@ -117,21 +145,28 @@ export function JokerShopModal({ visible, onClose }: JokerShopModalProps) {
       <GlassCardContainer>
         <View style={[styles.container, { paddingTop: insets.top }]}>
           <View style={styles.topbar}>
+            <View style={styles.jokerPillCenterWrap} pointerEvents="none">
+              <LinearGradient
+                colors={["#FFD84D", "#F5B800"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.jokerPill}
+              >
+                <View style={styles.jokerPillIconCircle}>
+                  <MaterialCommunityIcons name="crown" size={15} color="#F5B800" />
+                </View>
+                <Text style={styles.jokerPillCount}>{jokerBalance}</Text>
+                <Text style={styles.jokerPillLabel}>
+                  {t(jokerBalance === 1 ? "joker_shop_jokers_label_one" : "joker_shop_jokers_label")}
+                </Text>
+              </LinearGradient>
+            </View>
             <Pressable onPress={onClose} style={styles.closeBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Feather name="x" size={16} color={COLORS.TEXT_SECONDARY} strokeWidth={2.5} />
             </Pressable>
           </View>
 
           <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-            <View style={styles.hero}>
-              <LinearGradient colors={["#FDE68A", "#FBBF24"]} style={styles.crownBadge}>
-                <MaterialCommunityIcons name="crown" size={24} color="#FFFFFF" />
-              </LinearGradient>
-              <Text style={styles.heroNum}>
-                {jokerBalance} <Text style={styles.heroNumLabel}>{t("joker_shop_jokers_label")}</Text>
-              </Text>
-            </View>
-
             {!!profile?.referral_code && (
               <View style={styles.referCard}>
                 <View style={styles.referTop}>
@@ -150,7 +185,7 @@ export function JokerShopModal({ visible, onClose }: JokerShopModalProps) {
               <View style={styles.streakCard}>
                 <View style={styles.streakTop}>
                   <View style={styles.streakIcon}>
-                    <Feather name="zap" size={13} color={COLORS.ACCENT} />
+                    <Feather name="zap" size={15} color={COLORS.ACCENT} />
                   </View>
                   <Text style={styles.streakCur}>
                     {realStreak} {t(realStreak === 1 ? "calendar_stats_day_streak_one" : "calendar_stats_day_streak")}
@@ -230,11 +265,22 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
   },
   topbar: {
+    position: "relative",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "flex-end",
     paddingHorizontal: 20,
     paddingTop: 8,
+    paddingBottom: 12,
+  },
+  jokerPillCenterWrap: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: "center",
+    justifyContent: "center",
   },
   closeBtn: {
     width: 32,
@@ -254,35 +300,45 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: "center",
   },
-  hero: {
+  jokerPill: {
+    flexDirection: "row",
     alignItems: "center",
-    marginBottom: 32,
+    gap: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 9999,
+    borderWidth: 1,
+    borderColor: "rgba(245,184,0,0.4)",
+    shadowColor: "#F59E0B",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.16,
+    shadowRadius: 10,
+    elevation: 3,
   },
-  crownBadge: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+  jokerPillIconCircle: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: "rgba(251,191,36,0.4)",
-    shadowColor: "#F59E0B",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.16,
-    shadowRadius: 18,
-    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
   },
-  heroNum: {
-    fontSize: 30,
+  jokerPillCount: {
+    fontSize: 17,
     fontWeight: "800",
     fontFamily: "Inter",
-    color: COLORS.TEXT_PRIMARY,
+    color: "#FFFFFF",
   },
-  heroNumLabel: {
-    fontSize: 15,
+  jokerPillLabel: {
+    fontSize: 14,
     fontWeight: "600",
-    color: COLORS.TEXT_SECONDARY,
+    fontFamily: "Inter",
+    color: "rgba(255,255,255,0.9)",
   },
   referCard: {
     backgroundColor: "rgba(139,92,246,0.1)",
@@ -290,7 +346,7 @@ const styles = StyleSheet.create({
     borderColor: "rgba(139,92,246,0.22)",
     borderRadius: 20,
     padding: 16,
-    marginBottom: 20,
+    marginBottom: 28,
   },
   referTop: {
     flexDirection: "row",
@@ -308,11 +364,11 @@ const styles = StyleSheet.create({
   },
   referTitle: {
     flex: 1,
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: "700",
     fontFamily: "Inter",
     color: COLORS.TEXT_PRIMARY,
-    lineHeight: 18,
+    lineHeight: 21,
   },
   referBtn: {
     width: "100%",
@@ -323,7 +379,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   referBtnText: {
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: "700",
     fontFamily: "Inter",
     color: "#FFFFFF",
@@ -333,38 +389,38 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(212,168,48,0.3)",
     borderRadius: 20,
-    padding: 16,
-    marginBottom: 32,
+    padding: 20,
+    marginBottom: 28,
   },
   streakTop: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    marginBottom: 8,
+    marginBottom: 12,
   },
   streakIcon: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     backgroundColor: "rgba(139,92,246,0.16)",
     alignItems: "center",
     justifyContent: "center",
   },
   streakCur: {
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: "700",
     fontFamily: "Inter",
     color: COLORS.TEXT_PRIMARY,
   },
   streakNext: {
-    fontSize: 11.5,
+    fontSize: 14,
     fontWeight: "700",
     fontFamily: "Inter",
     color: JOKER.TEXT,
-    marginBottom: 8,
+    marginBottom: 12,
   },
   progressTrack: {
-    height: 6,
+    height: 8,
     borderRadius: 999,
     backgroundColor: "rgba(255,255,255,0.65)",
     overflow: "hidden",
@@ -422,7 +478,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   packLabel: {
-    fontSize: 14.5,
+    fontSize: 16,
     fontWeight: "700",
     fontFamily: "Inter",
     color: COLORS.TEXT_PRIMARY,
@@ -446,19 +502,19 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
   },
   packPrice: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "700",
     fontFamily: "Inter",
     color: JOKER.TEXT,
   },
   packUnavailable: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: "Inter",
     color: COLORS.TEXT_MUTED,
   },
   purchaseMessage: {
     marginTop: 4,
-    fontSize: 13,
+    fontSize: 14,
     fontFamily: "Inter",
     textAlign: "center",
     color: COLORS.TEXT_SECONDARY,

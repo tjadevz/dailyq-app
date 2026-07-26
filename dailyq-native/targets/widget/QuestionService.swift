@@ -34,7 +34,11 @@ enum QuestionService {
         return formatter.string(from: Date())
     }
 
-    static func fetchTodayQuestionText() async -> String {
+    /// - Returns: the question text (or a fallback string) plus whether a real
+    ///   question was found. Callers use `success` to decide how soon to
+    ///   retry the timeline — a failed/empty fetch should be retried much
+    ///   sooner than the normal once-a-day schedule.
+    static func fetchTodayQuestionText() async -> (text: String, success: Bool) {
         let lang = resolvedLanguage()
         let dayKey = todayLocalDayKey()
         let fallback = lang == "nl" ? fallbackNL : fallbackEN
@@ -60,7 +64,7 @@ enum QuestionService {
 
         guard let url = components.url else {
             os_log("Failed to build Supabase URL", log: logger, type: .error)
-            return fallback
+            return (fallback, false)
         }
 
         var request = URLRequest(url: url)
@@ -68,25 +72,34 @@ enum QuestionService {
         request.setValue(supabaseAnonKey, forHTTPHeaderField: "apikey")
         request.setValue("Bearer \(supabaseAnonKey)", forHTTPHeaderField: "Authorization")
 
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-            if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
-                os_log("Supabase returned status %d", log: logger, type: .error, httpResponse.statusCode)
-                return fallback
+        // Retry once on a transient failure (e.g. no network yet at the exact
+        // overnight refresh) rather than immediately falling back — the
+        // fallback used to lock the widget for a full day until the next
+        // scheduled refresh, since a plain fetch failure had no retry at all.
+        for attempt in 0..<2 {
+            do {
+                let (data, response) = try await URLSession.shared.data(for: request)
+                if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
+                    os_log("Supabase returned status %d", log: logger, type: .error, httpResponse.statusCode)
+                } else {
+                    guard
+                        let rows = try JSONSerialization.jsonObject(with: data) as? [[String: Any]],
+                        let first = rows.first,
+                        let text = first[textKey] as? String,
+                        !text.isEmpty
+                    else {
+                        os_log("Supabase returned no question row for %{public}@", log: logger, type: .info, dayKey)
+                        return (fallback, false)
+                    }
+                    return (text, true)
+                }
+            } catch {
+                os_log("Supabase fetch failed: %{public}@", log: logger, type: .error, error.localizedDescription)
             }
-            guard
-                let rows = try JSONSerialization.jsonObject(with: data) as? [[String: Any]],
-                let first = rows.first,
-                let text = first[textKey] as? String,
-                !text.isEmpty
-            else {
-                os_log("Supabase returned no question row for %{public}@", log: logger, type: .info, dayKey)
-                return fallback
+            if attempt == 0 {
+                try? await Task.sleep(nanoseconds: 1_500_000_000)
             }
-            return text
-        } catch {
-            os_log("Supabase fetch failed: %{public}@", log: logger, type: .error, error.localizedDescription)
-            return fallback
         }
+        return (fallback, false)
     }
 }

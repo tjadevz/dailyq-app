@@ -17,7 +17,7 @@ import {
 } from "react-native";
 import { BlurView } from "expo-blur";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useFocusEffect } from "expo-router/react-navigation";
 import Feather from "@expo/vector-icons/Feather";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
@@ -847,6 +847,59 @@ export default function CalendarScreen() {
     },
     []
   );
+
+  // Opened from the Today tab's MissedDayModal ("you missed yesterday's question").
+  // The user already confirmed intent to answer with a joker there, so this skips
+  // straight past the JokerOfferModal confirmation card (which would just re-ask
+  // the same thing) and goes directly into the answer flow — while still reusing
+  // the joker-intro one-time gate and the 0-joker → JokerShopModal redirect as-is.
+  const { openMissedDay } = useLocalSearchParams<{ openMissedDay?: string }>();
+  const handledMissedDayParamRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!openMissedDay) return;
+    if (handledMissedDayParamRef.current === openMissedDay) return;
+    handledMissedDayParamRef.current = openMissedDay;
+
+    const dayKey = openMissedDay;
+    const withinWindow =
+      isWithinMissedAnswerWindow(dayKey, todayKey) && !isBeforeAccountStart(dayKey, accountBoundaryDate);
+
+    if (!withinWindow) {
+      // Shouldn't happen for "yesterday", but fall back to the normal locked/closed messaging.
+      setMissedDay(dayKey);
+      return;
+    }
+
+    if (!profile?.joker_intro_shown) {
+      setIntroDayKey(dayKey);
+      if (userId && userId !== "dev-user") {
+        supabase
+          .from("profiles")
+          .update({ joker_intro_shown: true })
+          .eq("id", userId)
+          .then(({ error }) => {
+            if (error) console.error("[Calendar] mark joker_intro_shown failed:", error);
+          });
+        refetchProfile();
+      }
+      return;
+    }
+
+    if ((profile?.joker_balance ?? 0) > 0) {
+      openMissedAnswer(dayKey);
+    } else {
+      setJokerModalVisible(true);
+    }
+  }, [
+    openMissedDay,
+    todayKey,
+    accountBoundaryDate,
+    profile?.joker_intro_shown,
+    profile?.joker_balance,
+    userId,
+    refetchProfile,
+    openMissedAnswer,
+  ]);
 
   const handleMissedSaved = useCallback(
     async (previousStreak: number) => {

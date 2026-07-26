@@ -211,6 +211,9 @@ type WelcomeBackOffer = {
   absence_key: string;
 };
 
+// Kill switch: keep false until the user explicitly says the welcome-back offer may go live.
+const WELCOME_BACK_OFFER_ENABLED = false;
+
 function WelcomeBackAppOpenGate() {
   const { user, authCheckDone } = useAuth();
   const { t } = useLanguage();
@@ -222,6 +225,7 @@ function WelcomeBackAppOpenGate() {
   const checkedUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
+    if (!WELCOME_BACK_OFFER_ENABLED) return;
     if (!authCheckDone) return;
 
     const userId = user?.id ?? null;

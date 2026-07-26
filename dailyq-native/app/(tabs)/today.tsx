@@ -31,6 +31,7 @@ import { useCalendarAnswersContext } from "@/src/context/CalendarAnswersContext"
 import { useTodayQuestion } from "@/src/hooks/useTodayQuestion";
 import { useProfileContext } from "@/src/context/ProfileContext";
 import { daysSinceAccountCreated, resolveAccountMilestone } from "@/src/lib/accountMilestone";
+import { shouldShowArchiveMoment } from "@/src/lib/archiveMoment";
 import { supabase } from "@/src/config/supabase";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { JokerBadge } from "@/src/components/JokerBadge";
@@ -51,13 +52,16 @@ import ShareCaptureModal from "@/src/components/ShareCaptureModal";
 import AccountMilestoneModal, {
   type AccountMilestoneAnswer,
 } from "@/src/components/modals/AccountMilestoneModal";
+import ArchiveMomentModal from "@/src/components/modals/ArchiveMomentModal";
 import PreviousYearModal from "@/src/components/modals/PreviousYearModal";
 import MonthlyRecapModal from "@/src/components/modals/MonthlyRecapModal";
 import MonthlyRecapShareCard, {
   type MonthlyRecapShareCardRef,
 } from "@/src/components/MonthlyRecapShareCard";
+import MissedDayModal from "@/src/components/modals/MissedDayModal";
 import { useShareCard } from "@/src/hooks/useShareCard";
 import { useMonthlyRecap } from "@/src/hooks/useMonthlyRecap";
+import { getYesterdayDayKey } from "@/src/lib/date";
 import { logEvent } from "@/lib/analytics";
 
 const TODAY_PRIMARY_GRADIENT = ["rgba(139,92,246,0.96)", "rgba(124,58,237,0.96)"] as const;
@@ -129,6 +133,16 @@ async function markAccountMilestoneShown(userId: string): Promise<void> {
   }
 }
 
+async function markArchiveMomentShown(userId: string): Promise<void> {
+  const { error } = await supabase
+    .from("profiles")
+    .update({ archive_moment_day4_shown: true })
+    .eq("id", userId);
+  if (error) {
+    console.error("[Today] Archive moment profile update:", error);
+  }
+}
+
 const PREVIOUS_YEAR_LOOKBACK = 25;
 
 async function fetchPreviousYearSameDayAnswers(
@@ -160,6 +174,22 @@ async function fetchPreviousYearSameDayAnswers(
   return rows
     .filter((r) => r.answer_text != null && String(r.answer_text).trim().length > 0)
     .map((r) => ({ question_date: r.question_date, answer_text: String(r.answer_text).trim() }));
+}
+
+/** True when the user has no answer at all (onboarding or real) for yesterday. */
+async function checkMissedYesterday(userId: string): Promise<boolean> {
+  const yesterdayKey = getYesterdayDayKey();
+  const { data, error } = await supabase
+    .from("answers")
+    .select("question_date")
+    .eq("user_id", userId)
+    .eq("question_date", yesterdayKey)
+    .maybeSingle();
+  if (error) {
+    console.error("[Today] Missed-yesterday check failed:", error);
+    return false;
+  }
+  return data == null;
 }
 
 export default function TodayScreen() {
@@ -243,6 +273,8 @@ export default function TodayScreen() {
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const [milestoneAnswers, setMilestoneAnswers] = useState<AccountMilestoneAnswer[]>([]);
   const [activeAccountMilestone, setActiveAccountMilestone] = useState<10 | null>(null);
+  const [pendingArchiveMoment, setPendingArchiveMoment] = useState(false);
+  const [archiveMomentAnswers, setArchiveMomentAnswers] = useState<AccountMilestoneAnswer[]>([]);
   const [editConfirmVisible, setEditConfirmVisible] = useState(false);
   const [jokerModalVisible, setJokerModalVisible] = useState(false);
   const [answerCount, setAnswerCount] = useState<number>(0);
@@ -411,12 +443,34 @@ export default function TodayScreen() {
         }
       }
 
+      if (pendingArchiveMoment) {
+        if (!userId || userId === "dev-user") {
+          if (!cancelled) setPendingArchiveMoment(false);
+        } else {
+          const mapped = await fetchAccountMilestoneAnswersForModal(userId, lang);
+          if (cancelled) return;
+          if (mapped != null) {
+            setArchiveMomentAnswers(mapped);
+            queue.push("archiveMoment");
+          }
+          setPendingArchiveMoment(false);
+        }
+      }
+
       if (showRecap) {
         queue.push("monthlyRecap");
       }
 
       if (shouldQueueWidgetAnnouncement) {
         queue.push("widgetAnnouncement");
+      }
+
+      if (userId && userId !== "dev-user") {
+        const missedYesterday = await checkMissedYesterday(userId);
+        if (cancelled) return;
+        if (missedYesterday) {
+          queue.push("missedDay");
+        }
       }
 
       if (!cancelled) {
@@ -432,6 +486,7 @@ export default function TodayScreen() {
     showSubmitSuccess,
     pendingStreakMilestone,
     pendingMilestone,
+    pendingArchiveMoment,
     userId,
     lang,
     showRecap,
@@ -451,6 +506,25 @@ export default function TodayScreen() {
       logEvent("widget_announcement_shown");
     }
   }, [activeModal]);
+
+  useEffect(() => {
+    if (activeModal === "missedDay") {
+      logEvent("missed_day_modal_shown");
+    }
+  }, [activeModal]);
+
+  const handleMissedDayClose = useCallback(() => {
+    advanceQueue(modalQueue);
+  }, [modalQueue, advanceQueue]);
+
+  const handleMissedDayAnswer = useCallback(() => {
+    logEvent("missed_day_modal_accepted");
+    advanceQueue(modalQueue);
+    router.push({
+      pathname: "/(tabs)/calendar",
+      params: { openMissedDay: getYesterdayDayKey() },
+    });
+  }, [modalQueue, advanceQueue, router]);
 
   useEffect(() => {
     if (activeModal !== "streak" || !pendingStreakMilestone) return;
@@ -500,6 +574,14 @@ export default function TodayScreen() {
     }
     advanceQueue(modalQueue);
   }, [userId, activeAccountMilestone, refetchProfile, modalQueue, advanceQueue]);
+
+  const handleArchiveMomentClose = useCallback(async () => {
+    if (userId && userId !== "dev-user") {
+      await markArchiveMomentShown(userId);
+      void refetchProfile();
+    }
+    advanceQueue(modalQueue);
+  }, [userId, refetchProfile, modalQueue, advanceQueue]);
 
   const handleRecapClose = useCallback(() => {
     advanceQueue(modalQueue);
@@ -614,6 +696,12 @@ export default function TodayScreen() {
               milestone_10_days_shown: freshProfile.milestone_10_days_shown ?? false,
             });
             setPendingMilestone(milestoneToShow);
+            setPendingArchiveMoment(
+              shouldShowArchiveMoment(
+                createdAtForMilestone,
+                freshProfile.archive_moment_day4_shown ?? false
+              )
+            );
             if (createdAtForMilestone) {
               setProfileCreatedAtForMilestone(createdAtForMilestone);
             }
@@ -930,6 +1018,11 @@ export default function TodayScreen() {
             answers={milestoneAnswers}
             onClose={handleMilestoneClose}
           />
+          <ArchiveMomentModal
+            visible={activeModal === "archiveMoment"}
+            answers={archiveMomentAnswers}
+            onClose={handleArchiveMomentClose}
+          />
           {recapData ? (
             <>
               <MonthlyRecapModal
@@ -958,6 +1051,14 @@ export default function TodayScreen() {
           <WidgetAnnouncementModal
             visible={activeModal === "widgetAnnouncement"}
             onClose={handleWidgetAnnouncementClose}
+          />
+          <MissedDayModal
+            visible={activeModal === "missedDay"}
+            title={t("missed_day_modal_title")}
+            body={t("missed_day_modal_body")}
+            ctaLabel={t("missed_day_modal_cta")}
+            onClose={handleMissedDayClose}
+            onAnswer={handleMissedDayAnswer}
           />
         </View>
       </TouchableWithoutFeedback>

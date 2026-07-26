@@ -13,6 +13,13 @@ export function getLocalDayKey(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
+/** YYYY-MM-DD for the day before `reference` (local calendar). */
+export function getYesterdayDayKey(reference: Date = getNow()): string {
+  const d = new Date(reference);
+  d.setDate(d.getDate() - 1);
+  return getLocalDayKey(d);
+}
+
 /** Day of year 1–366 from YYYY-MM-DD (leap-aware). For display e.g. #001–#366. */
 export function getDayOfYear(dayKey: string): number {
   const [y, m, d] = dayKey.split("-").map(Number);

@@ -2,17 +2,20 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, StyleSheet, View } from "react-native";
 import { addNotificationResponseReceivedListener } from "expo-notifications";
 import Constants from "expo-constants";
+import * as Updates from "expo-updates";
 import { Slot, usePathname, useSegments } from "expo-router";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useFonts, Inter_500Medium } from "@expo-google-fonts/inter";
 import { AuthProvider } from "@/src/context/AuthContext";
-import { ProfileProvider } from "@/src/context/ProfileContext";
+import { PurchasesProvider } from "@/src/context/PurchasesContext";
+import { ProfileProvider, useProfileContext } from "@/src/context/ProfileContext";
 import { LanguageProvider } from "@/src/context/LanguageContext";
 import { CalendarAnswersProvider } from "@/src/context/CalendarAnswersContext";
 import { StreakMilestoneProvider } from "@/src/context/StreakMilestoneContext";
 import { BackgroundLayer } from "@/src/components/BackgroundLayer";
 import { DeepLinkProvider } from "@/src/context/DeepLinkContext";
 import ReferralGivenModal from "@/src/components/modals/ReferralGivenModal";
+import WelcomeBackModal from "@/src/components/modals/WelcomeBackModal";
 import { useAuth } from "@/src/context/AuthContext";
 import { useLanguage } from "@/src/context/LanguageContext";
 import { supabase } from "@/src/config/supabase";
@@ -203,32 +206,145 @@ function ReferralGivenAppOpenGate() {
   );
 }
 
+type WelcomeBackOffer = {
+  days_absent: number;
+  absence_key: string;
+};
+
+function WelcomeBackAppOpenGate() {
+  const { user, authCheckDone } = useAuth();
+  const { t } = useLanguage();
+  const { refetch: refetchProfile } = useProfileContext();
+
+  const [visible, setVisible] = useState(false);
+  const [offer, setOffer] = useState<WelcomeBackOffer | null>(null);
+  const [claiming, setClaiming] = useState(false);
+  const checkedUserIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!authCheckDone) return;
+
+    const userId = user?.id ?? null;
+    if (!userId || userId === "dev-user") {
+      checkedUserIdRef.current = null;
+      setVisible(false);
+      setOffer(null);
+      return;
+    }
+    if (checkedUserIdRef.current === userId) return;
+    checkedUserIdRef.current = userId;
+
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase.rpc("get_welcome_back_offer");
+      if (cancelled) return;
+      if (error) {
+        console.error("[WelcomeBackGate] fetch offer failed:", error);
+        return;
+      }
+      const row = (Array.isArray(data) ? data[0] : data) as WelcomeBackOffer | null;
+      if (!row?.absence_key) return;
+      setOffer(row);
+      setVisible(true);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authCheckDone, user?.id]);
+
+  const handleClaim = useCallback(async () => {
+    if (claiming) return;
+    setClaiming(true);
+    const { data, error } = await supabase.rpc("claim_welcome_back_joker");
+    setClaiming(false);
+    if (error) {
+      console.error("[WelcomeBackGate] claim failed:", error);
+      return;
+    }
+    if (data) {
+      await refetchProfile();
+    }
+    setVisible(false);
+  }, [claiming, refetchProfile]);
+
+  const handleDismiss = useCallback(() => {
+    setVisible(false);
+    const absenceKey = offer?.absence_key;
+    const userId = user?.id;
+    if (!absenceKey || !userId || userId === "dev-user") return;
+    supabase
+      .from("profiles")
+      .update({ welcome_back_offer_resolved_for: absenceKey })
+      .eq("id", userId)
+      .then(({ error }) => {
+        if (error) console.error("[WelcomeBackGate] mark dismissed failed:", error);
+      });
+  }, [offer?.absence_key, user?.id]);
+
+  return (
+    <WelcomeBackModal
+      visible={visible}
+      title={t("welcome_back_modal_title")}
+      body={t("welcome_back_modal_body", { joker_count: "3" })}
+      ctaLabel={t("welcome_back_modal_cta")}
+      claiming={claiming}
+      onClaim={() => {
+        void handleClaim();
+      }}
+      onDismiss={handleDismiss}
+    />
+  );
+}
+
+function ForceUpdateGate() {
+  useEffect(() => {
+    if (__DEV__) return;
+    (async () => {
+      try {
+        const result = await Updates.checkForUpdateAsync();
+        if (!result.isAvailable) return;
+        await Updates.fetchUpdateAsync();
+        await Updates.reloadAsync();
+      } catch (e) {
+        console.error("[ForceUpdateGate] update check failed:", e);
+      }
+    })();
+  }, []);
+
+  return null;
+}
+
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({ Inter_500Medium });
   if (!fontsLoaded) return null;
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <DeepLinkProvider>
-          <ProfileProvider>
-            <LanguageProvider>
-              <StreakMilestoneProvider>
-                <CalendarAnswersProvider>
-                  <View style={{ flex: 1, backgroundColor: "#FAFAFF" }}>
-                    <BackgroundLayer />
-                    <View style={{ flex: 1, backgroundColor: "transparent" }}>
-                      <Slot />
+        <PurchasesProvider>
+          <DeepLinkProvider>
+            <ProfileProvider>
+              <LanguageProvider>
+                <StreakMilestoneProvider>
+                  <CalendarAnswersProvider>
+                    <View style={{ flex: 1, backgroundColor: "#FAFAFF" }}>
+                      <BackgroundLayer />
+                      <View style={{ flex: 1, backgroundColor: "transparent" }}>
+                        <Slot />
+                      </View>
+                      <AnalyticsAppLifecycleGate />
+                      <SyncProfileAppVersionGate />
+                      <ReferralGivenAppOpenGate />
+                      <WelcomeBackAppOpenGate />
+                      <ForceUpdateGate />
+                      <NavLogger />
                     </View>
-                    <AnalyticsAppLifecycleGate />
-                    <SyncProfileAppVersionGate />
-                    <ReferralGivenAppOpenGate />
-                    <NavLogger />
-                  </View>
-                </CalendarAnswersProvider>
-              </StreakMilestoneProvider>
-            </LanguageProvider>
-          </ProfileProvider>
-        </DeepLinkProvider>
+                  </CalendarAnswersProvider>
+                </StreakMilestoneProvider>
+              </LanguageProvider>
+            </ProfileProvider>
+          </DeepLinkProvider>
+        </PurchasesProvider>
       </AuthProvider>
     </SafeAreaProvider>
   );

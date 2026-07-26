@@ -10,9 +10,15 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
+const noopStorage = {
+  getItem: async () => null,
+  setItem: async () => {},
+  removeItem: async () => {},
+};
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    storage: AsyncStorage,
+    storage: typeof window === "undefined" ? noopStorage : AsyncStorage,
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,

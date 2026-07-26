@@ -51,15 +51,24 @@ export function SubmitSuccessModal({ visible }: SubmitSuccessModalProps) {
   const scale = useRef(new Animated.Value(0.5)).current;
   const opacity = useRef(new Animated.Value(0)).current;
   const didAnimateRef = useRef(false);
+  const [rendered, setRendered] = useState(visible);
 
   useEffect(() => {
     if (!visible) {
       didAnimateRef.current = false;
-      // Reset so the next open does not paint one frame at opacity 1 / scale 1 before useEffect runs.
-      scale.setValue(0.5);
-      opacity.setValue(0);
+      Animated.timing(opacity, {
+        toValue: 0,
+        duration: 180,
+        useNativeDriver: true,
+      }).start(() => {
+        setRendered(false);
+        // Reset so the next open does not paint one frame at opacity 1 / scale 1 before useEffect runs.
+        scale.setValue(0.5);
+        opacity.setValue(0);
+      });
       return;
     }
+    setRendered(true);
     if (didAnimateRef.current) return;
     didAnimateRef.current = true;
 
@@ -86,7 +95,7 @@ export function SubmitSuccessModal({ visible }: SubmitSuccessModalProps) {
   return (
     <Modal
       transparent
-      visible={visible}
+      visible={rendered}
       animationType="none"
       statusBarTranslucent
     >

@@ -1,26 +1,30 @@
 import React, { useCallback, useEffect, useRef } from "react";
-import { Animated, Modal, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { ActivityIndicator, Animated, Modal, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 
 import { COLORS, JOKER, MODAL, MODAL_CLOSE_MS, MODAL_ENTER_MS } from "@/src/config/constants";
 
-type ReferralGivenModalProps = {
+type WelcomeBackModalProps = {
   visible: boolean;
   title: string;
   body: string;
   ctaLabel: string;
-  onClose: () => void;
+  claiming: boolean;
+  onClaim: () => void;
+  onDismiss: () => void;
 };
 
-export default function ReferralGivenModal({
+export default function WelcomeBackModal({
   visible,
   title,
   body,
   ctaLabel,
-  onClose,
-}: ReferralGivenModalProps) {
+  claiming,
+  onClaim,
+  onDismiss,
+}: WelcomeBackModalProps) {
   // Fabric doesn't reliably size flex:1/absoluteFillObject (right/bottom-based)
   // content inside <Modal> — needs explicit numeric width/height.
   const { width, height } = useWindowDimensions();
@@ -67,8 +71,8 @@ export default function ReferralGivenModal({
         duration: MODAL_CLOSE_MS,
         useNativeDriver: true,
       }),
-    ]).start(() => onClose());
-  }, [opacity, scale, onClose]);
+    ]).start(() => onDismiss());
+  }, [opacity, scale, onDismiss]);
 
   return (
     <Modal transparent visible={visible} animationType="none" statusBarTranslucent>
@@ -81,6 +85,9 @@ export default function ReferralGivenModal({
         <View style={[styles.backdropOverlay, { width, height }]} />
         <Pressable style={{ position: "absolute", top: 0, left: 0, width, height }} onPress={dismiss} />
         <Animated.View style={[styles.card, { transform: [{ scale }] }]}>
+          <Pressable style={styles.closeButton} onPress={dismiss} hitSlop={12}>
+            <MaterialCommunityIcons name="close" size={18} color={COLORS.TEXT_SECONDARY} />
+          </Pressable>
           <View style={styles.iconRow}>
             <View style={styles.iconWrap}>
               <View style={styles.iconRing} />
@@ -98,14 +105,22 @@ export default function ReferralGivenModal({
           </View>
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.body}>{body}</Text>
-          <Pressable style={({ pressed }) => [styles.cta, pressed && styles.ctaPressed]} onPress={dismiss}>
+          <Pressable
+            style={({ pressed }) => [styles.cta, (pressed || claiming) && styles.ctaPressed]}
+            onPress={onClaim}
+            disabled={claiming}
+          >
             <LinearGradient
               colors={["#FCD34D", "#FBBF24"]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.ctaGradient}
             >
-              <Text style={styles.ctaText}>{ctaLabel}</Text>
+              {claiming ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={styles.ctaText}>{ctaLabel}</Text>
+              )}
             </LinearGradient>
           </Pressable>
         </Animated.View>
@@ -136,6 +151,17 @@ const styles = StyleSheet.create({
     paddingBottom: 30,
     paddingHorizontal: 28,
     alignItems: "center",
+  },
+  closeButton: {
+    position: "absolute",
+    top: 16,
+    right: 16,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(0,0,0,0.05)",
   },
   iconRow: {
     flexDirection: "row",

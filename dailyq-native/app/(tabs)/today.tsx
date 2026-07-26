@@ -21,7 +21,7 @@ import Svg, { Circle } from 'react-native-svg';
 import * as Notifications from "expo-notifications";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "expo-router/react-navigation";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 
 import { COLORS, JOKER, MODAL, MODAL_ENTER_MS, MODAL_CLOSE_MS } from "@/src/config/constants";
 import { useLanguage } from "@/src/context/LanguageContext";
@@ -33,8 +33,8 @@ import { useProfileContext } from "@/src/context/ProfileContext";
 import { daysSinceAccountCreated, resolveAccountMilestone } from "@/src/lib/accountMilestone";
 import { supabase } from "@/src/config/supabase";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { JokerModalBottomSheet } from "@/src/components/JokerModalBottomSheet";
 import { JokerBadge } from "@/src/components/JokerBadge";
+import { JokerShopModal } from "@/src/components/JokerShopModal";
 import { PrimaryButton } from "@/src/components/PrimaryButton";
 import { GlassCardContainer } from "@/src/components/GlassCardContainer";
 import { WidgetAnnouncementModal } from "@/src/components/modals/WidgetAnnouncementModal";
@@ -164,6 +164,7 @@ async function fetchPreviousYearSameDayAnswers(
 
 export default function TodayScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { lang, t } = useLanguage();
   const { effectiveUser } = useAuth();
   const userId = effectiveUser?.id ?? null;
@@ -242,8 +243,8 @@ export default function TodayScreen() {
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const [milestoneAnswers, setMilestoneAnswers] = useState<AccountMilestoneAnswer[]>([]);
   const [activeAccountMilestone, setActiveAccountMilestone] = useState<10 | null>(null);
-  const [jokerModalVisible, setJokerModalVisible] = useState(false);
   const [editConfirmVisible, setEditConfirmVisible] = useState(false);
+  const [jokerModalVisible, setJokerModalVisible] = useState(false);
   const [answerCount, setAnswerCount] = useState<number>(0);
   const [currentStreak, setCurrentStreak] = useState<number>(0);
   const [previousYearQueue, setPreviousYearQueue] = useState<{
@@ -772,12 +773,7 @@ export default function TodayScreen() {
             <Text style={styles.hintText}>{t("today_come_back_tomorrow")}</Text>
           </View>
         </View>
-        <JokerModalBottomSheet
-          visible={jokerModalVisible}
-          onClose={() => setJokerModalVisible(false)}
-          jokerBalance={profile?.joker_balance ?? 0}
-          t={t}
-        />
+        <JokerShopModal visible={jokerModalVisible} onClose={() => setJokerModalVisible(false)} />
       </GlassCardContainer>
     );
   }
@@ -926,13 +922,8 @@ export default function TodayScreen() {
             submitting={submitting}
           />
 
-          <JokerModalBottomSheet
-            visible={jokerModalVisible}
-            onClose={() => setJokerModalVisible(false)}
-            jokerBalance={profile?.joker_balance ?? 0}
-            t={t}
-          />
           <SubmitSuccessModal visible={showSubmitSuccess} />
+          <JokerShopModal visible={jokerModalVisible} onClose={() => setJokerModalVisible(false)} />
           <AccountMilestoneModal
             visible={activeModal === "milestone"}
             daysSinceCreation={accountMilestoneDaysSinceCreation}

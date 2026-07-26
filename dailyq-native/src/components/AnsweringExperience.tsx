@@ -115,19 +115,28 @@ export function AnsweringExperience({
   const [userAnswer, setUserAnswer] = useState(initialAnswer);
   const [question, setQuestion] = useState(questionProp);
   const [questionLoading, setQuestionLoading] = useState(false);
+  const [rendered, setRendered] = useState(isOpen);
   const inputRef = useRef<TextInput>(null);
+
+  // Keep the last real dayKey while the exit animation plays — the parent
+  // often clears its own dayKey the instant it calls onClose, and we don't
+  // want the date/card number to blank out mid-slide.
+  const [lastDayKey, setLastDayKey] = useState(dayKey);
+  useEffect(() => {
+    if (dayKey) setLastDayKey(dayKey);
+  }, [dayKey]);
 
   const displayLang = lang ?? contextLang;
   const displayDate =
-    dayKey && formatDate
-      ? formatDate(new Date(dayKey + "T12:00:00"), {
+    lastDayKey && formatDate
+      ? formatDate(new Date(lastDayKey + "T12:00:00"), {
           day: "numeric",
           month: "long",
           year: "numeric",
         })
       : "";
   const cardNumber =
-    dayKey != null ? `#${String(getDayOfYear(dayKey)).padStart(3, "0")}` : "";
+    lastDayKey != null ? `#${String(getDayOfYear(lastDayKey)).padStart(3, "0")}` : "";
 
   const slideY = useSharedValue(height);
   const slideX = useSharedValue(enterFromRight ? width : 0);
@@ -142,11 +151,13 @@ export function AnsweringExperience({
   const runSlideInFromRight = useCallback(() => {
     slideY.value = 0;
     slideX.value = width;
-    slideX.value = withTiming(0, {
-      duration: TRANSITION_MS,
-      easing: slideEasing,
+    requestAnimationFrame(() => {
+      slideX.value = withTiming(0, {
+        duration: TRANSITION_MS,
+        easing: slideEasing,
+      });
     });
-  }, [slideX, slideY]);
+  }, [slideX, slideY, width]);
 
   useEffect(() => {
     if (questionProp) {
@@ -191,38 +202,40 @@ export function AnsweringExperience({
 
   useEffect(() => {
     if (isOpen) {
+      setRendered(true);
       setUserAnswer(initialAnswer);
       if (enterFromRight) {
         runSlideInFromRight();
-      } else if (isIntroCard) {
-        slideX.value = 0;
-        slideY.value = height;
-        slideY.value = withTiming(0, {
-          duration: TRANSITION_MS,
-          easing: openEasing,
-        });
       } else {
         slideX.value = 0;
         slideY.value = height;
-        slideY.value = withTiming(0, {
-          duration: TRANSITION_MS,
-          easing: openEasing,
+        requestAnimationFrame(() => {
+          slideY.value = withTiming(0, {
+            duration: TRANSITION_MS,
+            easing: openEasing,
+          });
         });
       }
       if (!isIntroCard) {
         const focusTimer = setTimeout(
           () => inputRef.current?.focus(),
-          enterFromRight ? TRANSITION_MS + 40 : 80
+          enterFromRight ? TRANSITION_MS + 40 : TRANSITION_MS - 60
         );
         return () => clearTimeout(focusTimer);
       }
       return;
     }
     prevDayKeyRef.current = undefined;
-    slideY.value = withTiming(height, {
-      duration: TRANSITION_MS,
-      easing: Easing.inOut(Easing.cubic),
-    });
+    slideY.value = withTiming(
+      height,
+      {
+        duration: TRANSITION_MS,
+        easing: Easing.inOut(Easing.cubic),
+      },
+      (finished) => {
+        if (finished) runOnJS(setRendered)(false);
+      }
+    );
     Keyboard.dismiss();
   }, [
     isOpen,
@@ -310,12 +323,12 @@ export function AnsweringExperience({
     opacity: buttonOpacity.value,
   }));
 
-  if (!isOpen) return null;
+  if (!rendered) return null;
 
   return (
     <Modal
       transparent
-      visible={isOpen}
+      visible={rendered}
       animationType="none"
       statusBarTranslucent
       onRequestClose={handleCloseWithAnimation}

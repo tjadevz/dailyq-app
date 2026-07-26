@@ -17,7 +17,7 @@ import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLanguage } from "@/src/context/LanguageContext";
 import { supabase } from "@/src/config/supabase";
-import { JOKER } from "@/src/config/constants";
+import { COLORS, JOKER } from "@/src/config/constants";
 
 interface JokerOfferModalProps {
   visible: boolean;
@@ -25,6 +25,7 @@ interface JokerOfferModalProps {
   jokerCount: number;
   onClose: () => void;
   onUseJoker: (dayKey: string, questionText: string) => void;
+  onNeedMoreJokers: () => void;
 }
 
 function parseDayKey(dayKey: string | null): Date | null {
@@ -40,6 +41,7 @@ export default function JokerOfferModal({
   jokerCount,
   onClose,
   onUseJoker,
+  onNeedMoreJokers,
 }: JokerOfferModalProps) {
   // Fabric doesn't reliably size flex:1/absoluteFillObject (right/bottom-based)
   // content inside <Modal> — needs explicit numeric width/height.
@@ -53,17 +55,28 @@ export default function JokerOfferModal({
   const cardOpacity = useRef(new Animated.Value(0)).current;
   const cardY = useRef(new Animated.Value(20)).current;
   const crownScale = useRef(new Animated.Value(0)).current;
-  const dateObj = useMemo(() => parseDayKey(dayKey), [dayKey]);
+
+  // Keep rendering (with the last real dayKey) while the exit animation plays,
+  // even after the parent has already cleared its own state. Tapping close
+  // must update the parent immediately, never wait on an animation callback,
+  // so the rest of the app is never gated behind a 180ms timer.
+  const [rendered, setRendered] = useState(visible);
+  const [lastDayKey, setLastDayKey] = useState(dayKey);
+
+  useEffect(() => {
+    if (dayKey) setLastDayKey(dayKey);
+  }, [dayKey]);
+
+  const dateObj = useMemo(() => parseDayKey(lastDayKey), [lastDayKey]);
   const dateLabel =
     dateObj != null
       ? formatDate(dateObj, { day: "numeric", month: "long" })
       : "";
 
   useEffect(() => {
-    if (!visible || !dayKey) {
-      setQuestionText("");
-      return;
-    }
+    // On close, dayKey goes null before the exit animation finishes — don't
+    // wipe the question text, or the card would flash blank while fading out.
+    if (!dayKey) return;
     let cancelled = false;
     setQuestionLoading(true);
     setQuestionText("");
@@ -91,10 +104,11 @@ export default function JokerOfferModal({
     return () => {
       cancelled = true;
     };
-  }, [visible, dayKey, lang]);
+  }, [dayKey, lang]);
 
   useEffect(() => {
     if (visible) {
+      setRendered(true);
       Animated.parallel([
         Animated.timing(backdropOpacity, {
           toValue: 1,
@@ -119,16 +133,6 @@ export default function JokerOfferModal({
           friction: 14,
         }),
       ]).start();
-    } else {
-      backdropOpacity.setValue(0);
-      cardScale.setValue(0.9);
-      cardOpacity.setValue(0);
-      cardY.setValue(20);
-    }
-  }, [visible, backdropOpacity, cardScale, cardOpacity, cardY]);
-
-  useEffect(() => {
-    if (visible) {
       crownScale.setValue(0);
       Animated.spring(crownScale, {
         toValue: 1,
@@ -136,17 +140,23 @@ export default function JokerOfferModal({
         damping: 14,
         stiffness: 180,
       }).start();
-    } else {
-      crownScale.setValue(0);
+    } else if (rendered) {
+      Animated.parallel([
+        Animated.timing(backdropOpacity, { toValue: 0, duration: 180, useNativeDriver: true }),
+        Animated.timing(cardOpacity, { toValue: 0, duration: 180, useNativeDriver: true }),
+        Animated.timing(cardScale, { toValue: 0.9, duration: 180, useNativeDriver: true }),
+        Animated.timing(cardY, { toValue: 20, duration: 180, useNativeDriver: true }),
+      ]).start(() => setRendered(false));
     }
-  }, [visible, crownScale]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible]);
 
-  if (!visible || !dayKey || dateObj == null) return null;
+  if (!rendered || !lastDayKey || dateObj == null) return null;
 
   return (
     <Modal
       transparent
-      visible={visible}
+      visible={rendered}
       animationType="none"
       statusBarTranslucent
       onRequestClose={onClose}
@@ -214,29 +224,25 @@ export default function JokerOfferModal({
                 </Text>
               )}
 
-              {/* Unlock CTA: always joker flow for non-today answers. */}
+              {/* CTA adapts to balance: use a joker, or go earn/buy one. */}
               <View style={styles.ctaWrap}>
                 <TouchableOpacity
                   onPress={() => {
-                    if (dayKey && jokerCount > 0) onUseJoker(dayKey, questionText);
+                    if (jokerCount > 0) {
+                      if (lastDayKey) onUseJoker(lastDayKey, questionText);
+                    } else {
+                      onNeedMoreJokers();
+                    }
                   }}
                   activeOpacity={0.88}
-                  disabled={jokerCount === 0}
-                  style={[
-                    styles.ctaBtn,
-                    jokerCount === 0 && styles.ctaBtnDisabled,
-                  ]}
+                  style={styles.ctaBtn}
                 >
-                  {jokerCount > 0 ? (
-                    <LinearGradient
-                      colors={["#F5CC50", JOKER.GOLD]}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={StyleSheet.absoluteFill}
-                    />
-                  ) : (
-                    <View style={styles.ctaBtnGrayBg} />
-                  )}
+                  <LinearGradient
+                    colors={jokerCount > 0 ? ["#F5CC50", JOKER.GOLD] : [COLORS.ACCENT_LIGHT, COLORS.ACCENT]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={StyleSheet.absoluteFill}
+                  />
                   <Animated.View
                     style={{
                       transform: [{ scale: crownScale }],
@@ -249,14 +255,9 @@ export default function JokerOfferModal({
                     />
                   </Animated.View>
                   <Text style={styles.ctaText}>
-                    {jokerCount > 0
-                      ? t("joker_offer_unlock")
-                      : t("missed_no_jokers_left_error")}
+                    {jokerCount > 0 ? t("joker_offer_unlock") : t("joker_offer_need_more")}
                   </Text>
                 </TouchableOpacity>
-                {jokerCount === 0 && (
-                  <Text style={styles.ctaHint}>{t("joker_offer_no_jokers_hint")}</Text>
-                )}
               </View>
             </View>
           </Animated.View>
@@ -370,20 +371,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.35,
     shadowRadius: 24,
     elevation: 8,
-  },
-  ctaBtnDisabled: {
-    opacity: 0.4,
-  },
-  ctaBtnGrayBg: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "#9CA3AF",
-  },
-  ctaHint: {
-    marginTop: 10,
-    fontSize: 12,
-    color: "#6B7280",
-    opacity: 0.7,
-    textAlign: "center",
   },
   ctaText: {
     color: "#FFFFFF",

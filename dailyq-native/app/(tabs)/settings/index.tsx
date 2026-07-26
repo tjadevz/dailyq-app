@@ -69,9 +69,11 @@ function ReminderModal({
   const opacity = useRef(new Animated.Value(0)).current;
   const cardY = useRef(new Animated.Value(14)).current;
   const cardScale = useRef(new Animated.Value(0.95)).current;
+  const [rendered, setRendered] = useState(visible);
 
   useEffect(() => {
     if (visible) {
+      setRendered(true);
       cardY.setValue(14);
       cardScale.setValue(0.95);
       Animated.parallel([
@@ -84,11 +86,11 @@ function ReminderModal({
         Animated.timing(opacity, { toValue: 0, duration: MODAL_CLOSE_MS, useNativeDriver: true }),
         Animated.timing(cardY, { toValue: 14, duration: MODAL_CLOSE_MS, useNativeDriver: true }),
         Animated.timing(cardScale, { toValue: 0.95, duration: MODAL_CLOSE_MS, useNativeDriver: true }),
-      ]).start();
+      ]).start(() => setRendered(false));
     }
   }, [visible]);
 
-  if (!visible) return null;
+  if (!rendered) return null;
 
   const OPTIONS: { value: ReminderTime | null; labelKey: string; timeKey?: string }[] = [
     { value: null, labelKey: "settings_reminder_off" },
@@ -98,7 +100,7 @@ function ReminderModal({
   ];
 
   return (
-    <Modal transparent visible={visible} animationType="none">
+    <Modal transparent visible={rendered} animationType="none">
       <Animated.View style={[styles.modalBackdrop, { opacity }]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         <Animated.View style={[styles.modalCard, { transform: [{ translateY: cardY }, { scale: cardScale }] }]}>

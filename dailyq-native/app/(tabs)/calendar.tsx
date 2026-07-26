@@ -17,6 +17,7 @@ import {
 } from "react-native";
 import { BlurView } from "expo-blur";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
 import { useFocusEffect } from "expo-router/react-navigation";
 import Feather from "@expo/vector-icons/Feather";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
@@ -47,8 +48,9 @@ import {
 } from "@/src/lib/onboardingWindow";
 import { logEvent } from "@/lib/analytics";
 import { supabase } from "@/src/config/supabase";
-import { JokerModalBottomSheet } from "@/src/components/JokerModalBottomSheet";
 import JokerOfferModal from "@/src/components/JokerOfferModal";
+import JokerIntroModal from "@/src/components/JokerIntroModal";
+import { JokerShopModal } from "@/src/components/JokerShopModal";
 import { JokerBadge } from "@/src/components/JokerBadge";
 import { GlassCardContainer } from "@/src/components/GlassCardContainer";
 import { PrimaryButton } from "@/src/components/PrimaryButton";
@@ -71,6 +73,9 @@ import AnimatedReanimated, {
 const GRID_ROWS = 6;
 const GRID_COLS = 7;
 const MISSED_ANSWER_DAYS_CAP = 30;
+// Matches JokerOfferModal's own exit-animation duration — closing it and opening
+// the next full-screen modal in the same tick makes both animate at once.
+const JOKER_OFFER_CLOSE_MS = 180;
 
 /** Short weekday labels (Mon–Sun) in the given locale. */
 function getWeekdayLabels(lang: string): string[] {
@@ -422,23 +427,30 @@ function MissedDayModal({
   useEffect(() => {
     if (visible) {
       Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: true }).start();
-    } else {
-      Animated.timing(opacity, { toValue: 0, duration: MODAL_CLOSE_MS, useNativeDriver: true }).start();
     }
   }, [visible, opacity]);
 
+  const dismiss = useCallback(
+    (action: () => void) => {
+      Animated.timing(opacity, { toValue: 0, duration: MODAL_CLOSE_MS, useNativeDriver: true }).start(() =>
+        action()
+      );
+    },
+    [opacity]
+  );
+
   if (!visible) return null;
   return (
-    <Modal transparent visible={visible} animationType="none">
+    <Modal transparent visible={visible} animationType="none" onRequestClose={() => dismiss(onClose)}>
       <Animated.View style={[styles.modalBackdrop, styles.missedDayBackdrop, { opacity }]}>
         <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
         <View
           style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(76, 29, 149, 0.25)" }]}
           pointerEvents="none"
         />
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <Pressable style={StyleSheet.absoluteFill} onPress={() => dismiss(onClose)} />
         <View style={[styles.modalCard, isPermanentlyLocked ? styles.lockedModalCard : null]}>
-          <Pressable style={MODAL.CLOSE_BUTTON} onPress={onClose}>
+          <Pressable style={MODAL.CLOSE_BUTTON} onPress={() => dismiss(onClose)}>
             <Feather name="x" size={18} color={COLORS.TEXT_SECONDARY} strokeWidth={2.5} />
           </Pressable>
           <View
@@ -466,7 +478,7 @@ function MissedDayModal({
           ) : (
             <>
               <Text style={[styles.modalBody, styles.modalTextCenter]}>{t("missed_use_joker_message")}</Text>
-              <Pressable onPress={onUseJoker} style={styles.primaryBtnWrap}>
+              <Pressable onPress={() => dismiss(onUseJoker)} style={styles.primaryBtnWrap}>
                 <LinearGradient
                   colors={["#C4B5FD", "#A78BFA"]}
                   start={{ x: 0, y: 0 }}
@@ -576,6 +588,7 @@ function YearPickerModal({
 
 export default function CalendarScreen() {
   const { lang, t } = useLanguage();
+  const router = useRouter();
   const { effectiveUser } = useAuth();
   const userId = effectiveUser?.id ?? null;
   const { profile, refetch: refetchProfile } = useProfileContext();
@@ -638,6 +651,8 @@ export default function CalendarScreen() {
   const [allYearsEntries, setAllYearsEntries] = useState<{ year: string; answer: string }[] | null>(null);
   const [allYearsLoading, setAllYearsLoading] = useState(false);
   const [missedDay, setMissedDay] = useState<string | null>(null);
+  const [introDayKey, setIntroDayKey] = useState<string | null>(null);
+  const [jokerModalVisible, setJokerModalVisible] = useState(false);
   const [missedAnswerDay, setMissedAnswerDay] = useState<string | null>(null);
   const [missedAnswerQuestionText, setMissedAnswerQuestionText] = useState("");
   const [missedAnswerRequiresJoker, setMissedAnswerRequiresJoker] = useState(true);
@@ -645,7 +660,6 @@ export default function CalendarScreen() {
   const [missedAnswerError, setMissedAnswerError] = useState<string | null>(null);
   const [showSubmitSuccess, setShowSubmitSuccess] = useState(false);
   const [pendingStreakMilestone, setPendingStreakMilestone] = useState<ReturnType<typeof getHighestMilestoneCrossed>>(null);
-  const [jokerModalVisible, setJokerModalVisible] = useState(false);
   const [realStreak, setRealStreak] = useState(0);
   const [showYearPicker, setShowYearPicker] = useState(false);
   const [alreadyGrantedMilestones, setAlreadyGrantedMilestones] = useState<Set<number>>(new Set());
@@ -793,21 +807,43 @@ export default function CalendarScreen() {
       if (state === "answered" || state === "joker") {
         logEvent("past_answer_viewed", { days_ago: daysBetween(dayKey, todayKey) });
         setViewAnswerDay(dayKey);
+      } else if (state === "today") {
+        router.push("/(tabs)/today?openAnswer=1");
       } else if (state === "missed" || state === "before") {
         logEvent("missed_day_viewed", { days_ago: daysBetween(dayKey, todayKey), state });
+        const withinWindow =
+          isWithinMissedAnswerWindow(dayKey, todayKey) && !isBeforeAccountStart(dayKey, accountBoundaryDate);
+
+        if (withinWindow && !profile?.joker_intro_shown) {
+          setIntroDayKey(dayKey);
+          if (userId && userId !== "dev-user") {
+            supabase
+              .from("profiles")
+              .update({ joker_intro_shown: true })
+              .eq("id", userId)
+              .then(({ error }) => {
+                if (error) console.error("[Calendar] mark joker_intro_shown failed:", error);
+              });
+            refetchProfile();
+          }
+          return;
+        }
+
         setMissedDay(dayKey);
       }
     },
-    [todayKey]
+    [todayKey, accountBoundaryDate, profile?.joker_intro_shown, userId, refetchProfile, router]
   );
 
   const openMissedAnswer = useCallback(
     (dayKey: string, questionText?: string) => {
-      setMissedAnswerDay(dayKey);
-      setMissedAnswerQuestionText(questionText ?? "");
-      setMissedAnswerRequiresJoker(true);
       setMissedDay(null);
-      setMissedAnswerError(null);
+      setTimeout(() => {
+        setMissedAnswerDay(dayKey);
+        setMissedAnswerQuestionText(questionText ?? "");
+        setMissedAnswerRequiresJoker(true);
+        setMissedAnswerError(null);
+      }, JOKER_OFFER_CLOSE_MS);
     },
     []
   );
@@ -923,6 +959,13 @@ export default function CalendarScreen() {
     isWithinMissedAnswerWindow(missedDay, todayKey) &&
     !isBeforeAccountStart(missedDay, accountBoundaryDate)
   );
+  // Cached so closing (missedDay -> null) doesn't flip which modal is mounted
+  // mid-close — that would unmount JokerOfferModal/MissedDayModal outright and
+  // cut off their exit animation before it gets a single frame to play.
+  const [lastMissedWithinWindow, setLastMissedWithinWindow] = useState(false);
+  useEffect(() => {
+    if (missedDay) setLastMissedWithinWindow(missedWithinWindow);
+  }, [missedDay, missedWithinWindow]);
   const jokerCount = profile?.joker_balance ?? 0;
   const insets = useSafeAreaInsets();
 
@@ -1165,7 +1208,12 @@ export default function CalendarScreen() {
         allYearsLoading={allYearsLoading}
         onClose={() => setViewAnswerDay(null)}
       />
-      {missedWithinWindow ? (
+      <JokerIntroModal
+        visible={!!introDayKey}
+        dayKey={introDayKey}
+        onClose={() => setIntroDayKey(null)}
+      />
+      {lastMissedWithinWindow ? (
         <JokerOfferModal
           visible={!!missedDay}
           dayKey={missedDay}
@@ -1174,6 +1222,10 @@ export default function CalendarScreen() {
           onUseJoker={(dayKey, questionText) =>
             openMissedAnswer(dayKey, questionText)
           }
+          onNeedMoreJokers={() => {
+            setMissedDay(null);
+            setTimeout(() => setJokerModalVisible(true), JOKER_OFFER_CLOSE_MS);
+          }}
         />
       ) : (
         <MissedDayModal
@@ -1197,7 +1249,7 @@ export default function CalendarScreen() {
           onUseJoker={() => missedDay && openMissedAnswer(missedDay)}
         />
       )}
-      {userId && missedAnswerDay && (
+      {userId && (
         <AnsweringExperience
           isOpen={!!missedAnswerDay}
           onClose={() => {
@@ -1215,14 +1267,9 @@ export default function CalendarScreen() {
           submitting={missedAnswerSubmitting}
         />
       )}
-      <JokerModalBottomSheet
-        visible={jokerModalVisible}
-        onClose={() => setJokerModalVisible(false)}
-        jokerBalance={jokerCount}
-        t={t}
-      />
       <SubmitSuccessModal visible={showSubmitSuccess} />
       </ScrollView>
+      <JokerShopModal visible={jokerModalVisible} onClose={() => setJokerModalVisible(false)} />
     </GlassCardContainer>
   );
 }

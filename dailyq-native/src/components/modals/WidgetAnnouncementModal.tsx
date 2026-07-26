@@ -21,8 +21,6 @@ export function WidgetAnnouncementModal({ visible, onClose }: Props) {
 
   const handleDismiss = useCallback(() => onClose(), [onClose]);
 
-  if (!visible) return null;
-
   return (
     <Modal transparent visible={visible} animationType="fade" onRequestClose={handleDismiss}>
       <View style={{ width, height, backgroundColor: COLORS.BACKGROUND }}>

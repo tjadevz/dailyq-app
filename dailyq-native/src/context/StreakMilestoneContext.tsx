@@ -1,6 +1,14 @@
 import React, { createContext, useCallback, useContext, useState } from "react";
 import { useLanguage } from "@/src/context/LanguageContext";
-import { StreakCelebrationModal, type StreakMilestone } from "@/src/components/StreakCelebrationModal";
+import { MilestoneCelebrationModal } from "@/src/components/MilestoneCelebrationModal";
+import {
+  STREAK_MILESTONES,
+  JOKER_COUNT_BY_MILESTONE,
+  type StreakMilestone,
+} from "@/src/lib/streakMilestones";
+
+export { STREAK_MILESTONES, JOKER_COUNT_BY_MILESTONE };
+export type { StreakMilestone };
 
 type StreakMilestoneState = {
   open: boolean;
@@ -35,7 +43,7 @@ export function StreakMilestoneProvider({ children }: { children: React.ReactNod
       }}
     >
       {children}
-      <StreakCelebrationModal
+      <MilestoneCelebrationModal
         visible={state.open}
         milestone={state.milestone}
         onClose={hideMilestone}
@@ -50,20 +58,6 @@ export function useStreakMilestone(): StreakMilestoneContextValue {
   if (!ctx) throw new Error("useStreakMilestone must be used within StreakMilestoneProvider");
   return ctx;
 }
-
-/** Milestones we check for (order: ascending). */
-export const STREAK_MILESTONES = [7, 14, 30, 60, 100, 180, 365] as const;
-
-/** Joker count per milestone (7→1, 14→1, 30→2, 60→2, 100→3, 180→4, 365→5). */
-export const JOKER_COUNT_BY_MILESTONE: Record<number, number> = {
-  7: 1,
-  14: 1,
-  30: 2,
-  60: 2,
-  100: 3,
-  180: 4,
-  365: 5,
-};
 
 /**
  * Returns the highest milestone crossed when going from previousStreak to newStreak.

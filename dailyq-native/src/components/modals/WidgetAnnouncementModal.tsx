@@ -1,7 +1,7 @@
 import React, { useCallback } from "react";
 import { Modal, Pressable, StyleSheet, Text, View, Image, useWindowDimensions } from "react-native";
 import Feather from "@expo/vector-icons/Feather";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { BackgroundLayer } from "@/src/components/BackgroundLayer";
 import { WidgetPreviewMockup } from "@/src/components/WidgetPreviewMockup";
@@ -15,8 +15,13 @@ type Props = {
 
 export function WidgetAnnouncementModal({ visible, onClose }: Props) {
   // Fabric doesn't reliably size flex:1/absoluteFillObject (right/bottom-based)
-  // content inside <Modal> — needs explicit numeric width/height.
+  // content inside <Modal> — needs explicit numeric width/height. SafeAreaView's
+  // automatic inset computation is equally unreliable inside a bare <Modal>'s
+  // separate native layer (it rendered the close button up under the status bar) —
+  // use the useSafeAreaInsets() hook and apply insets explicitly instead, matching
+  // every other modal in this app.
   const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const { t } = useLanguage();
 
   const handleDismiss = useCallback(() => onClose(), [onClose]);
@@ -29,7 +34,7 @@ export function WidgetAnnouncementModal({ visible, onClose }: Props) {
             style={{ position: "absolute", top: 0, left: 0, right: undefined, bottom: undefined, width, height }}
           />
         </View>
-        <SafeAreaView style={{ width, height }} edges={["top", "bottom"]}>
+        <View style={{ width, height, paddingTop: insets.top, paddingBottom: insets.bottom }}>
           <View style={styles.closeRow}>
             <Pressable
               onPress={handleDismiss}
@@ -55,7 +60,7 @@ export function WidgetAnnouncementModal({ visible, onClose }: Props) {
 
             <Text style={styles.hintText}>{t("onboarding_widget_hint")}</Text>
           </View>
-        </SafeAreaView>
+        </View>
       </View>
     </Modal>
   );

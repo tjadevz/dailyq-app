@@ -44,7 +44,6 @@ import {
 } from "@/src/lib/widgetAnnouncement";
 import DailyQLoadingScreen from "@/src/components/DailyQLoadingScreen";
 import { AnsweringExperience } from "@/src/components/AnsweringExperience";
-import { SubmitSuccessModal } from "@/src/components/SubmitSuccessModal";
 import ShareCard from "@/src/components/ShareCard";
 import ShareCaptureModal from "@/src/components/ShareCaptureModal";
 import AccountMilestoneModal, {
@@ -141,6 +140,16 @@ async function markArchiveMomentShown(userId: string): Promise<void> {
     .eq("id", userId);
   if (error) {
     console.error("[Today] Archive moment profile update:", error);
+  }
+}
+
+async function markWidgetAnnouncementShown(userId: string): Promise<void> {
+  const { error } = await supabase
+    .from("profiles")
+    .update({ widget_announcement_dismissed: true })
+    .eq("id", userId);
+  if (error) {
+    console.error("[Today] Widget announcement profile update:", error);
   }
 }
 
@@ -249,7 +258,9 @@ export default function TodayScreen() {
     }, [userId, profile?.widget_installed, refetchProfile])
   );
   const shouldQueueWidgetAnnouncement =
-    profile?.widget_installed !== true && !widgetAnnouncementDismissed;
+    profile?.widget_installed !== true &&
+    profile?.widget_announcement_dismissed !== true &&
+    !widgetAnnouncementDismissed;
   const [showSubmitSuccess, setShowSubmitSuccess] = useState(false);
   const [pendingStreakMilestone, setPendingStreakMilestone] = useState<ReturnType<typeof getHighestMilestoneCrossed>>(null);
   const [pendingMilestone, setPendingMilestone] = useState<10 | null>(null);
@@ -483,10 +494,13 @@ export default function TodayScreen() {
 
   const handleWidgetAnnouncementClose = useCallback(() => {
     setWidgetAnnouncementDismissedState(true);
-    if (userId) void setWidgetAnnouncementDismissed(userId);
+    if (userId && userId !== "dev-user") {
+      void setWidgetAnnouncementDismissed(userId);
+      void markWidgetAnnouncementShown(userId).then(() => refetchProfile());
+    }
     logEvent("widget_announcement_dismissed");
     advanceQueue(modalQueue);
-  }, [userId, modalQueue, advanceQueue]);
+  }, [userId, modalQueue, advanceQueue, refetchProfile]);
   useEffect(() => {
     if (activeModal === "widgetAnnouncement") {
       logEvent("widget_announcement_shown");
@@ -706,28 +720,8 @@ export default function TodayScreen() {
         setExistingAnswer(trimmed);
         setAnswerText(trimmed);
 
-        setAnswerModalOpen(false);
-        setShowSubmitSuccess(true);
-        setTimeout(() => {
-          setShowSubmitSuccess(false);
-        }, 2400);
-
-        if (wasUpdate) {
-          setEditConfirmVisible(true);
-          setTimeout(() => setEditConfirmVisible(false), 2500);
-        }
-        void (async () => {
-          const prior = await fetchPreviousYearSameDayAnswers(userId, dayKey);
-          if (prior.length > 0) {
-            logEvent("previous_year_answer_viewed", { count: prior.length });
-            setPreviousYearQueue({
-              items: prior,
-              current: { question_date: dayKey, answer_text: trimmed },
-              questionText: question.text,
-            });
-          }
-        })();
-
+        // Fetch the fresh streak before showing the celebration so its digit
+        // roll can count up to the real number on the very first frame.
         const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
         const { data: streaks } = await supabase.rpc("get_user_streaks", {
           p_user_id: userId,
@@ -744,6 +738,28 @@ export default function TodayScreen() {
           streak: newStreak,
           source: openedFromWidgetRef.current ? "widget" : "app",
         });
+
+        // The celebration renders inside AnsweringExperience's own still-open
+        // native <Modal> (see its `celebration` prop) instead of a second
+        // separate <Modal> — answerModalOpen only gets set to false once the
+        // celebration itself is dismissed, further down.
+        setShowSubmitSuccess(true);
+        if (wasUpdate) {
+          setEditConfirmVisible(true);
+          setTimeout(() => setEditConfirmVisible(false), 2500);
+        }
+
+        void (async () => {
+          const prior = await fetchPreviousYearSameDayAnswers(userId, dayKey);
+          if (prior.length > 0) {
+            logEvent("previous_year_answer_viewed", { count: prior.length });
+            setPreviousYearQueue({
+              items: prior,
+              current: { question_date: dayKey, answer_text: trimmed },
+              questionText: question.text,
+            });
+          }
+        })();
 
         try {
           const alreadyGranted = await getAlreadyGranted(supabase, userId);
@@ -860,7 +876,7 @@ export default function TodayScreen() {
           style={({ pressed }) => [styles.statusJokerCell, pressed && styles.statusCellPressed]}
         >
           <View style={styles.statusJokerChip}>
-            <MaterialCommunityIcons name="crown" size={16} color="#D4AF37" />
+            <MaterialCommunityIcons name="crown" size={16} color="#FFFFFF" />
           </View>
           <Text style={styles.statusJokerNum}>{profile?.joker_balance ?? 0}</Text>
         </Pressable>
@@ -964,9 +980,16 @@ export default function TodayScreen() {
             placeholder={t("today_placeholder")}
             submitError={submitError}
             submitting={submitting}
+            celebration={{
+              visible: showSubmitSuccess,
+              streak: currentStreak,
+              onDismiss: () => {
+                setShowSubmitSuccess(false);
+                setAnswerModalOpen(false);
+              },
+            }}
           />
 
-          <SubmitSuccessModal visible={showSubmitSuccess} />
           <JokerShopModal visible={jokerModalVisible} onClose={() => setJokerModalVisible(false)} />
           <StreakOverviewModal
             visible={streakOverviewVisible}
@@ -1273,7 +1296,7 @@ const styles = StyleSheet.create({
     color: "#9CA3AF",
   },
   statusDayTrack: {
-    width: 44,
+    alignSelf: "stretch",
     height: 3,
     borderRadius: 2,
     backgroundColor: "rgba(139,92,246,0.15)",
@@ -1319,7 +1342,7 @@ const styles = StyleSheet.create({
     width: 29,
     height: 29,
     borderRadius: 14.5,
-    backgroundColor: "rgba(240,192,64,0.18)",
+    backgroundColor: "#FFC700",
     alignItems: "center",
     justifyContent: "center",
   },

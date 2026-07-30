@@ -32,6 +32,7 @@ import { COLORS } from "@/src/config/constants";
 import { useLanguage } from "@/src/context/LanguageContext";
 import { getDayOfYear } from "@/src/lib/date";
 import { supabase } from "@/src/config/supabase";
+import { SubmitSuccessContent } from "@/src/components/SubmitSuccessContent";
 
 export interface AnsweringExperienceProps {
   isOpen: boolean;
@@ -68,6 +69,20 @@ export interface AnsweringExperienceProps {
   introBody?: string;
   introCtaLabel?: string;
   onIntroContinue?: () => void;
+  /**
+   * When set, shows the post-submit celebration on top of this same native
+   * <Modal> instead of the parent closing this one and opening a separate
+   * <Modal> for it — two back-to-back native Modals on iOS cause the first
+   * one's dismissal to cascade-dismiss the second, and even sequenced
+   * carefully there's a visible gap where the real screen flashes through.
+   * The parent should only actually close this modal (isOpen -> false) once
+   * `celebration.onDismiss` fires.
+   */
+  celebration?: {
+    visible: boolean;
+    streak: number;
+    onDismiss: () => void;
+  };
 }
 
 export function AnsweringExperience({
@@ -95,6 +110,7 @@ export function AnsweringExperience({
   introBody,
   introCtaLabel,
   onIntroContinue,
+  celebration,
 }: AnsweringExperienceProps) {
   const showProgress =
     !isIntroCard &&
@@ -555,6 +571,13 @@ export function AnsweringExperience({
         </View>
       </View>
       </View>
+      {celebration ? (
+        <SubmitSuccessContent
+          visible={celebration.visible}
+          streak={celebration.streak}
+          onDismiss={celebration.onDismiss}
+        />
+      ) : null}
     </Modal>
   );
 }

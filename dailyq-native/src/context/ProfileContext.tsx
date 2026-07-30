@@ -12,6 +12,7 @@ export type Profile = {
   created_at?: string | null;
   milestone_10_days_shown?: boolean | null;
   widget_installed?: boolean | null;
+  widget_announcement_dismissed?: boolean | null;
   joker_intro_shown?: boolean | null;
   archive_moment_day4_shown?: boolean | null;
 };
@@ -19,6 +20,13 @@ export type Profile = {
 type ProfileContextValue = {
   profile: Profile | null;
   refetch: () => Promise<Profile | null>;
+  /**
+   * Patches joker_balance locally, no network call. Used to make purchases/rewards
+   * feel instant while the authoritative server value is still catching up (e.g. a
+   * RevenueCat webhook grant) — refetch() will overwrite this with the real value
+   * once it lands.
+   */
+  bumpJokerBalance: (delta: number) => void;
 };
 
 const ProfileContext = createContext<ProfileContextValue | null>(null);
@@ -52,7 +60,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
 
     const { data: prof, error: fetchErr } = await supabase
       .from("profiles")
-      .select("id, joker_balance, language, onboarding_completed, referral_code, created_at, milestone_10_days_shown, widget_installed, joker_intro_shown, archive_moment_day4_shown")
+      .select("id, joker_balance, language, onboarding_completed, referral_code, created_at, milestone_10_days_shown, widget_installed, widget_announcement_dismissed, joker_intro_shown, archive_moment_day4_shown")
       .eq("id", userId)
       .maybeSingle();
 
@@ -70,8 +78,12 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     refetch();
   }, [refetch]);
 
+  const bumpJokerBalance = useCallback((delta: number) => {
+    setProfile((prev) => (prev ? { ...prev, joker_balance: prev.joker_balance + delta } : prev));
+  }, []);
+
   return (
-    <ProfileContext.Provider value={{ profile, refetch }}>
+    <ProfileContext.Provider value={{ profile, refetch, bumpJokerBalance }}>
       {children}
     </ProfileContext.Provider>
   );

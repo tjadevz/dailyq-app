@@ -56,7 +56,6 @@ import { JokerBadge } from "@/src/components/JokerBadge";
 import { GlassCardContainer } from "@/src/components/GlassCardContainer";
 import { PrimaryButton } from "@/src/components/PrimaryButton";
 import { AnsweringExperience } from "@/src/components/AnsweringExperience";
-import { SubmitSuccessModal } from "@/src/components/SubmitSuccessModal";
 import ShareCard from "@/src/components/ShareCard";
 import { useShareCard } from "@/src/hooks/useShareCard";
 import { useStreakMilestone, getAlreadyGranted, getHighestMilestoneCrossed, getMilestonesCrossed, grantMilestoneJokersForCrossed } from "@/src/context/StreakMilestoneContext";
@@ -930,11 +929,12 @@ export default function CalendarScreen() {
         } else {
           logEvent("missed_day_answered", { days_ago: daysBetween(missedAnswerDay, todayKey) });
         }
-        setMissedAnswerDay(null);
-        setMissedAnswerQuestionText("");
-        setShowSubmitSuccess(true);
-        setTimeout(() => setShowSubmitSuccess(false), 2400);
+        // The celebration renders inside AnsweringExperience's own still-open
+        // native <Modal> (see its `celebration` prop) instead of a second
+        // separate <Modal> — missedAnswerDay only gets cleared (closing this
+        // modal) once the celebration itself is dismissed, further down.
         await handleMissedSaved(previousStreak);
+        setShowSubmitSuccess(true);
       } catch (e: unknown) {
         setMissedAnswerError(
           (e as { message?: string })?.message ??
@@ -1270,9 +1270,17 @@ export default function CalendarScreen() {
           placeholder={t("today_placeholder")}
           submitError={missedAnswerError}
           submitting={missedAnswerSubmitting}
+          celebration={{
+            visible: showSubmitSuccess,
+            streak: realStreak,
+            onDismiss: () => {
+              setShowSubmitSuccess(false);
+              setMissedAnswerDay(null);
+              setMissedAnswerQuestionText("");
+            },
+          }}
         />
       )}
-      <SubmitSuccessModal visible={showSubmitSuccess} />
       </ScrollView>
       <JokerShopModal visible={jokerModalVisible} onClose={() => setJokerModalVisible(false)} />
       <StreakOverviewModal

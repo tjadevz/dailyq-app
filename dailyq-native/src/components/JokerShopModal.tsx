@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useState } from "react";
-import { View, Text, StyleSheet, Pressable, ActivityIndicator, Share, ScrollView, Modal } from "react-native";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { View, Text, StyleSheet, Pressable, ActivityIndicator, Share, ScrollView, Modal, Animated } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Feather from "@expo/vector-icons/Feather";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
@@ -28,13 +28,15 @@ export function JokerShopModal({ visible, onClose }: JokerShopModalProps) {
   const { t } = useLanguage();
   const { effectiveUser } = useAuth();
   const userId = effectiveUser?.id ?? null;
-  const { profile, refetch: refetchProfile } = useProfileContext();
+  const { profile, refetch: refetchProfile, bumpJokerBalance } = useProfileContext();
   const { products, productsLoading, purchaseJokerPack } = usePurchases();
 
   const jokerBalance = profile?.joker_balance ?? 0;
 
   const [purchasingProductId, setPurchasingProductId] = useState<string | null>(null);
   const [purchaseMessage, setPurchaseMessage] = useState<string | null>(null);
+  const [purchaseSuccess, setPurchaseSuccess] = useState<{ count: number } | null>(null);
+  const successIconScale = useRef(new Animated.Value(0.7)).current;
 
   const [realStreak, setRealStreak] = useState(0);
   const [grantedMilestones, setGrantedMilestones] = useState<Set<number>>(new Set());
@@ -87,8 +89,24 @@ export function JokerShopModal({ visible, onClose }: JokerShopModalProps) {
     if (!visible) {
       setPurchaseMessage(null);
       setPurchasingProductId(null);
+      setPurchaseSuccess(null);
     }
   }, [visible]);
+
+  // Spring the success icon in whenever a purchase completes, and auto-return to
+  // the pack list after a few seconds so the sheet doesn't feel stuck.
+  useEffect(() => {
+    if (!purchaseSuccess) return;
+    successIconScale.setValue(0.7);
+    Animated.spring(successIconScale, {
+      toValue: 1,
+      useNativeDriver: true,
+      damping: 10,
+      stiffness: 210,
+    }).start();
+    const timer = setTimeout(() => setPurchaseSuccess(null), 3500);
+    return () => clearTimeout(timer);
+  }, [purchaseSuccess, successIconScale]);
 
   const nextMilestone = STREAK_MILESTONES.find((m) => m > realStreak && !grantedMilestones.has(m)) ?? null;
   const daysLeft = nextMilestone != null ? nextMilestone - realStreak : 0;
@@ -108,6 +126,26 @@ export function JokerShopModal({ visible, onClose }: JokerShopModalProps) {
     }
   }, [profile?.referral_code, t]);
 
+  // Purchase confirmation from StoreKit is instant and reliable; the server-side
+  // grant (RevenueCat webhook -> grant_iap_jokers) is async and can lag by anywhere
+  // from seconds to ~a minute+ (mostly in sandbox), fully outside our control. So we
+  // bump the balance optimistically right away and only use this background poll to
+  // quietly reconcile with the authoritative value — never to gate the success UI,
+  // and never to show an error. If it never confirms within the window, we just stop
+  // silently: the optimistic number already matches what the user expects, and the
+  // next natural refetch (e.g. reopening the shop) will pick up the true value.
+  const reconcileBalanceAfterPurchase = useCallback(
+    async (targetBalance: number) => {
+      const delaysMs = [2000, 4000, 8000, 15000, 30000, 30000, 30000];
+      for (const delay of delaysMs) {
+        await sleep(delay);
+        const updated = await refetchProfile();
+        if ((updated?.joker_balance ?? 0) >= targetBalance) return;
+      }
+    },
+    [refetchProfile]
+  );
+
   const handleBuyPack = useCallback(
     async (productId: JokerProductId) => {
       if (purchasingProductId) return;
@@ -116,13 +154,10 @@ export function JokerShopModal({ visible, onClose }: JokerShopModalProps) {
       try {
         const result = await purchaseJokerPack(productId);
         if (result === "purchased") {
-          setPurchaseMessage(t("joker_menu_buy_success"));
-          const baseline = jokerBalance;
-          for (let i = 0; i < 5; i++) {
-            await sleep(1500);
-            const updated = await refetchProfile();
-            if ((updated?.joker_balance ?? baseline) > baseline) break;
-          }
+          const count = JOKER_COUNT_BY_PRODUCT_ID[productId];
+          bumpJokerBalance(count);
+          setPurchaseSuccess({ count });
+          reconcileBalanceAfterPurchase(jokerBalance + count);
         } else if (result === "cancelled") {
           setPurchaseMessage(t("joker_menu_buy_cancelled"));
         } else {
@@ -132,7 +167,7 @@ export function JokerShopModal({ visible, onClose }: JokerShopModalProps) {
         setPurchasingProductId(null);
       }
     },
-    [purchasingProductId, purchaseJokerPack, jokerBalance, refetchProfile, t]
+    [purchasingProductId, purchaseJokerPack, jokerBalance, bumpJokerBalance, reconcileBalanceAfterPurchase, t]
   );
 
   return (
@@ -166,6 +201,32 @@ export function JokerShopModal({ visible, onClose }: JokerShopModalProps) {
             </Pressable>
           </View>
 
+          {purchaseSuccess ? (
+            <View style={styles.successWrap}>
+              <Animated.View style={{ transform: [{ scale: successIconScale }] }}>
+                <View style={styles.successIconRing}>
+                  <LinearGradient
+                    colors={["#FDE68A", "#FBBF24"]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.successIconCircle}
+                  >
+                    <Feather name="check" size={30} color="#FFFFFF" strokeWidth={3} />
+                  </LinearGradient>
+                </View>
+              </Animated.View>
+              <Text style={styles.successTitle}>{t("joker_menu_buy_success")}</Text>
+              <Text style={styles.successSubtitle}>
+                {t("joker_shop_purchase_added", { count: purchaseSuccess.count })}
+              </Text>
+              <Pressable
+                style={({ pressed }) => [styles.successCta, pressed && { opacity: 0.88 }]}
+                onPress={() => setPurchaseSuccess(null)}
+              >
+                <Text style={styles.successCtaText}>{t("common_ok")}</Text>
+              </Pressable>
+            </View>
+          ) : (
           <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
             {!!profile?.referral_code && (
               <View style={styles.referCard}>
@@ -253,6 +314,7 @@ export function JokerShopModal({ visible, onClose }: JokerShopModalProps) {
               </View>
             )}
           </ScrollView>
+          )}
         </View>
       </GlassCardContainer>
     </Modal>
@@ -518,5 +580,66 @@ const styles = StyleSheet.create({
     fontFamily: "Inter",
     textAlign: "center",
     color: COLORS.TEXT_SECONDARY,
+  },
+  successWrap: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 32,
+    paddingBottom: 56,
+  },
+  successIconRing: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    borderWidth: 2,
+    borderColor: JOKER.GOLD_RING,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 22,
+  },
+  successIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(240,192,64,0.5)",
+    shadowColor: "#B45309",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  successTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    fontFamily: "Inter",
+    color: COLORS.TEXT_PRIMARY,
+    textAlign: "center",
+    marginBottom: 10,
+  },
+  successSubtitle: {
+    fontSize: 15,
+    fontFamily: "Inter",
+    color: COLORS.TEXT_SECONDARY,
+    textAlign: "center",
+    marginBottom: 28,
+  },
+  successCta: {
+    minWidth: 140,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    borderRadius: 9999,
+    backgroundColor: JOKER.GOLD,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  successCtaText: {
+    fontSize: 16,
+    fontWeight: "700",
+    fontFamily: "Inter",
+    color: "#FFFFFF",
   },
 });

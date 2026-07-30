@@ -8,6 +8,7 @@ import { OnboardingWidgetStep } from "@/src/components/OnboardingWidgetStep";
 import { useAuth } from "@/src/context/AuthContext";
 import { setOnboardingWidgetDone } from "@/src/lib/onboardingProgress";
 import { setWidgetAnnouncementDismissed } from "@/src/lib/widgetAnnouncement";
+import { supabase } from "@/src/config/supabase";
 import { logEvent } from "@/lib/analytics";
 
 export default function OnboardingWidgetScreen() {
@@ -39,9 +40,12 @@ export default function OnboardingWidgetScreen() {
     try {
       // Users who saw this dedicated step shouldn't also get the Today
       // "widget now available" announcement right after their first answer.
+      // Persisted both locally (instant) and server-side (survives reinstalls/
+      // device switches, unlike the AsyncStorage-only flag alone).
       await Promise.all([
         setOnboardingWidgetDone(userId),
         setWidgetAnnouncementDismissed(userId),
+        supabase.from("profiles").update({ widget_announcement_dismissed: true }).eq("id", userId),
       ]);
       router.navigate("/(tabs)/onboarding-questions");
     } finally {

@@ -7,7 +7,7 @@ export const REVENUECAT_IOS_API_KEY =
 export const JOKER_PRODUCT_IDS = {
   jokers_3: "jokers_3",
   jokers_5: "jokers_5",
-  jokers_10: "jokers_10",
+  jokers_10: "Jokers_10",
 } as const;
 
 export type JokerProductId = (typeof JOKER_PRODUCT_IDS)[keyof typeof JOKER_PRODUCT_IDS];

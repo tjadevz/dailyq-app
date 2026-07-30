@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { COLORS } from "@/src/config/constants";
 import { BackgroundLayer } from "@/src/components/BackgroundLayer";
 import { AnsweringExperience } from "@/src/components/AnsweringExperience";
+import { AnswerTransitionVeil } from "@/src/components/AnswerTransitionVeil";
 import { OnboardingRewardModal } from "@/src/components/OnboardingRewardModal";
 import { useAuth } from "@/src/context/AuthContext";
 import { useLanguage } from "@/src/context/LanguageContext";
@@ -44,6 +45,8 @@ export default function OnboardingQuestionsScreen() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [rewardModalVisible, setRewardModalVisible] = useState(false);
+  const [showRewardModal, setShowRewardModal] = useState(false);
+  const [transitionVeilVisible, setTransitionVeilVisible] = useState(false);
   const [exiting, setExiting] = useState(false);
   const [modalDismissed, setModalDismissed] = useState(false);
   const [showIntroCard, setShowIntroCard] = useState(true);
@@ -140,7 +143,13 @@ export default function OnboardingQuestionsScreen() {
         if (completeErr) throw completeErr;
         if (grantJoker) {
           logEvent("onboarding_completed");
+          // AnsweringExperience keeps its native <Modal> presented for the length
+          // of its own close animation — mounting OnboardingRewardModal's native
+          // <Modal> before that finishes races the two on iOS and freezes the
+          // app. handleAnsweringClosed only reveals the reward modal once
+          // AnsweringExperience is genuinely gone; cover the gap with a veil.
           setRewardModalVisible(true);
+          setTransitionVeilVisible(true);
         } else {
           router.replace("/(tabs)/today");
         }
@@ -165,8 +174,16 @@ export default function OnboardingQuestionsScreen() {
 
   const handleLetsGo = useCallback(() => {
     setRewardModalVisible(false);
+    setShowRewardModal(false);
     router.replace("/(tabs)/today");
   }, [router]);
+
+  const handleAnsweringClosed = useCallback(() => {
+    if (rewardModalVisible) {
+      setShowRewardModal(true);
+      setTimeout(() => setTransitionVeilVisible(false), 60);
+    }
+  }, [rewardModalVisible]);
 
   const handleIntroContinue = useCallback(() => {
     setEnterFromRight(true);
@@ -281,8 +298,10 @@ export default function OnboardingQuestionsScreen() {
         enterFromRight={enterFromRight}
         slideOnAdvance={!showIntroCard}
         animateOnClose
+        onClosed={handleAnsweringClosed}
       />
-      <OnboardingRewardModal visible={rewardModalVisible} onLetsGo={handleLetsGo} />
+      <AnswerTransitionVeil visible={transitionVeilVisible} />
+      <OnboardingRewardModal visible={showRewardModal} onLetsGo={handleLetsGo} />
     </View>
   );
 }

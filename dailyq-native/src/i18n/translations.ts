@@ -119,6 +119,9 @@ export const translations: Record<Lang, Record<string, string>> = {
     missed_title: "You missed this day",
     missed_prompt: "Do you want to answer it now?",
     missed_answer_now: "Answer now",
+    missed_day_modal_title: "Missed yesterday?",
+    missed_day_modal_body: "You can still catch up with a joker.",
+    missed_day_modal_cta: "Answer with a joker",
     missed_use_joker_prompt: "Want to use a joker to answer it?",
     missed_use_joker_message:
       "You missed this day.\n\nWith a joker you can still answer it.",
@@ -372,6 +375,9 @@ export const translations: Record<Lang, Record<string, string>> = {
     missed_title: "Je hebt deze dag gemist",
     missed_prompt: "Wil je die nu alsnog beantwoorden?",
     missed_answer_now: "Nu beantwoorden",
+    missed_day_modal_title: "Gisteren gemist?",
+    missed_day_modal_body: "Je kunt 'm nog inhalen met een joker.",
+    missed_day_modal_cta: "Beantwoord met joker",
     missed_use_joker_prompt: "Wil je een joker gebruiken om te beantwoorden?",
     missed_use_joker_message:
       "Je hebt deze dag gemist.\n\nMet een joker kun je de vraag alsnog beantwoorden.",

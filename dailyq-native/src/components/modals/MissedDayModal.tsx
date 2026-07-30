@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef } from "react";
 import { Animated, Modal, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import Feather from "@expo/vector-icons/Feather";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 
@@ -113,11 +114,12 @@ export default function MissedDayModal({
           <Text style={styles.body}>{body}</Text>
           <Pressable onPress={() => dismiss(onAnswer)} style={styles.ctaWrap}>
             <LinearGradient
-              colors={["#C4B5FD", "#A78BFA"]}
+              colors={["#FFD84D", "#FFC700"]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.cta}
             >
+              <MaterialCommunityIcons name="crown" size={16} color="#FFFFFF" style={styles.ctaIcon} />
               <Text style={styles.ctaText}>{ctaLabel}</Text>
             </LinearGradient>
           </Pressable>
@@ -203,23 +205,25 @@ const styles = StyleSheet.create({
     alignSelf: "stretch",
     borderRadius: 9999,
     overflow: "hidden",
-    shadowColor: "rgba(139,92,246,0.3)",
+    shadowColor: "rgba(255,199,0,0.4)",
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 1,
     shadowRadius: 24,
     elevation: 4,
   },
   cta: {
+    flexDirection: "row",
     paddingVertical: 14,
     alignItems: "center",
     justifyContent: "center",
+    gap: 8,
+  },
+  ctaIcon: {
+    marginTop: -1,
   },
   ctaText: {
     fontSize: 16,
-    fontWeight: "600",
-    color: "#fff",
-    textShadowColor: "rgba(0,0,0,0.35)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
+    fontWeight: "700",
+    color: "#FFFFFF",
   },
 });

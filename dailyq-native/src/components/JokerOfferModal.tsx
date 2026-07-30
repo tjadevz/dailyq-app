@@ -238,7 +238,7 @@ export default function JokerOfferModal({
                   style={styles.ctaBtn}
                 >
                   <LinearGradient
-                    colors={jokerCount > 0 ? ["#F5CC50", JOKER.GOLD] : [COLORS.ACCENT_LIGHT, COLORS.ACCENT]}
+                    colors={jokerCount > 0 ? ["#FFD84D", "#FFC700"] : [COLORS.ACCENT_LIGHT, COLORS.ACCENT]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={StyleSheet.absoluteFill}
@@ -345,8 +345,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   questionText: {
-    fontSize: 23,
-    lineHeight: 31,
+    fontSize: 21,
+    lineHeight: 29,
     fontWeight: "500",
     color: "#111827",
     marginBottom: 32,

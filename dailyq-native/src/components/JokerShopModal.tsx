@@ -1,13 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { View, Text, StyleSheet, Pressable, ActivityIndicator, Share, ScrollView, Modal, Animated } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { View, Text, StyleSheet, Pressable, ActivityIndicator, Share, ScrollView, Animated } from "react-native";
 import Feather from "@expo/vector-icons/Feather";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { LinearGradient } from "expo-linear-gradient";
 
 import { COLORS, JOKER } from "@/src/config/constants";
 import { JOKER_PRODUCT_IDS, JOKER_COUNT_BY_PRODUCT_ID, type JokerProductId } from "@/src/config/revenuecat";
-import { GlassCardContainer } from "@/src/components/GlassCardContainer";
+import BottomSheetShell from "@/src/components/modals/BottomSheetShell";
 import { useLanguage } from "@/src/context/LanguageContext";
 import { useAuth } from "@/src/context/AuthContext";
 import { useProfileContext } from "@/src/context/ProfileContext";
@@ -24,7 +23,6 @@ type JokerShopModalProps = {
 };
 
 export function JokerShopModal({ visible, onClose }: JokerShopModalProps) {
-  const insets = useSafeAreaInsets();
   const { t } = useLanguage();
   const { effectiveUser } = useAuth();
   const userId = effectiveUser?.id ?? null;
@@ -171,34 +169,24 @@ export function JokerShopModal({ visible, onClose }: JokerShopModalProps) {
   );
 
   return (
-    <Modal
-      visible={visible}
-      presentationStyle="fullScreen"
-      animationType="slide"
-      onRequestClose={onClose}
-    >
-      <GlassCardContainer>
-        <View style={[styles.container, { paddingTop: insets.top }]}>
+    <BottomSheetShell visible={visible} onClose={onClose} draggable={!purchasingProductId}>
+      {() => (
+        <View style={styles.container}>
           <View style={styles.topbar}>
-            <View style={styles.jokerPillCenterWrap} pointerEvents="none">
-              <LinearGradient
-                colors={["#FFD84D", "#F5B800"]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.jokerPill}
-              >
-                <View style={styles.jokerPillIconCircle}>
-                  <MaterialCommunityIcons name="crown" size={15} color="#F5B800" />
-                </View>
-                <Text style={styles.jokerPillCount}>{jokerBalance}</Text>
-                <Text style={styles.jokerPillLabel}>
-                  {t(jokerBalance === 1 ? "joker_shop_jokers_label_one" : "joker_shop_jokers_label")}
-                </Text>
-              </LinearGradient>
-            </View>
-            <Pressable onPress={onClose} style={styles.closeBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Feather name="x" size={16} color={COLORS.TEXT_SECONDARY} strokeWidth={2.5} />
-            </Pressable>
+            <LinearGradient
+              colors={["#FFD84D", "#F5B800"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.jokerPill}
+            >
+              <View style={styles.jokerPillIconCircle}>
+                <MaterialCommunityIcons name="crown" size={15} color="#F5B800" />
+              </View>
+              <Text style={styles.jokerPillCount}>{jokerBalance}</Text>
+              <Text style={styles.jokerPillLabel}>
+                {t(jokerBalance === 1 ? "joker_shop_jokers_label_one" : "joker_shop_jokers_label")}
+              </Text>
+            </LinearGradient>
           </View>
 
           {purchaseSuccess ? (
@@ -316,8 +304,8 @@ export function JokerShopModal({ visible, onClose }: JokerShopModalProps) {
           </ScrollView>
           )}
         </View>
-      </GlassCardContainer>
-    </Modal>
+      )}
+    </BottomSheetShell>
   );
 }
 
@@ -327,30 +315,10 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
   },
   topbar: {
-    position: "relative",
-    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "flex-end",
     paddingHorizontal: 20,
     paddingTop: 8,
     paddingBottom: 12,
-  },
-  jokerPillCenterWrap: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  closeBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "rgba(0,0,0,0.05)",
-    alignItems: "center",
-    justifyContent: "center",
   },
   scrollContent: {
     paddingHorizontal: 20,
@@ -393,13 +361,11 @@ const styles = StyleSheet.create({
   jokerPillCount: {
     fontSize: 17,
     fontWeight: "800",
-    fontFamily: "Inter",
     color: "#FFFFFF",
   },
   jokerPillLabel: {
     fontSize: 14,
     fontWeight: "600",
-    fontFamily: "Inter",
     color: "rgba(255,255,255,0.9)",
   },
   referCard: {
@@ -428,7 +394,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     fontWeight: "700",
-    fontFamily: "Inter",
     color: COLORS.TEXT_PRIMARY,
     lineHeight: 21,
   },
@@ -443,7 +408,6 @@ const styles = StyleSheet.create({
   referBtnText: {
     fontSize: 16,
     fontWeight: "700",
-    fontFamily: "Inter",
     color: "#FFFFFF",
   },
   streakCard: {
@@ -471,13 +435,11 @@ const styles = StyleSheet.create({
   streakCur: {
     fontSize: 16,
     fontWeight: "700",
-    fontFamily: "Inter",
     color: COLORS.TEXT_PRIMARY,
   },
   streakNext: {
     fontSize: 14,
     fontWeight: "700",
-    fontFamily: "Inter",
     color: JOKER.TEXT,
     marginBottom: 12,
   },
@@ -498,7 +460,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 12,
     fontWeight: "700",
-    fontFamily: "Inter",
     color: COLORS.TEXT_MUTED,
     textTransform: "uppercase",
     letterSpacing: 0.5,
@@ -542,7 +503,6 @@ const styles = StyleSheet.create({
   packLabel: {
     fontSize: 16,
     fontWeight: "700",
-    fontFamily: "Inter",
     color: COLORS.TEXT_PRIMARY,
   },
   bestValueBadge: {
@@ -554,7 +514,6 @@ const styles = StyleSheet.create({
   bestValueText: {
     fontSize: 10,
     fontWeight: "700",
-    fontFamily: "Inter",
     color: "#FFFFFF",
     textTransform: "uppercase",
     letterSpacing: 0.5,
@@ -566,18 +525,15 @@ const styles = StyleSheet.create({
   packPrice: {
     fontSize: 15,
     fontWeight: "700",
-    fontFamily: "Inter",
     color: JOKER.TEXT,
   },
   packUnavailable: {
     fontSize: 12,
-    fontFamily: "Inter",
     color: COLORS.TEXT_MUTED,
   },
   purchaseMessage: {
     marginTop: 4,
     fontSize: 14,
-    fontFamily: "Inter",
     textAlign: "center",
     color: COLORS.TEXT_SECONDARY,
   },
@@ -615,14 +571,12 @@ const styles = StyleSheet.create({
   successTitle: {
     fontSize: 20,
     fontWeight: "700",
-    fontFamily: "Inter",
     color: COLORS.TEXT_PRIMARY,
     textAlign: "center",
     marginBottom: 10,
   },
   successSubtitle: {
     fontSize: 15,
-    fontFamily: "Inter",
     color: COLORS.TEXT_SECONDARY,
     textAlign: "center",
     marginBottom: 28,
@@ -639,7 +593,6 @@ const styles = StyleSheet.create({
   successCtaText: {
     fontSize: 16,
     fontWeight: "700",
-    fontFamily: "Inter",
     color: "#FFFFFF",
   },
 });

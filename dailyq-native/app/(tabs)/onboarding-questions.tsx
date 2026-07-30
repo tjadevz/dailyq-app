@@ -140,13 +140,13 @@ export default function OnboardingQuestionsScreen() {
         if (completeErr) throw completeErr;
         if (grantJoker) {
           logEvent("onboarding_completed");
-        }
-        await refetchProfile();
-        if (grantJoker) {
           setRewardModalVisible(true);
         } else {
           router.replace("/(tabs)/today");
         }
+        refetchProfile().catch((e) => {
+          console.error("[onboarding-questions] Failed to refetch profile:", e);
+        });
       } catch (e) {
         console.error("[onboarding-questions] Failed to update profile:", e);
         setSaveError(e instanceof Error ? e.message : "Failed to complete onboarding");

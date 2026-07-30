@@ -12,6 +12,7 @@ import {
   Platform,
   Modal,
   Animated,
+  useWindowDimensions,
 } from "react-native";
 import Feather from "@expo/vector-icons/Feather";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
@@ -20,7 +21,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "expo-router/react-navigation";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
-import { COLORS, JOKER, MODAL, MODAL_ENTER_MS, MODAL_CLOSE_MS } from "@/src/config/constants";
+import { COLORS, JOKER, MODAL_ENTER_MS, MODAL_CLOSE_MS } from "@/src/config/constants";
 import { useLanguage } from "@/src/context/LanguageContext";
 import { useAuth } from "@/src/context/AuthContext";
 import { useStreakMilestone, getAlreadyGranted, getHighestMilestoneCrossed, getMilestonesCrossed, grantMilestoneJokersForCrossed, STREAK_MILESTONES } from "@/src/context/StreakMilestoneContext";
@@ -44,6 +45,8 @@ import {
 } from "@/src/lib/widgetAnnouncement";
 import DailyQLoadingScreen from "@/src/components/DailyQLoadingScreen";
 import { AnsweringExperience } from "@/src/components/AnsweringExperience";
+import { SubmitSuccessModal } from "@/src/components/SubmitSuccessModal";
+import { AnswerTransitionVeil } from "@/src/components/AnswerTransitionVeil";
 import ShareCard from "@/src/components/ShareCard";
 import ShareCaptureModal from "@/src/components/ShareCaptureModal";
 import AccountMilestoneModal, {
@@ -262,6 +265,7 @@ export default function TodayScreen() {
     profile?.widget_announcement_dismissed !== true &&
     !widgetAnnouncementDismissed;
   const [showSubmitSuccess, setShowSubmitSuccess] = useState(false);
+  const [transitionVeilVisible, setTransitionVeilVisible] = useState(false);
   const [pendingStreakMilestone, setPendingStreakMilestone] = useState<ReturnType<typeof getHighestMilestoneCrossed>>(null);
   const [pendingMilestone, setPendingMilestone] = useState<10 | null>(null);
   const [profileCreatedAtForMilestone, setProfileCreatedAtForMilestone] = useState<string | null>(
@@ -405,6 +409,7 @@ export default function TodayScreen() {
   }, []);
 
   const justSubmittedRef = useRef(false);
+  const pendingPostCloseActionRef = useRef<"celebrate" | "toast" | null>(null);
   useEffect(() => {
     if (showSubmitSuccess) {
       justSubmittedRef.current = true;
@@ -481,6 +486,7 @@ export default function TodayScreen() {
     };
   }, [
     showSubmitSuccess,
+    editConfirmVisible,
     pendingStreakMilestone,
     pendingMilestone,
     pendingArchiveMoment,
@@ -717,8 +723,14 @@ export default function TodayScreen() {
 
         const wasUpdate =
           existingAnswer != null && existingAnswer.length > 0;
-        setExistingAnswer(trimmed);
-        setAnswerText(trimmed);
+        // Deliberately NOT calling setExistingAnswer/setAnswerText yet: that
+        // feeds AnsweringExperience's `initialAnswer` prop, which sits in its
+        // open/close effect's dependency array. Updating it now, before the
+        // streak RPC below resolves, would change it while isOpen is still
+        // true — retriggering that effect's "open" branch mid-close: the
+        // card resets its slide position and replays the slide-up animation
+        // instead of just closing. Set together with setAnswerModalOpen(false)
+        // instead, once isOpen is genuinely about to flip false.
 
         // Fetch the fresh streak before showing the celebration so its digit
         // roll can count up to the real number on the very first frame.
@@ -739,15 +751,23 @@ export default function TodayScreen() {
           source: openedFromWidgetRef.current ? "widget" : "app",
         });
 
-        // The celebration renders inside AnsweringExperience's own still-open
-        // native <Modal> (see its `celebration` prop) instead of a second
-        // separate <Modal> — answerModalOpen only gets set to false once the
-        // celebration itself is dismissed, further down.
-        setShowSubmitSuccess(true);
-        if (wasUpdate) {
-          setEditConfirmVisible(true);
-          setTimeout(() => setEditConfirmVisible(false), 2500);
-        }
+        setExistingAnswer(trimmed);
+        setAnswerText(trimmed);
+        // Editing an existing answer is a quick correction, not a fresh daily
+        // submission — it gets the small "antwoord bewerkt" toast, not the
+        // full streak-roll celebration. handleAnswerModalClosed (passed as
+        // AnsweringExperience's onClosed) reads this once the modal has
+        // actually finished closing.
+        pendingPostCloseActionRef.current = wasUpdate ? "toast" : "celebrate";
+        setAnswerModalOpen(false);
+        // AnsweringExperience keeps its native <Modal> presented for the
+        // length of its own close animation — opening another native <Modal>
+        // (SubmitSuccessModal) before that finishes gets it dismissed along
+        // with the closing one. handleAnswerModalClosed only fires once it's
+        // genuinely gone. That wait briefly exposes the real screen once
+        // AnsweringExperience's Modal actually unmounts, so cover it with a
+        // plain (non-Modal) veil in the meantime.
+        setTransitionVeilVisible(true);
 
         void (async () => {
           const prior = await fetchPreviousYearSameDayAnswers(userId, dayKey);
@@ -811,6 +831,21 @@ export default function TodayScreen() {
       effectiveUser?.created_at,
     ]
   );
+
+  const handleAnswerModalClosed = useCallback(() => {
+    const action = pendingPostCloseActionRef.current;
+    pendingPostCloseActionRef.current = null;
+    if (action === "toast") {
+      setEditConfirmVisible(true);
+      setTimeout(() => setEditConfirmVisible(false), 2500);
+      justSubmittedRef.current = true;
+      setTimeout(() => setTransitionVeilVisible(false), 60);
+    } else if (action === "celebrate") {
+      setShowSubmitSuccess(true);
+      setTimeout(() => setTransitionVeilVisible(false), 60);
+    }
+    // action === null: mount-time fire, or a plain cancel with nothing pending — no-op.
+  }, []);
 
   const hasAnswer = existingAnswer != null && existingAnswer.length > 0;
   const todayDateLabel = useMemo(() => {
@@ -980,16 +1015,15 @@ export default function TodayScreen() {
             placeholder={t("today_placeholder")}
             submitError={submitError}
             submitting={submitting}
-            celebration={{
-              visible: showSubmitSuccess,
-              streak: currentStreak,
-              onDismiss: () => {
-                setShowSubmitSuccess(false);
-                setAnswerModalOpen(false);
-              },
-            }}
+            onClosed={handleAnswerModalClosed}
           />
 
+          <AnswerTransitionVeil visible={transitionVeilVisible} />
+          <SubmitSuccessModal
+            visible={showSubmitSuccess}
+            streak={currentStreak}
+            onDismiss={() => setShowSubmitSuccess(false)}
+          />
           <JokerShopModal visible={jokerModalVisible} onClose={() => setJokerModalVisible(false)} />
           <StreakOverviewModal
             visible={streakOverviewVisible}
@@ -1060,46 +1094,108 @@ export default function TodayScreen() {
   );
 }
 
+/**
+ * Small non-blocking toast (not a dialog) confirming an edited answer was
+ * saved. Was previously a centered <Modal> card using
+ * StyleSheet.absoluteFillObject for its backdrop with no explicit width/height
+ * on the Modal root — Fabric doesn't reliably size that combination inside a
+ * <Modal>, so it collapsed to a thin, misplaced strip near the top instead of
+ * filling the screen. Fixed by sizing the root explicitly (useWindowDimensions,
+ * same pattern used everywhere else in this app's modals) and redesigned as a
+ * quiet toast near the tab bar instead of a full dark-backdrop dialog, since
+ * it's just a passing confirmation, not something that needs confirming.
+ */
 function EditConfirmModal({ visible, message }: { visible: boolean; message: string }) {
+  // Fabric doesn't reliably size flex:1/absoluteFillObject (right/bottom-based)
+  // content inside <Modal> — needs explicit numeric width/height.
+  const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const opacity = React.useRef(new Animated.Value(0)).current;
+  const translateY = React.useRef(new Animated.Value(16)).current;
+  const [rendered, setRendered] = React.useState(visible);
+
   React.useEffect(() => {
     if (visible) {
+      setRendered(true);
       opacity.setValue(0);
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: MODAL_ENTER_MS,
-        useNativeDriver: true,
-      }).start();
+      translateY.setValue(16);
+      Animated.parallel([
+        Animated.timing(opacity, {
+          toValue: 1,
+          duration: MODAL_ENTER_MS,
+          useNativeDriver: true,
+        }),
+        Animated.spring(translateY, {
+          toValue: 0,
+          useNativeDriver: true,
+          friction: 8,
+          tension: 100,
+        }),
+      ]).start();
+      return;
     }
-  }, [visible, opacity]);
-  if (!visible) return null;
+    Animated.timing(opacity, {
+      toValue: 0,
+      duration: MODAL_CLOSE_MS,
+      useNativeDriver: true,
+    }).start(() => setRendered(false));
+  }, [visible, opacity, translateY]);
+
+  if (!rendered) return null;
+
   return (
-    <Modal transparent visible animationType="none">
-      <Animated.View style={[editConfirmStyles.backdrop, { opacity }]}>
-        <View style={editConfirmStyles.card}>
+    <Modal transparent visible={rendered} animationType="none" statusBarTranslucent>
+      <View
+        style={[editConfirmStyles.root, { width, height, paddingBottom: 92 + insets.bottom + 12 }]}
+        pointerEvents="none"
+      >
+        <Animated.View
+          style={[editConfirmStyles.toast, { opacity, transform: [{ translateY }] }]}
+        >
+          <View style={editConfirmStyles.iconCircle}>
+            <Feather name="check" size={13} color="#fff" strokeWidth={3} />
+          </View>
           <Text style={editConfirmStyles.text}>{message}</Text>
-        </View>
-      </Animated.View>
+        </Animated.View>
+      </View>
     </Modal>
   );
 }
 
 const editConfirmStyles = StyleSheet.create({
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    justifyContent: "center",
+  root: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    justifyContent: "flex-end",
     alignItems: "center",
-    padding: 28,
   },
-  card: {
-    ...MODAL.CARD,
+  toast: {
+    flexDirection: "row",
     alignItems: "center",
+    gap: 10,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 999,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 6,
+  },
+  iconCircle: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: COLORS.ACCENT,
+    alignItems: "center",
+    justifyContent: "center",
   },
   text: {
-    fontSize: 17,
+    fontSize: 15,
     color: COLORS.TEXT_PRIMARY,
-    fontWeight: "500",
+    fontWeight: "600",
   },
 });
 

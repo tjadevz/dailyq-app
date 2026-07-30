@@ -32,7 +32,6 @@ import { COLORS } from "@/src/config/constants";
 import { useLanguage } from "@/src/context/LanguageContext";
 import { getDayOfYear } from "@/src/lib/date";
 import { supabase } from "@/src/config/supabase";
-import { SubmitSuccessContent } from "@/src/components/SubmitSuccessContent";
 
 export interface AnsweringExperienceProps {
   isOpen: boolean;
@@ -69,20 +68,8 @@ export interface AnsweringExperienceProps {
   introBody?: string;
   introCtaLabel?: string;
   onIntroContinue?: () => void;
-  /**
-   * When set, shows the post-submit celebration on top of this same native
-   * <Modal> instead of the parent closing this one and opening a separate
-   * <Modal> for it — two back-to-back native Modals on iOS cause the first
-   * one's dismissal to cascade-dismiss the second, and even sequenced
-   * carefully there's a visible gap where the real screen flashes through.
-   * The parent should only actually close this modal (isOpen -> false) once
-   * `celebration.onDismiss` fires.
-   */
-  celebration?: {
-    visible: boolean;
-    streak: number;
-    onDismiss: () => void;
-  };
+  /** Fires once the close animation has fully finished and the native <Modal> has actually unmounted. */
+  onClosed?: () => void;
 }
 
 export function AnsweringExperience({
@@ -110,7 +97,7 @@ export function AnsweringExperience({
   introBody,
   introCtaLabel,
   onIntroContinue,
-  celebration,
+  onClosed,
 }: AnsweringExperienceProps) {
   const showProgress =
     !isIntroCard &&
@@ -133,6 +120,15 @@ export function AnsweringExperience({
   const [questionLoading, setQuestionLoading] = useState(false);
   const [rendered, setRendered] = useState(isOpen);
   const inputRef = useRef<TextInput>(null);
+
+  const onClosedRef = useRef(onClosed);
+  useEffect(() => {
+    onClosedRef.current = onClosed;
+  }, [onClosed]);
+  const handleFullyClosed = useCallback(() => {
+    setRendered(false);
+    onClosedRef.current?.();
+  }, []);
 
   // Keep the last real dayKey while the exit animation plays — the parent
   // often clears its own dayKey the instant it calls onClose, and we don't
@@ -249,7 +245,7 @@ export function AnsweringExperience({
         easing: Easing.inOut(Easing.cubic),
       },
       (finished) => {
-        if (finished) runOnJS(setRendered)(false);
+        if (finished) runOnJS(handleFullyClosed)();
       }
     );
     Keyboard.dismiss();
@@ -261,6 +257,7 @@ export function AnsweringExperience({
     enterFromRight,
     isIntroCard,
     runSlideInFromRight,
+    handleFullyClosed,
   ]);
 
   useEffect(() => {
@@ -356,7 +353,11 @@ export function AnsweringExperience({
           accessibilityRole="button"
           accessibilityLabel={t("common_close")}
         >
-          <View style={{ position: "absolute", top: 0, left: 0, width, height, backgroundColor: "rgba(0,0,0,0.5)" }} pointerEvents="none" />
+          <BlurView
+            intensity={40}
+            tint="dark"
+            style={{ position: "absolute", top: 0, left: 0, width, height }}
+          />
           <View style={[styles.backdropOverlay, { width, height }]} pointerEvents="none" />
         </Pressable>
 
@@ -571,13 +572,6 @@ export function AnsweringExperience({
         </View>
       </View>
       </View>
-      {celebration ? (
-        <SubmitSuccessContent
-          visible={celebration.visible}
-          streak={celebration.streak}
-          onDismiss={celebration.onDismiss}
-        />
-      ) : null}
     </Modal>
   );
 }

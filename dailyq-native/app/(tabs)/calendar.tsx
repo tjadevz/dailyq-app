@@ -17,7 +17,7 @@ import {
 } from "react-native";
 import { BlurView } from "expo-blur";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { useFocusEffect } from "expo-router/react-navigation";
 import Feather from "@expo/vector-icons/Feather";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
@@ -52,10 +52,11 @@ import JokerOfferModal from "@/src/components/JokerOfferModal";
 import JokerIntroModal from "@/src/components/JokerIntroModal";
 import { JokerShopModal } from "@/src/components/JokerShopModal";
 import StreakOverviewModal from "@/src/components/modals/StreakOverviewModal";
-import { JokerBadge } from "@/src/components/JokerBadge";
 import { GlassCardContainer } from "@/src/components/GlassCardContainer";
 import { PrimaryButton } from "@/src/components/PrimaryButton";
 import { AnsweringExperience } from "@/src/components/AnsweringExperience";
+import { SubmitSuccessModal } from "@/src/components/SubmitSuccessModal";
+import { AnswerTransitionVeil } from "@/src/components/AnswerTransitionVeil";
 import ShareCard from "@/src/components/ShareCard";
 import { useShareCard } from "@/src/hooks/useShareCard";
 import { useStreakMilestone, getAlreadyGranted, getHighestMilestoneCrossed, getMilestonesCrossed, grantMilestoneJokersForCrossed } from "@/src/context/StreakMilestoneContext";
@@ -589,6 +590,7 @@ function YearPickerModal({
 export default function CalendarScreen() {
   const { lang, t } = useLanguage();
   const router = useRouter();
+  const { openMissedDay: openMissedDayParam } = useLocalSearchParams<{ openMissedDay?: string }>();
   const { effectiveUser } = useAuth();
   const userId = effectiveUser?.id ?? null;
   const { profile, refetch: refetchProfile } = useProfileContext();
@@ -660,6 +662,8 @@ export default function CalendarScreen() {
   const [missedAnswerSubmitting, setMissedAnswerSubmitting] = useState(false);
   const [missedAnswerError, setMissedAnswerError] = useState<string | null>(null);
   const [showSubmitSuccess, setShowSubmitSuccess] = useState(false);
+  const [transitionVeilVisible, setTransitionVeilVisible] = useState(false);
+  const missedCelebrationGateRef = useRef({ modalClosed: false, saveDone: false });
   const [pendingStreakMilestone, setPendingStreakMilestone] = useState<ReturnType<typeof getHighestMilestoneCrossed>>(null);
   const [realStreak, setRealStreak] = useState(0);
   const [showYearPicker, setShowYearPicker] = useState(false);
@@ -849,6 +853,17 @@ export default function CalendarScreen() {
     []
   );
 
+  // Arriving here via the "missed yesterday" nudge on Today (today.tsx
+  // pushes ?openMissedDay=<dayKey>) should jump straight to the joker-answer
+  // flow instead of just landing on the plain calendar grid.
+  const openMissedDayParamHandledRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!openMissedDayParam) return;
+    if (openMissedDayParamHandledRef.current === openMissedDayParam) return;
+    openMissedDayParamHandledRef.current = openMissedDayParam;
+    openMissedAnswer(openMissedDayParam);
+  }, [openMissedDayParam, openMissedAnswer]);
+
   const handleMissedSaved = useCallback(
     async (previousStreak: number) => {
       if (!missedAnswerDay) return;
@@ -870,6 +885,22 @@ export default function CalendarScreen() {
     },
     [missedAnswerDay, refetch, fetchStreak, refetchProfile, userId, fetchAlreadyGrantedMilestones]
   );
+
+  // AnsweringExperience's own <Modal> close and the streak/milestone save
+  // (handleMissedSaved) race independently — either can finish first. Only
+  // open the celebration once both have actually happened.
+  const tryOpenMissedCelebration = useCallback(() => {
+    const gate = missedCelebrationGateRef.current;
+    if (gate.modalClosed && gate.saveDone) {
+      setShowSubmitSuccess(true);
+      setTimeout(() => setTransitionVeilVisible(false), 60);
+    }
+  }, []);
+
+  const handleMissedAnswerModalClosed = useCallback(() => {
+    missedCelebrationGateRef.current.modalClosed = true;
+    tryOpenMissedCelebration();
+  }, [tryOpenMissedCelebration]);
 
   const handleJokerAnswerComplete = useCallback(
     async (answerText: string) => {
@@ -929,13 +960,24 @@ export default function CalendarScreen() {
         } else {
           logEvent("missed_day_answered", { days_ago: daysBetween(missedAnswerDay, todayKey) });
         }
-        // The celebration renders inside AnsweringExperience's own still-open
-        // native <Modal> (see its `celebration` prop) instead of a second
-        // separate <Modal> — missedAnswerDay only gets cleared (closing this
-        // modal) once the celebration itself is dismissed, further down.
+        missedCelebrationGateRef.current = { modalClosed: false, saveDone: false };
+        setMissedAnswerDay(null);
+        setMissedAnswerQuestionText("");
+        // AnsweringExperience keeps its native <Modal> presented while it closes,
+        // and handleMissedSaved's own awaits take a while too — cover the gap
+        // between "modal actually closed" and "celebration opens" with a plain
+        // (non-Modal) veil so the real screen never flashes through.
+        setTransitionVeilVisible(true);
+        // Fetch the fresh streak (handleMissedSaved's first step) before showing the
+        // celebration so its digit roll counts up to the real number from the start.
+        // The celebration itself only opens once both this AND the modal's
+        // own close animation (handleMissedAnswerModalClosed) have completed —
+        // whichever finishes last triggers it, via tryOpenMissedCelebration.
         await handleMissedSaved(previousStreak);
-        setShowSubmitSuccess(true);
+        missedCelebrationGateRef.current.saveDone = true;
+        tryOpenMissedCelebration();
       } catch (e: unknown) {
+        setTransitionVeilVisible(false);
         setMissedAnswerError(
           (e as { message?: string })?.message ??
             t("missed_answer_error_save")
@@ -951,6 +993,7 @@ export default function CalendarScreen() {
       missedAnswerRequiresJoker,
       setAnswerForDay,
       handleMissedSaved,
+      tryOpenMissedCelebration,
       t,
     ]
   );
@@ -988,9 +1031,6 @@ export default function CalendarScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.calendarContentWrap}>
-          <View style={styles.calendarJokerAbsolute}>
-            <JokerBadge count={jokerCount} onPress={() => setJokerModalVisible(true)} />
-          </View>
           <View style={styles.yearRow}>
           <View style={styles.yearRowSpacer} />
           <Pressable style={styles.yearPressable} onPress={() => setShowYearPicker(true)}>
@@ -1270,18 +1310,16 @@ export default function CalendarScreen() {
           placeholder={t("today_placeholder")}
           submitError={missedAnswerError}
           submitting={missedAnswerSubmitting}
-          celebration={{
-            visible: showSubmitSuccess,
-            streak: realStreak,
-            onDismiss: () => {
-              setShowSubmitSuccess(false);
-              setMissedAnswerDay(null);
-              setMissedAnswerQuestionText("");
-            },
-          }}
+          onClosed={handleMissedAnswerModalClosed}
         />
       )}
+      <SubmitSuccessModal
+        visible={showSubmitSuccess}
+        streak={realStreak}
+        onDismiss={() => setShowSubmitSuccess(false)}
+      />
       </ScrollView>
+      <AnswerTransitionVeil visible={transitionVeilVisible} />
       <JokerShopModal visible={jokerModalVisible} onClose={() => setJokerModalVisible(false)} />
       <StreakOverviewModal
         visible={streakModalVisible}
@@ -1315,12 +1353,6 @@ const styles = StyleSheet.create({
   errorText: { fontSize: 16, color: COLORS.TEXT_PRIMARY, textAlign: "center" },
   calendarContentWrap: {
     position: "relative",
-  },
-  calendarJokerAbsolute: {
-    position: "absolute",
-    top: 4,
-    right: 16,
-    zIndex: 10,
   },
   yearRow: {
     flexDirection: "row",

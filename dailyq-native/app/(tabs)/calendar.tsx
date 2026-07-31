@@ -49,7 +49,6 @@ import {
 import { logEvent } from "@/lib/analytics";
 import { supabase } from "@/src/config/supabase";
 import JokerOfferModal from "@/src/components/JokerOfferModal";
-import JokerIntroModal from "@/src/components/JokerIntroModal";
 import { JokerShopModal } from "@/src/components/JokerShopModal";
 import StreakOverviewModal from "@/src/components/modals/StreakOverviewModal";
 import { GlassCardContainer } from "@/src/components/GlassCardContainer";
@@ -74,9 +73,6 @@ import AnimatedReanimated, {
 const GRID_ROWS = 6;
 const GRID_COLS = 7;
 const MISSED_ANSWER_DAYS_CAP = 30;
-// Matches JokerOfferModal's own exit-animation duration — closing it and opening
-// the next full-screen modal in the same tick makes both animate at once.
-const JOKER_OFFER_CLOSE_MS = 180;
 
 /** Short weekday labels (Mon–Sun) in the given locale. */
 function getWeekdayLabels(lang: string): string[] {
@@ -594,6 +590,7 @@ export default function CalendarScreen() {
   const { effectiveUser } = useAuth();
   const userId = effectiveUser?.id ?? null;
   const { profile, refetch: refetchProfile } = useProfileContext();
+  const jokerCount = profile?.joker_balance ?? 0;
   const { showMilestone } = useStreakMilestone();
 
   const todayKey = getLocalDayKey(getNow());
@@ -653,8 +650,13 @@ export default function CalendarScreen() {
   const [allYearsEntries, setAllYearsEntries] = useState<{ year: string; answer: string }[] | null>(null);
   const [allYearsLoading, setAllYearsLoading] = useState(false);
   const [missedDay, setMissedDay] = useState<string | null>(null);
-  const [introDayKey, setIntroDayKey] = useState<string | null>(null);
   const [jokerModalVisible, setJokerModalVisible] = useState(false);
+  // Set right before closing JokerOfferModal (e.g. for the "need more jokers"
+  // or "use a joker" CTAs); consumed by its onClosed callback once the offer
+  // modal's native <Modal> has actually unmounted, so the next modal never
+  // opens while it's still mid-close (two overlapping <Modal>s can freeze the
+  // UI on iOS).
+  const afterOfferCloseRef = useRef<(() => void) | null>(null);
   const [streakModalVisible, setStreakModalVisible] = useState(false);
   const [missedAnswerDay, setMissedAnswerDay] = useState<string | null>(null);
   const [missedAnswerQuestionText, setMissedAnswerQuestionText] = useState("");
@@ -816,41 +818,31 @@ export default function CalendarScreen() {
         router.push("/(tabs)/today?openAnswer=1");
       } else if (state === "missed" || state === "before") {
         logEvent("missed_day_viewed", { days_ago: daysBetween(dayKey, todayKey), state });
-        const withinWindow =
-          isWithinMissedAnswerWindow(dayKey, todayKey) && !isBeforeAccountStart(dayKey, accountBoundaryDate);
-
-        if (withinWindow && !profile?.joker_intro_shown) {
-          setIntroDayKey(dayKey);
-          if (userId && userId !== "dev-user") {
-            supabase
-              .from("profiles")
-              .update({ joker_intro_shown: true })
-              .eq("id", userId)
-              .then(({ error }) => {
-                if (error) console.error("[Calendar] mark joker_intro_shown failed:", error);
-              });
-            refetchProfile();
-          }
-          return;
-        }
-
         setMissedDay(dayKey);
       }
     },
-    [todayKey, accountBoundaryDate, profile?.joker_intro_shown, userId, refetchProfile, router]
+    [todayKey, router]
   );
 
   const openMissedAnswer = useCallback(
     (dayKey: string, questionText?: string) => {
-      setMissedDay(null);
-      setTimeout(() => {
+      const open = () => {
         setMissedAnswerDay(dayKey);
         setMissedAnswerQuestionText(questionText ?? "");
         setMissedAnswerRequiresJoker(true);
         setMissedAnswerError(null);
-      }, JOKER_OFFER_CLOSE_MS);
+      };
+      if (missedDay) {
+        // JokerOfferModal is currently open (its "use a joker" CTA) — defer
+        // until its onClosed callback confirms the native <Modal> is gone.
+        afterOfferCloseRef.current = open;
+        setMissedDay(null);
+      } else {
+        // No offer modal in the way — open right away.
+        open();
+      }
     },
-    []
+    [missedDay]
   );
 
   // Arriving here via the "missed yesterday" nudge on Today (today.tsx
@@ -861,8 +853,15 @@ export default function CalendarScreen() {
     if (!openMissedDayParam) return;
     if (openMissedDayParamHandledRef.current === openMissedDayParam) return;
     openMissedDayParamHandledRef.current = openMissedDayParam;
-    openMissedAnswer(openMissedDayParam);
-  }, [openMissedDayParam, openMissedAnswer]);
+    if (jokerCount > 0) {
+      openMissedAnswer(openMissedDayParam);
+    } else {
+      // No jokers: fall back to the normal missed-day flow (JokerOfferModal),
+      // same "Koop of verdien jokers" CTA as a direct calendar tap — never
+      // jump straight into the free-text answer UI with an empty balance.
+      setMissedDay(openMissedDayParam);
+    }
+  }, [openMissedDayParam, openMissedAnswer, jokerCount]);
 
   const handleMissedSaved = useCallback(
     async (previousStreak: number) => {
@@ -929,8 +928,11 @@ export default function CalendarScreen() {
         }
 
         if (requiresJoker) {
-          const { error: rpcErr } = await supabase.rpc("use_joker");
+          const { data: jokerUsed, error: rpcErr } = await supabase.rpc("use_joker");
           if (rpcErr) throw rpcErr;
+          // use_joker() returns false (not an error) when the balance was
+          // already 0 — never save the answer without an actual deduction.
+          if (!jokerUsed) throw new Error(t("missed_answer_error_no_jokers"));
         }
 
         const { error: insertErr } = await supabase.from("answers").insert({
@@ -1011,7 +1013,6 @@ export default function CalendarScreen() {
   useEffect(() => {
     if (missedDay) setLastMissedWithinWindow(missedWithinWindow);
   }, [missedDay, missedWithinWindow]);
-  const jokerCount = profile?.joker_balance ?? 0;
   const insets = useSafeAreaInsets();
 
   if (error) {
@@ -1253,11 +1254,6 @@ export default function CalendarScreen() {
         allYearsLoading={allYearsLoading}
         onClose={() => setViewAnswerDay(null)}
       />
-      <JokerIntroModal
-        visible={!!introDayKey}
-        dayKey={introDayKey}
-        onClose={() => setIntroDayKey(null)}
-      />
       {lastMissedWithinWindow ? (
         <JokerOfferModal
           visible={!!missedDay}
@@ -1268,8 +1264,13 @@ export default function CalendarScreen() {
             openMissedAnswer(dayKey, questionText)
           }
           onNeedMoreJokers={() => {
+            afterOfferCloseRef.current = () => setJokerModalVisible(true);
             setMissedDay(null);
-            setTimeout(() => setJokerModalVisible(true), JOKER_OFFER_CLOSE_MS);
+          }}
+          onClosed={() => {
+            const pending = afterOfferCloseRef.current;
+            afterOfferCloseRef.current = null;
+            pending?.();
           }}
         />
       ) : (

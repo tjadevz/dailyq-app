@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import Feather from "@expo/vector-icons/Feather";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
+import { LinearGradient } from "expo-linear-gradient";
 import Svg, { Circle } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -22,7 +23,7 @@ type StreakOverviewModalProps = {
   onClose: () => void;
 };
 
-const STREAK_HERO_RING_RADIUS = 28;
+const STREAK_HERO_RING_RADIUS = 54;
 const STREAK_HERO_RING_CIRCUMFERENCE = 2 * Math.PI * STREAK_HERO_RING_RADIUS;
 
 export default function StreakOverviewModal({
@@ -51,14 +52,10 @@ export default function StreakOverviewModal({
     nextMilestone != null ? Math.min(100, (currentStreak / nextMilestone) * 100) : 100;
   const heroRingDashoffset = STREAK_HERO_RING_CIRCUMFERENCE * (1 - progressPercent / 100);
 
-  /** Only the most recently achieved milestone + the next upcoming one — no long list. */
+  /** All achieved milestones, plus only the single next upcoming one. */
   const visibleMilestones = useMemo(() => {
-    let lastReached: number | null = null;
-    for (const m of STREAK_MILESTONES) {
-      if (grantedMilestones.has(m) || currentStreak >= m) lastReached = m;
-    }
-    const result: number[] = [];
-    if (lastReached != null) result.push(lastReached);
+    const reached = STREAK_MILESTONES.filter((m) => grantedMilestones.has(m) || currentStreak >= m);
+    const result = [...reached];
     if (nextMilestone != null) result.push(nextMilestone);
     return result;
   }, [currentStreak, grantedMilestones, nextMilestone]);
@@ -68,29 +65,26 @@ export default function StreakOverviewModal({
       {() => (
         <View style={styles.container}>
           <ScrollView
-            contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 32, paddingTop: 24 }]}
+            contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 32, paddingTop: 36 }]}
             showsVerticalScrollIndicator={false}
           >
             <Text style={styles.eyebrow}>{t("streak_overview_title")}</Text>
 
-            <View style={styles.heroRow}>
-              <View style={styles.heroRingWrap}>
-                <Svg width={72} height={72} style={styles.heroRingSvg}>
-                  <Circle cx={36} cy={36} r={STREAK_HERO_RING_RADIUS} stroke="rgba(239,68,68,0.15)" strokeWidth={6} fill="none" />
-                  <Circle
-                    cx={36}
-                    cy={36}
-                    r={STREAK_HERO_RING_RADIUS}
-                    stroke="#EF4444"
-                    strokeWidth={6}
-                    fill="none"
-                    strokeLinecap="round"
-                    strokeDasharray={STREAK_HERO_RING_CIRCUMFERENCE}
-                    strokeDashoffset={heroRingDashoffset}
-                  />
-                </Svg>
-                <MaterialCommunityIcons name="fire" size={30} color="#EF4444" />
-              </View>
+            <View style={styles.heroRingWrap}>
+              <Svg width={124} height={124} style={styles.heroRingSvg}>
+                <Circle cx={62} cy={62} r={STREAK_HERO_RING_RADIUS} stroke="rgba(239,68,68,0.15)" strokeWidth={8} fill="none" />
+                <Circle
+                  cx={62}
+                  cy={62}
+                  r={STREAK_HERO_RING_RADIUS}
+                  stroke="#EF4444"
+                  strokeWidth={8}
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeDasharray={STREAK_HERO_RING_CIRCUMFERENCE}
+                  strokeDashoffset={heroRingDashoffset}
+                />
+              </Svg>
               <Text style={styles.heroNum}>{currentStreak}</Text>
             </View>
             <Text style={styles.heroLabel}>
@@ -109,7 +103,14 @@ export default function StreakOverviewModal({
                   : t("streak_overview_all_done")}
               </Text>
               <View style={styles.progressTrack}>
-                <View style={[styles.progressFill, { width: `${progressPercent}%` }]} />
+                <View style={[styles.progressFillWrap, { width: `${progressPercent}%` }]}>
+                  <LinearGradient
+                    colors={["#F0C040", "#FBDD86"]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.progressFill}
+                  />
+                </View>
               </View>
             </View>
 
@@ -118,12 +119,11 @@ export default function StreakOverviewModal({
                 <Text style={styles.sectionTitle}>{t("streak_overview_milestones_title")}</Text>
                 {visibleMilestones.map((milestone) => {
                   const reached = grantedMilestones.has(milestone) || currentStreak >= milestone;
-                  const isNext = milestone === nextMilestone;
                   return (
-                    <View key={milestone} style={[styles.row, isNext && styles.rowNext]}>
+                    <View key={milestone} style={styles.row}>
                       <View style={styles.rowLeft}>
                         {reached ? (
-                          <Feather name="check-circle" size={17} color={COLORS.ACCENT} />
+                          <Feather name="check-circle" size={17} color="#EF4444" />
                         ) : (
                           <View style={styles.rowDot} />
                         )}
@@ -160,7 +160,7 @@ const styles = StyleSheet.create({
     width: "100%",
     alignSelf: "center",
     flexGrow: 1,
-    justifyContent: "center",
+    justifyContent: "flex-start",
     alignItems: "center",
   },
   eyebrow: {
@@ -168,21 +168,15 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: 1,
     textTransform: "uppercase",
-    color: COLORS.ACCENT,
+    color: "#EF4444",
     marginBottom: 24,
   },
-  heroRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 14,
-    marginBottom: 10,
-  },
   heroRingWrap: {
-    width: 72,
-    height: 72,
+    width: 124,
+    height: 124,
     alignItems: "center",
     justifyContent: "center",
+    marginBottom: 4,
   },
   heroRingSvg: {
     position: "absolute",
@@ -191,24 +185,30 @@ const styles = StyleSheet.create({
     transform: [{ rotate: "-90deg" }],
   },
   heroNum: {
-    fontSize: 52,
+    fontSize: 36,
     fontWeight: "800",
     color: COLORS.TEXT_PRIMARY,
   },
   heroLabel: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "600",
     color: COLORS.TEXT_SECONDARY,
-    marginBottom: 28,
+    marginTop: 12,
+    marginBottom: 26,
   },
   progressCard: {
     width: "100%",
-    backgroundColor: "rgba(253,230,138,0.35)",
+    backgroundColor: "rgba(255,255,255,0.6)",
     borderWidth: 1,
-    borderColor: "rgba(212,168,48,0.3)",
+    borderColor: "rgba(239,68,68,0.18)",
     borderRadius: 20,
     padding: 20,
     marginBottom: 28,
+    shadowColor: "#EF4444",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.09,
+    shadowRadius: 24,
+    elevation: 3,
   },
   progressCardText: {
     fontSize: 14,
@@ -218,15 +218,19 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   progressTrack: {
-    height: 8,
+    height: 7,
     borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.65)",
+    backgroundColor: "rgba(239,68,68,0.15)",
+    overflow: "hidden",
+  },
+  progressFillWrap: {
+    height: "100%",
+    borderRadius: 999,
     overflow: "hidden",
   },
   progressFill: {
     height: "100%",
     borderRadius: 999,
-    backgroundColor: JOKER.GOLD,
   },
   milestonesSection: {
     width: "100%",
@@ -245,14 +249,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-  },
-  rowNext: {
-    backgroundColor: "rgba(139,92,246,0.08)",
-    borderWidth: 1,
-    borderColor: "rgba(139,92,246,0.22)",
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.5)",
   },
   rowLeft: {
     flexDirection: "row",

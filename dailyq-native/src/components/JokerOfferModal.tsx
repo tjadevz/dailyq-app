@@ -26,6 +26,8 @@ interface JokerOfferModalProps {
   onClose: () => void;
   onUseJoker: (dayKey: string, questionText: string) => void;
   onNeedMoreJokers: () => void;
+  /** Fires once the close animation has fully finished and the native <Modal> has actually unmounted. */
+  onClosed?: () => void;
 }
 
 function parseDayKey(dayKey: string | null): Date | null {
@@ -42,6 +44,7 @@ export default function JokerOfferModal({
   onClose,
   onUseJoker,
   onNeedMoreJokers,
+  onClosed,
 }: JokerOfferModalProps) {
   // Fabric doesn't reliably size flex:1/absoluteFillObject (right/bottom-based)
   // content inside <Modal> — needs explicit numeric width/height.
@@ -146,7 +149,10 @@ export default function JokerOfferModal({
         Animated.timing(cardOpacity, { toValue: 0, duration: 180, useNativeDriver: true }),
         Animated.timing(cardScale, { toValue: 0.9, duration: 180, useNativeDriver: true }),
         Animated.timing(cardY, { toValue: 20, duration: 180, useNativeDriver: true }),
-      ]).start(() => setRendered(false));
+      ]).start(() => {
+        setRendered(false);
+        onClosed?.();
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
@@ -223,6 +229,8 @@ export default function JokerOfferModal({
                   {questionText || " "}
                 </Text>
               )}
+
+              <Text style={styles.hintText}>{t("joker_offer_missed_hint")}</Text>
 
               {/* CTA adapts to balance: use a joker, or go earn/buy one. */}
               <View style={styles.ctaWrap}>
@@ -352,6 +360,13 @@ const styles = StyleSheet.create({
     marginBottom: 32,
     letterSpacing: -0.5,
     fontFamily: Platform.OS === "ios" ? "System" : "sans-serif",
+  },
+  hintText: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: "#6B7280",
+    marginTop: -16,
+    marginBottom: 20,
   },
   ctaWrap: {
     paddingTop: 8,

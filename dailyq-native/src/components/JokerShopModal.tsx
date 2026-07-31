@@ -116,7 +116,6 @@ export function JokerShopModal({ visible, onClose }: JokerShopModalProps) {
     try {
       await Share.share({
         message: t("today_invite_share_message", { link }),
-        url: link,
       });
       logEvent("invite_shared");
     } catch (e) {
@@ -220,7 +219,7 @@ export function JokerShopModal({ visible, onClose }: JokerShopModalProps) {
               <View style={styles.referCard}>
                 <View style={styles.referTop}>
                   <View style={styles.referIcon}>
-                    <Feather name="user-plus" size={16} color="#FFFFFF" strokeWidth={2.5} />
+                    <Feather name="user-plus" size={16} color={JOKER.TEXT} strokeWidth={2.5} />
                   </View>
                   <Text style={styles.referTitle}>{t("joker_shop_refer_title")}</Text>
                 </View>
@@ -234,7 +233,7 @@ export function JokerShopModal({ visible, onClose }: JokerShopModalProps) {
               <View style={styles.streakCard}>
                 <View style={styles.streakTop}>
                   <View style={styles.streakIcon}>
-                    <Feather name="zap" size={15} color={COLORS.ACCENT} />
+                    <Feather name="zap" size={15} color={JOKER.TEXT} />
                   </View>
                   <Text style={styles.streakCur}>
                     {realStreak} {t(realStreak === 1 ? "calendar_stats_day_streak_one" : "calendar_stats_day_streak")}
@@ -263,7 +262,6 @@ export function JokerShopModal({ visible, onClose }: JokerShopModalProps) {
                         key={productId}
                         style={({ pressed }) => [
                           styles.packRow,
-                          isBestValue && styles.packRowBest,
                           disabled && styles.packRowDisabled,
                           !disabled && pressed && { opacity: 0.85 },
                         ]}
@@ -369,12 +367,17 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.9)",
   },
   referCard: {
-    backgroundColor: "rgba(139,92,246,0.1)",
+    backgroundColor: "rgba(255,255,255,0.6)",
     borderWidth: 1,
-    borderColor: "rgba(139,92,246,0.22)",
+    borderColor: "rgba(212,168,48,0.28)",
     borderRadius: 20,
     padding: 16,
-    marginBottom: 28,
+    marginBottom: 12,
+    shadowColor: "#C08C14",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.1,
+    shadowRadius: 18,
+    elevation: 3,
   },
   referTop: {
     flexDirection: "row",
@@ -386,7 +389,7 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: COLORS.ACCENT,
+    backgroundColor: "rgba(240,192,64,0.2)",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -411,12 +414,17 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
   },
   streakCard: {
-    backgroundColor: "rgba(253,230,138,0.35)",
+    backgroundColor: "rgba(255,255,255,0.6)",
     borderWidth: 1,
-    borderColor: "rgba(212,168,48,0.3)",
+    borderColor: "rgba(212,168,48,0.28)",
     borderRadius: 20,
     padding: 20,
     marginBottom: 28,
+    shadowColor: "#C08C14",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.1,
+    shadowRadius: 18,
+    elevation: 3,
   },
   streakTop: {
     flexDirection: "row",
@@ -428,7 +436,7 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: "rgba(139,92,246,0.16)",
+    backgroundColor: "rgba(240,192,64,0.2)",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -463,10 +471,11 @@ const styles = StyleSheet.create({
     color: COLORS.TEXT_MUTED,
     textTransform: "uppercase",
     letterSpacing: 0.5,
+    textAlign: "center",
     marginBottom: 4,
   },
   packRows: {
-    gap: 12,
+    gap: 8,
   },
   packRow: {
     flexDirection: "row",
@@ -478,10 +487,6 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(240,192,64,0.08)",
     borderWidth: 1,
     borderColor: "rgba(240,192,64,0.25)",
-  },
-  packRowBest: {
-    borderWidth: 1.5,
-    borderColor: JOKER.GOLD,
   },
   packRowDisabled: {
     opacity: 0.5,

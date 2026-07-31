@@ -13,7 +13,6 @@ export type Profile = {
   milestone_10_days_shown?: boolean | null;
   widget_installed?: boolean | null;
   widget_announcement_dismissed?: boolean | null;
-  joker_intro_shown?: boolean | null;
   archive_moment_day4_shown?: boolean | null;
 };
 
@@ -60,7 +59,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
 
     const { data: prof, error: fetchErr } = await supabase
       .from("profiles")
-      .select("id, joker_balance, language, onboarding_completed, referral_code, created_at, milestone_10_days_shown, widget_installed, widget_announcement_dismissed, joker_intro_shown, archive_moment_day4_shown")
+      .select("id, joker_balance, language, onboarding_completed, referral_code, created_at, milestone_10_days_shown, widget_installed, widget_announcement_dismissed, archive_moment_day4_shown")
       .eq("id", userId)
       .maybeSingle();
 

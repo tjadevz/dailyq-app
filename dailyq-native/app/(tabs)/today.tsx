@@ -153,6 +153,7 @@ async function markWidgetAnnouncementShown(userId: string): Promise<void> {
     .eq("id", userId);
   if (error) {
     console.error("[Today] Widget announcement profile update:", error);
+    throw error;
   }
 }
 
@@ -248,6 +249,21 @@ export default function TodayScreen() {
       cancelled = true;
     };
   }, [userId]);
+  // Repairs profiles where the device already recorded "shown" (AsyncStorage)
+  // but the DB write never persisted (e.g. dropped fire-and-forget request) —
+  // without this, the flag stays false in the DB forever since the modal
+  // never re-queues locally to trigger another write attempt.
+  useEffect(() => {
+    if (!userId || userId === "dev-user") return;
+    if (!widgetAnnouncementDismissed) return;
+    if (profile?.widget_announcement_dismissed === true) return;
+    if (profile == null) return;
+    markWidgetAnnouncementShown(userId)
+      .then(() => refetchProfile())
+      .catch((error) => {
+        console.error("[Today] Widget announcement reconciliation failed:", error);
+      });
+  }, [userId, widgetAnnouncementDismissed, profile, refetchProfile]);
   useFocusEffect(
     useCallback(() => {
       if (!userId) return;
@@ -499,19 +515,24 @@ export default function TodayScreen() {
   ]);
 
   const handleWidgetAnnouncementClose = useCallback(() => {
-    setWidgetAnnouncementDismissedState(true);
-    if (userId && userId !== "dev-user") {
-      void setWidgetAnnouncementDismissed(userId);
-      void markWidgetAnnouncementShown(userId).then(() => refetchProfile());
-    }
     logEvent("widget_announcement_dismissed");
     advanceQueue(modalQueue);
-  }, [userId, modalQueue, advanceQueue, refetchProfile]);
+  }, [modalQueue, advanceQueue]);
   useEffect(() => {
-    if (activeModal === "widgetAnnouncement") {
-      logEvent("widget_announcement_shown");
-    }
-  }, [activeModal]);
+    if (activeModal !== "widgetAnnouncement") return;
+    logEvent("widget_announcement_shown");
+    setWidgetAnnouncementDismissedState(true);
+    if (!userId || userId === "dev-user") return;
+    (async () => {
+      try {
+        await setWidgetAnnouncementDismissed(userId);
+        await markWidgetAnnouncementShown(userId);
+        refetchProfile();
+      } catch (error) {
+        console.error("[Today] Widget announcement shown-persist failed:", error);
+      }
+    })();
+  }, [activeModal, userId, refetchProfile]);
 
   useEffect(() => {
     if (activeModal === "missedDay") {

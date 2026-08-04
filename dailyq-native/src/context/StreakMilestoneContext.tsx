@@ -107,9 +107,12 @@ export async function getAlreadyGranted(
 }
 
 /**
- * Grants milestone jokers for all newly crossed milestones that are not already
- * granted in the current cycle. Passes newStreak as third argument.
- * Wrapped in try/catch per call: logs errors but does not throw.
+ * Grants milestone jokers for every newly crossed milestone (a streak update
+ * can cross more than one milestone at once, e.g. via the missed-day joker
+ * recovery flow retroactively jumping the streak) — awarded sequentially so a
+ * mid-loop failure is easy to reason about. Passes newStreak as the grant's
+ * streak_at_grant for every call. Wrapped in try/catch per call: logs errors
+ * but does not throw.
  * @returns true if every grant succeeded (or there was nothing to grant), false if any failed.
  */
 export async function grantMilestoneJokersForCrossed(
@@ -119,27 +122,26 @@ export async function grantMilestoneJokersForCrossed(
   newStreak: number
 ): Promise<boolean> {
   const crossed = getMilestonesCrossed(previousStreak, newStreak);
-  // Product rule: grant only one milestone reward per streak update.
-  // `getMilestonesCrossed` returns milestones in ascending order, so the first one
-  // represents the first newly achieved milestone.
-  const milestoneToGrant = crossed[0] ?? null;
-  if (!milestoneToGrant) return true;
+  if (crossed.length === 0) return true;
 
-  try {
-    const { error } = await supabase.rpc("grant_milestone_jokers", {
-      p_user_id: userId,
-      p_milestone: milestoneToGrant,
-      p_streak_at_grant: newStreak,
-    });
-    if (error) throw error;
-    return true;
-  } catch (e) {
-    console.error("[StreakMilestone] grant_milestone_jokers failed", {
-      userId,
-      milestone: milestoneToGrant,
-      newStreak,
-      error: e,
-    });
-    return false;
+  let allSucceeded = true;
+  for (const milestone of crossed) {
+    try {
+      const { error } = await supabase.rpc("grant_milestone_jokers", {
+        p_user_id: userId,
+        p_milestone: milestone,
+        p_streak_at_grant: newStreak,
+      });
+      if (error) throw error;
+    } catch (e) {
+      allSucceeded = false;
+      console.error("[StreakMilestone] grant_milestone_jokers failed", {
+        userId,
+        milestone,
+        newStreak,
+        error: e,
+      });
+    }
   }
+  return allSucceeded;
 }

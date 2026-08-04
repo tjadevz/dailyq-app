@@ -815,9 +815,8 @@ export default function TodayScreen() {
 
         try {
           const alreadyGranted = await getAlreadyGranted(supabase, userId);
-          const maxGranted = alreadyGranted.size > 0 ? Math.max(...alreadyGranted) : -1;
           const crossed = getMilestonesCrossed(previousStreak, newStreak).filter(
-            (m) => m > maxGranted
+            (m) => !alreadyGranted.has(m)
           );
           const grantSuccess = await grantMilestoneJokersForCrossed(
             supabase,
@@ -825,7 +824,10 @@ export default function TodayScreen() {
             previousStreak,
             newStreak
           );
-          const milestoneToCelebrate = crossed.length > 0 ? crossed[0] : null;
+          // Celebrate only the highest crossed-and-ungranted milestone (avoid
+          // stacking modals on a rare multi-milestone jump); all of them still
+          // get their joker via grantMilestoneJokersForCrossed above.
+          const milestoneToCelebrate = crossed.length > 0 ? crossed[crossed.length - 1] : null;
           await new Promise((resolve) => setTimeout(resolve, 300));
           if (crossed.length > 0 && milestoneToCelebrate) {
             setPendingStreakMilestone(milestoneToCelebrate);

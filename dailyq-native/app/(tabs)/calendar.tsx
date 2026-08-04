@@ -850,13 +850,14 @@ export default function CalendarScreen() {
       refetch();
       const newStreak = await fetchStreak();
       const grants = await getAlreadyGranted(supabase, userId);
-      const maxGranted = grants.size > 0 ? Math.max(...grants) : -1;
       const crossed = getMilestonesCrossed(previousStreak, newStreak).filter(
-        (m) => m > maxGranted
+        (m) => !grants.has(m)
       );
       await grantMilestoneJokersForCrossed(supabase, userId, previousStreak, newStreak);
       if (crossed.length > 0) {
-        const milestoneToCelebrate = crossed[0] ?? null;
+        // Celebrate only the highest crossed-and-ungranted milestone; all of
+        // them still get their joker via grantMilestoneJokersForCrossed above.
+        const milestoneToCelebrate = crossed[crossed.length - 1] ?? null;
         if (milestoneToCelebrate) setPendingStreakMilestone(milestoneToCelebrate);
       }
       await fetchAlreadyGrantedMilestones();

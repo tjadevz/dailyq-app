@@ -3,24 +3,80 @@ import { View, Text, StyleSheet, Pressable, ActivityIndicator, Share, ScrollView
 import Feather from "@expo/vector-icons/Feather";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { LinearGradient } from "expo-linear-gradient";
+import * as Clipboard from "expo-clipboard";
 
-import { COLORS, JOKER } from "@/src/config/constants";
-import { JOKER_PRODUCT_IDS, JOKER_COUNT_BY_PRODUCT_ID, type JokerProductId } from "@/src/config/revenuecat";
+import { JOKER } from "@/src/config/constants";
+import { ADS_SUPPORTED } from "@/src/config/admob";
+import { watchAdForJoker } from "@/src/services/rewardedAd";
+import {
+  JOKER_PRODUCT_IDS,
+  JOKER_COUNT_BY_PRODUCT_ID,
+  type JokerProductId,
+} from "@/src/config/revenuecat";
 import BottomSheetShell from "@/src/components/modals/BottomSheetShell";
 import { useLanguage } from "@/src/context/LanguageContext";
 import { useAuth } from "@/src/context/AuthContext";
 import { useProfileContext } from "@/src/context/ProfileContext";
 import { PURCHASES_SUPPORTED, usePurchases } from "@/src/context/PurchasesContext";
-import { STREAK_MILESTONES, getAlreadyGranted } from "@/src/context/StreakMilestoneContext";
+import { STREAK_MILESTONES, JOKER_COUNT_BY_MILESTONE, getAlreadyGranted } from "@/src/context/StreakMilestoneContext";
 import { supabase } from "@/src/config/supabase";
 import { logEvent } from "@/lib/analytics";
+import type { PurchasesStoreProduct } from "react-native-purchases";
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const SHEET_BG = "#201a3a";
+const TILE_BG = "#292153";
+const INVITE_BG = "#7c5cff";
+const AD_TILE_BG = "#3aa876";
+const GOLD_TILE_BG = "#f0c766";
+const GOLD_TEXT_ON_TILE = "#201a3a";
 
 type JokerShopModalProps = {
   visible: boolean;
   onClose: () => void;
 };
+
+// Renders the icon/label/price stack shared by the three IAP pack tiles —
+// only their colors and product id differ, so this is factored out rather
+// than repeated three times with copy-pasted price/loading/unavailable states.
+function PackTileContent({
+  count,
+  product,
+  isPurchasing,
+  productsLoading,
+  textColor,
+  mutedColor,
+  boldPrice,
+  unavailableLabel,
+}: {
+  count: number;
+  product: PurchasesStoreProduct | undefined;
+  isPurchasing: boolean;
+  productsLoading: boolean;
+  textColor: string;
+  mutedColor: string;
+  boldPrice?: boolean;
+  unavailableLabel: string;
+}) {
+  return (
+    <>
+      <MaterialCommunityIcons name="crown" size={18} color={textColor} />
+      <Text style={[styles.actionTileLabel, { color: textColor }]}>×{count}</Text>
+      {isPurchasing ? (
+        <ActivityIndicator size="small" color={textColor} />
+      ) : product ? (
+        <Text style={[styles.actionTileSublabel, { color: mutedColor }, boldPrice && styles.actionTileSublabelBold]}>
+          {product.priceString}
+        </Text>
+      ) : productsLoading ? (
+        <ActivityIndicator size="small" color={mutedColor} />
+      ) : (
+        <Text style={[styles.actionTileSublabel, { color: mutedColor }]}>{unavailableLabel}</Text>
+      )}
+    </>
+  );
+}
 
 export function JokerShopModal({ visible, onClose }: JokerShopModalProps) {
   const { t } = useLanguage();
@@ -32,8 +88,9 @@ export function JokerShopModal({ visible, onClose }: JokerShopModalProps) {
   const jokerBalance = profile?.joker_balance ?? 0;
 
   const [purchasingProductId, setPurchasingProductId] = useState<string | null>(null);
-  const [purchaseMessage, setPurchaseMessage] = useState<string | null>(null);
-  const [purchaseSuccess, setPurchaseSuccess] = useState<{ count: number } | null>(null);
+  const [isWatchingAd, setIsWatchingAd] = useState(false);
+  const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
+  const [purchaseSuccess, setPurchaseSuccess] = useState<{ count: number; titleKey: string } | null>(null);
   const successIconScale = useRef(new Animated.Value(0.7)).current;
 
   const [realStreak, setRealStreak] = useState(0);
@@ -85,8 +142,9 @@ export function JokerShopModal({ visible, onClose }: JokerShopModalProps) {
 
   useEffect(() => {
     if (!visible) {
-      setPurchaseMessage(null);
+      setFeedbackMessage(null);
       setPurchasingProductId(null);
+      setIsWatchingAd(false);
       setPurchaseSuccess(null);
     }
   }, [visible]);
@@ -108,15 +166,18 @@ export function JokerShopModal({ visible, onClose }: JokerShopModalProps) {
 
   const nextMilestone = STREAK_MILESTONES.find((m) => m > realStreak && !grantedMilestones.has(m)) ?? null;
   const daysLeft = nextMilestone != null ? nextMilestone - realStreak : 0;
-  const progressPercent = nextMilestone != null ? Math.min(100, (realStreak / nextMilestone) * 100) : 0;
+  const nextMilestoneJokers = nextMilestone != null ? JOKER_COUNT_BY_MILESTONE[nextMilestone] : 0;
 
   const handleInvite = useCallback(async () => {
     if (!profile?.referral_code) return;
     const link = `https://dailyqapp.com/invite/${profile.referral_code}`;
+    const message = t("today_invite_share_message", { link });
     try {
-      await Share.share({
-        message: t("today_invite_share_message", { link }),
-      });
+      // Some share targets (e.g. WhatsApp's iOS compose screen) drop the message text and
+      // keep only the detected link, outside our control. Copy the full text to the clipboard
+      // first so it's always recoverable with a paste, regardless of what the target app does.
+      await Clipboard.setStringAsync(message);
+      await Share.share({ message });
       logEvent("invite_shared");
     } catch (e) {
       console.error("[JokerShop] Share error:", e);
@@ -146,19 +207,19 @@ export function JokerShopModal({ visible, onClose }: JokerShopModalProps) {
   const handleBuyPack = useCallback(
     async (productId: JokerProductId) => {
       if (purchasingProductId) return;
-      setPurchaseMessage(null);
+      setFeedbackMessage(null);
       setPurchasingProductId(productId);
       try {
         const result = await purchaseJokerPack(productId);
         if (result === "purchased") {
           const count = JOKER_COUNT_BY_PRODUCT_ID[productId];
           bumpJokerBalance(count);
-          setPurchaseSuccess({ count });
+          setPurchaseSuccess({ count, titleKey: "joker_menu_buy_success" });
           reconcileBalanceAfterPurchase(jokerBalance + count);
         } else if (result === "cancelled") {
-          setPurchaseMessage(t("joker_menu_buy_cancelled"));
+          setFeedbackMessage(t("joker_menu_buy_cancelled"));
         } else {
-          setPurchaseMessage(t("joker_menu_buy_error"));
+          setFeedbackMessage(t("joker_menu_buy_error"));
         }
       } finally {
         setPurchasingProductId(null);
@@ -167,27 +228,43 @@ export function JokerShopModal({ visible, onClose }: JokerShopModalProps) {
     [purchasingProductId, purchaseJokerPack, jokerBalance, bumpJokerBalance, reconcileBalanceAfterPurchase, t]
   );
 
+  // The actual joker grant is server-side only (AdMob SSV -> grant_ad_reward_jokers),
+  // same async-lag characteristics as an IAP purchase, so this mirrors handleBuyPack:
+  // optimistic bump + background reconciliation, never gating the success UI on it.
+  const handleWatchAd = useCallback(async () => {
+    if (!userId || userId === "dev-user" || isWatchingAd || purchasingProductId) return;
+    setFeedbackMessage(null);
+    setIsWatchingAd(true);
+    try {
+      const outcome = await watchAdForJoker(userId);
+      if (outcome === "earned") {
+        bumpJokerBalance(1);
+        setPurchaseSuccess({ count: 1, titleKey: "joker_shop_watch_ad_success_title" });
+        reconcileBalanceAfterPurchase(jokerBalance + 1);
+        logEvent("ad_reward_earned");
+      } else if (outcome === "cancelled") {
+        setFeedbackMessage(t("joker_shop_watch_ad_cancelled"));
+      } else if (outcome === "consent_denied") {
+        setFeedbackMessage(t("joker_shop_watch_ad_consent_denied"));
+      } else {
+        setFeedbackMessage(t("joker_shop_watch_ad_error"));
+      }
+    } finally {
+      setIsWatchingAd(false);
+    }
+  }, [userId, isWatchingAd, purchasingProductId, bumpJokerBalance, jokerBalance, reconcileBalanceAfterPurchase, t]);
+
   return (
-    <BottomSheetShell visible={visible} onClose={onClose} draggable={!purchasingProductId}>
+    <BottomSheetShell
+      visible={visible}
+      onClose={onClose}
+      draggable={!purchasingProductId && !isWatchingAd}
+      backgroundColor={SHEET_BG}
+      handleColor="rgba(255,255,255,0.2)"
+      handleSize={{ width: 36, height: 4 }}
+    >
       {() => (
         <View style={styles.container}>
-          <View style={styles.topbar}>
-            <LinearGradient
-              colors={["#FFD84D", "#F5B800"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.jokerPill}
-            >
-              <View style={styles.jokerPillIconCircle}>
-                <MaterialCommunityIcons name="crown" size={15} color="#F5B800" />
-              </View>
-              <Text style={styles.jokerPillCount}>{jokerBalance}</Text>
-              <Text style={styles.jokerPillLabel}>
-                {t(jokerBalance === 1 ? "joker_shop_jokers_label_one" : "joker_shop_jokers_label")}
-              </Text>
-            </LinearGradient>
-          </View>
-
           {purchaseSuccess ? (
             <View style={styles.successWrap}>
               <Animated.View style={{ transform: [{ scale: successIconScale }] }}>
@@ -202,7 +279,7 @@ export function JokerShopModal({ visible, onClose }: JokerShopModalProps) {
                   </LinearGradient>
                 </View>
               </Animated.View>
-              <Text style={styles.successTitle}>{t("joker_menu_buy_success")}</Text>
+              <Text style={styles.successTitle}>{t(purchaseSuccess.titleKey)}</Text>
               <Text style={styles.successSubtitle}>
                 {t("joker_shop_purchase_added", { count: purchaseSuccess.count })}
               </Text>
@@ -214,45 +291,97 @@ export function JokerShopModal({ visible, onClose }: JokerShopModalProps) {
               </Pressable>
             </View>
           ) : (
-          <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-            {!!profile?.referral_code && (
-              <View style={styles.referCard}>
-                <View style={styles.referTop}>
-                  <View style={styles.referIcon}>
-                    <Feather name="user-plus" size={16} color={JOKER.TEXT} strokeWidth={2.5} />
-                  </View>
-                  <Text style={styles.referTitle}>{t("joker_shop_refer_title")}</Text>
-                </View>
-                <Pressable onPress={handleInvite} style={({ pressed }) => [styles.referBtn, pressed && { opacity: 0.88 }]}>
-                  <Text style={styles.referBtnText}>{t("joker_shop_refer_cta")}</Text>
-                </Pressable>
-              </View>
-            )}
-
-            {nextMilestone != null && (
-              <View style={styles.streakCard}>
-                <View style={styles.streakTop}>
-                  <View style={styles.streakIcon}>
-                    <Feather name="zap" size={15} color={JOKER.TEXT} />
-                  </View>
-                  <Text style={styles.streakCur}>
-                    {realStreak} {t(realStreak === 1 ? "calendar_stats_day_streak_one" : "calendar_stats_day_streak")}
+            <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+              {/* Hero: joker balance status */}
+              <LinearGradient
+                colors={["#2c2452", "#211b40"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.hero}
+              >
+                <LinearGradient
+                  colors={["#ffd875", "#e8a534"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.heroIconTile}
+                >
+                  <MaterialCommunityIcons name="crown" size={26} color="#FFFFFF" />
+                </LinearGradient>
+                <View style={styles.heroTextCol}>
+                  <Text style={styles.heroKicker}>{t("joker_shop_hero_kicker")}</Text>
+                  <Text style={styles.heroCount}>
+                    {t(jokerBalance === 1 ? "joker_shop_hero_count_one" : "joker_shop_hero_count", {
+                      count: jokerBalance,
+                    })}
                   </Text>
                 </View>
-                <Text style={styles.streakNext}>
-                  {t(daysLeft === 1 ? "joker_shop_streak_days_left_one" : "joker_shop_streak_days_left", { count: daysLeft })}
-                </Text>
-                <View style={styles.progressTrack}>
-                  <View style={[styles.progressFill, { width: `${progressPercent}%` }]} />
-                </View>
-              </View>
-            )}
+              </LinearGradient>
 
-            {PURCHASES_SUPPORTED && (
-              <View style={styles.buySection}>
-                <Text style={styles.sectionTitle}>{t("joker_shop_buy_title")}</Text>
-                <View style={styles.packRows}>
-                  {(Object.values(JOKER_PRODUCT_IDS) as JokerProductId[]).map((productId) => {
+              {/* Streak + progress-to-next-joker, the two numbers meant to stand out most */}
+              <View style={styles.statsGrid}>
+                <View style={styles.statTile}>
+                  <Text style={styles.statNumber}>{realStreak}🔥</Text>
+                  <Text style={styles.statLabel}>{t("joker_shop_streak_tile_label")}</Text>
+                </View>
+                {nextMilestone != null && (
+                  <View style={styles.statTile}>
+                    <Text style={[styles.statNumber, styles.statNumberAccent]}>{daysLeft}</Text>
+                    <Text style={styles.statLabel}>
+                      {t(daysLeft === 1 ? "joker_shop_next_tile_label_one" : "joker_shop_next_tile_label", {
+                        count: daysLeft,
+                        jokers: nextMilestoneJokers,
+                      })}
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              <Text style={styles.sectionLabel}>{t("joker_shop_earn_or_buy_title")}</Text>
+
+              {!!profile?.referral_code && (
+                <View style={styles.inviteBar}>
+                  <Text style={styles.inviteTextBlock}>
+                    <Text style={styles.inviteTitle}>{t("joker_shop_invite_title")}</Text>
+                    {"\n"}
+                    <Text style={styles.inviteSubtitle}>{t("joker_shop_invite_subtitle")}</Text>
+                  </Text>
+                  <Pressable
+                    onPress={handleInvite}
+                    style={({ pressed }) => [styles.inviteBtn, pressed && { opacity: 0.88 }]}
+                  >
+                    <Text style={styles.inviteBtnText}>{t("joker_shop_refer_cta")}</Text>
+                  </Pressable>
+                </View>
+              )}
+
+              <View style={styles.actionGrid}>
+                {ADS_SUPPORTED && (
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.actionTile,
+                      styles.adTile,
+                      (isWatchingAd || !!purchasingProductId) && styles.actionTileDisabled,
+                      !isWatchingAd && !purchasingProductId && pressed && { opacity: 0.88 },
+                    ]}
+                    onPress={handleWatchAd}
+                    disabled={isWatchingAd || !!purchasingProductId}
+                  >
+                    <Feather name="play" size={18} color="#FFFFFF" />
+                    <Text style={[styles.actionTileLabel, { color: "#FFFFFF" }]}>
+                      {t("joker_shop_watch_ad_tile_label")}
+                    </Text>
+                    {isWatchingAd ? (
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                    ) : (
+                      <Text style={[styles.actionTileSublabel, { color: "rgba(255,255,255,0.75)" }]}>
+                        {t("joker_shop_watch_ad_tile_sublabel")}
+                      </Text>
+                    )}
+                  </Pressable>
+                )}
+
+                {PURCHASES_SUPPORTED &&
+                  (Object.values(JOKER_PRODUCT_IDS) as JokerProductId[]).map((productId) => {
                     const product = products.find((p) => p.identifier === productId);
                     const isPurchasing = purchasingProductId === productId;
                     const isBestValue = productId === JOKER_PRODUCT_IDS.jokers_10;
@@ -261,45 +390,30 @@ export function JokerShopModal({ visible, onClose }: JokerShopModalProps) {
                       <Pressable
                         key={productId}
                         style={({ pressed }) => [
-                          styles.packRow,
-                          disabled && styles.packRowDisabled,
-                          !disabled && pressed && { opacity: 0.85 },
+                          styles.actionTile,
+                          isBestValue ? styles.goldTile : styles.packTile,
+                          disabled && styles.actionTileDisabled,
+                          !disabled && pressed && { opacity: 0.88 },
                         ]}
                         onPress={() => handleBuyPack(productId)}
                         disabled={disabled}
                       >
-                        <View style={styles.packIconWrap}>
-                          <MaterialCommunityIcons name="crown" size={16} color={JOKER.TEXT} />
-                        </View>
-                        <View style={styles.packLabelWrap}>
-                          <Text style={styles.packLabel}>
-                            {t("joker_menu_buy_pack_label", { count: JOKER_COUNT_BY_PRODUCT_ID[productId] })}
-                          </Text>
-                          {isBestValue && (
-                            <View style={styles.bestValueBadge}>
-                              <Text style={styles.bestValueText}>{t("joker_shop_best_value")}</Text>
-                            </View>
-                          )}
-                        </View>
-                        <View style={styles.packPriceWrap}>
-                          {isPurchasing ? (
-                            <ActivityIndicator size="small" color={JOKER.TEXT} />
-                          ) : product ? (
-                            <Text style={styles.packPrice}>{product.priceString}</Text>
-                          ) : productsLoading ? (
-                            <ActivityIndicator size="small" color={COLORS.TEXT_MUTED} />
-                          ) : (
-                            <Text style={styles.packUnavailable}>{t("joker_shop_pack_unavailable")}</Text>
-                          )}
-                        </View>
+                        <PackTileContent
+                          count={JOKER_COUNT_BY_PRODUCT_ID[productId]}
+                          product={product}
+                          isPurchasing={isPurchasing}
+                          productsLoading={productsLoading}
+                          textColor={isBestValue ? GOLD_TEXT_ON_TILE : "#FFFFFF"}
+                          mutedColor={isBestValue ? GOLD_TEXT_ON_TILE : "rgba(255,255,255,0.5)"}
+                          boldPrice={isBestValue}
+                          unavailableLabel={t("joker_shop_pack_unavailable")}
+                        />
                       </Pressable>
                     );
                   })}
-                </View>
-                {purchaseMessage ? <Text style={styles.purchaseMessage}>{purchaseMessage}</Text> : null}
               </View>
-            )}
-          </ScrollView>
+              {feedbackMessage ? <Text style={styles.feedbackMessage}>{feedbackMessage}</Text> : null}
+            </ScrollView>
           )}
         </View>
       )}
@@ -312,235 +426,158 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "transparent",
   },
-  topbar: {
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 12,
-  },
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 56,
+    paddingHorizontal: 18,
+    paddingTop: 22,
+    paddingBottom: 28,
     maxWidth: 480,
     width: "100%",
     alignSelf: "center",
-    flexGrow: 1,
-    justifyContent: "center",
   },
-  jokerPill: {
+  hero: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 9999,
-    borderWidth: 1,
-    borderColor: "rgba(245,184,0,0.4)",
-    shadowColor: "#F59E0B",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.16,
-    shadowRadius: 10,
-    elevation: 3,
+    gap: 14,
+    borderRadius: 20,
+    padding: 18,
+    marginBottom: 24,
   },
-  jokerPillIconCircle: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: "#FFFFFF",
+  heroIconTile: {
+    width: 56,
+    height: 56,
+    borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 1,
   },
-  jokerPillCount: {
-    fontSize: 17,
+  heroTextCol: {
+    flex: 1,
+  },
+  heroKicker: {
+    fontSize: 13,
+    fontWeight: "700",
+    letterSpacing: 0.5,
+    color: "rgba(255,255,255,0.5)",
+    marginBottom: 3,
+  },
+  heroCount: {
+    fontSize: 24,
     fontWeight: "800",
     color: "#FFFFFF",
   },
-  jokerPillLabel: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "rgba(255,255,255,0.9)",
-  },
-  referCard: {
-    backgroundColor: "rgba(255,255,255,0.6)",
-    borderWidth: 1,
-    borderColor: "rgba(212,168,48,0.28)",
-    borderRadius: 20,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: "#C08C14",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.1,
-    shadowRadius: 18,
-    elevation: 3,
-  },
-  referTop: {
+  statsGrid: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    marginBottom: 12,
-  },
-  referIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: "rgba(240,192,64,0.2)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  referTitle: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: "700",
-    color: COLORS.TEXT_PRIMARY,
-    lineHeight: 21,
-  },
-  referBtn: {
-    width: "100%",
-    paddingVertical: 11,
-    borderRadius: 12,
-    backgroundColor: COLORS.ACCENT,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  referBtnText: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#FFFFFF",
-  },
-  streakCard: {
-    backgroundColor: "rgba(255,255,255,0.6)",
-    borderWidth: 1,
-    borderColor: "rgba(212,168,48,0.28)",
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 28,
-    shadowColor: "#C08C14",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.1,
-    shadowRadius: 18,
-    elevation: 3,
-  },
-  streakTop: {
-    flexDirection: "row",
-    alignItems: "center",
     gap: 10,
-    marginBottom: 12,
+    marginBottom: 24,
   },
-  streakIcon: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: "rgba(240,192,64,0.2)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  streakCur: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: COLORS.TEXT_PRIMARY,
-  },
-  streakNext: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: JOKER.TEXT,
-    marginBottom: 12,
-  },
-  progressTrack: {
-    height: 8,
-    borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.65)",
-    overflow: "hidden",
-  },
-  progressFill: {
-    height: "100%",
-    borderRadius: 999,
-    backgroundColor: JOKER.GOLD,
-  },
-  buySection: {
-    gap: 14,
-  },
-  sectionTitle: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: COLORS.TEXT_MUTED,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    textAlign: "center",
-    marginBottom: 4,
-  },
-  packRows: {
-    gap: 8,
-  },
-  packRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingVertical: 15,
-    paddingHorizontal: 16,
-    borderRadius: 18,
-    backgroundColor: "rgba(240,192,64,0.08)",
-    borderWidth: 1,
-    borderColor: "rgba(240,192,64,0.25)",
-  },
-  packRowDisabled: {
-    opacity: 0.5,
-  },
-  packIconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "rgba(240,192,64,0.2)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  packLabelWrap: {
+  statTile: {
     flex: 1,
+    height: 78,
+    backgroundColor: TILE_BG,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 10,
+  },
+  statNumber: {
+    fontSize: 28,
+    fontWeight: "800",
+    color: "#FFFFFF",
+  },
+  statNumberAccent: {
+    color: "#f0c766",
+  },
+  statLabel: {
+    fontSize: 13,
+    color: "rgba(255,255,255,0.55)",
+    marginTop: 3,
+    textAlign: "center",
+  },
+  inviteBar: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    justifyContent: "space-between",
+    gap: 10,
+    backgroundColor: INVITE_BG,
+    borderRadius: 18,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginBottom: 26,
   },
-  packLabel: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: COLORS.TEXT_PRIMARY,
+  inviteTextBlock: {
+    flex: 1,
   },
-  bestValueBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 999,
-    backgroundColor: JOKER.GOLD,
-  },
-  bestValueText: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: "#FFFFFF",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  packPriceWrap: {
-    minWidth: 64,
-    alignItems: "flex-end",
-  },
-  packPrice: {
+  inviteTitle: {
     fontSize: 15,
     fontWeight: "700",
-    color: JOKER.TEXT,
+    color: "#FFFFFF",
   },
-  packUnavailable: {
-    fontSize: 12,
-    color: COLORS.TEXT_MUTED,
-  },
-  purchaseMessage: {
-    marginTop: 4,
+  inviteSubtitle: {
     fontSize: 14,
+    fontWeight: "400",
+    color: "rgba(255,255,255,0.8)",
+  },
+  inviteBtn: {
+    flexShrink: 0,
+    backgroundColor: "#FFFFFF",
+    paddingVertical: 9,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+  },
+  inviteBtnText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: INVITE_BG,
+  },
+  sectionLabel: {
+    fontSize: 13,
+    fontWeight: "700",
+    letterSpacing: 0.6,
+    color: "rgba(255,255,255,0.5)",
+    textTransform: "uppercase",
+    marginBottom: 12,
+  },
+  actionGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  actionTile: {
+    width: "48%",
+    height: 84,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 8,
+  },
+  actionTileDisabled: {
+    opacity: 0.5,
+  },
+  adTile: {
+    backgroundColor: AD_TILE_BG,
+  },
+  packTile: {
+    backgroundColor: TILE_BG,
+  },
+  goldTile: {
+    backgroundColor: GOLD_TILE_BG,
+  },
+  actionTileLabel: {
+    fontSize: 15,
+    fontWeight: "700",
+    marginTop: 5,
+  },
+  actionTileSublabel: {
+    fontSize: 13,
+    marginTop: 2,
+  },
+  actionTileSublabelBold: {
+    fontWeight: "700",
+  },
+  feedbackMessage: {
+    marginTop: 12,
+    fontSize: 13,
     textAlign: "center",
-    color: COLORS.TEXT_SECONDARY,
+    color: "rgba(255,255,255,0.6)",
   },
   successWrap: {
     flex: 1,
@@ -576,13 +613,13 @@ const styles = StyleSheet.create({
   successTitle: {
     fontSize: 20,
     fontWeight: "700",
-    color: COLORS.TEXT_PRIMARY,
+    color: "#FFFFFF",
     textAlign: "center",
     marginBottom: 10,
   },
   successSubtitle: {
     fontSize: 15,
-    color: COLORS.TEXT_SECONDARY,
+    color: "rgba(255,255,255,0.6)",
     textAlign: "center",
     marginBottom: 28,
   },

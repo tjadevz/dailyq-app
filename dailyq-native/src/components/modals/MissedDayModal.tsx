@@ -12,6 +12,8 @@ type MissedDayModalProps = {
   title: string;
   body: string;
   ctaLabel: string;
+  /** False when the user has no jokers left — CTA routes to the shop instead of straight to answering, so it gets the same purple/accent treatment as JokerOfferModal's equivalent state. */
+  hasJokers?: boolean;
   onClose: () => void;
   onAnswer: () => void;
 };
@@ -21,6 +23,7 @@ export default function MissedDayModal({
   title,
   body,
   ctaLabel,
+  hasJokers = true,
   onClose,
   onAnswer,
 }: MissedDayModalProps) {
@@ -114,12 +117,17 @@ export default function MissedDayModal({
           <Text style={styles.body}>{body}</Text>
           <Pressable onPress={() => dismiss(onAnswer)} style={styles.ctaWrap}>
             <LinearGradient
-              colors={["#FFD84D", "#FFC700"]}
+              colors={hasJokers ? ["#FFD84D", "#FFC700"] : [COLORS.ACCENT_LIGHT, COLORS.ACCENT]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.cta}
             >
-              <MaterialCommunityIcons name="crown" size={16} color="#FFFFFF" style={styles.ctaIcon} />
+              <MaterialCommunityIcons
+                name={hasJokers ? "crown" : "crown-outline"}
+                size={16}
+                color="#FFFFFF"
+                style={styles.ctaIcon}
+              />
               <Text style={styles.ctaText}>{ctaLabel}</Text>
             </LinearGradient>
           </Pressable>

@@ -20,6 +20,12 @@ type Props = {
   draggable?: boolean;
   /** Sheet height as a fraction of window height. Matches the bottom-sheet pattern used by ViewAnswerModal in calendar.tsx. */
   heightRatio?: number;
+  /** Solid background color for the whole sheet (handle strip + content), replacing the default light glass background. Used by dark-themed sheets. */
+  backgroundColor?: string;
+  /** Drag-handle color override, for use with a dark backgroundColor. */
+  handleColor?: string;
+  /** Drag-handle size override (defaults match the light-glass look). */
+  handleSize?: { width: number; height: number };
   /** Function-as-children: call the passed handleClose (not onClose directly) so the exit animation plays before unmount. */
   children: (handleClose: () => void) => React.ReactNode;
 };
@@ -29,6 +35,9 @@ export default function BottomSheetShell({
   onClose,
   draggable = true,
   heightRatio = 0.78,
+  backgroundColor,
+  handleColor,
+  handleSize,
   children,
 }: Props) {
   // Fabric doesn't reliably size flex:1/absoluteFillObject (right/bottom-based)
@@ -126,14 +135,35 @@ export default function BottomSheetShell({
               style={[styles.sheet, sheetStyle, { width, height: sheetHeight }]}
               pointerEvents="box-none"
             >
-              <GlassCardContainer>
-                <View style={styles.handleWrap} pointerEvents="none">
-                  <View style={styles.handle} />
+              {backgroundColor ? (
+                <View style={[styles.plainCard, { backgroundColor }]}>
+                  <View style={styles.handleWrap} pointerEvents="none">
+                    <View
+                      style={[
+                        styles.handle,
+                        handleColor && { backgroundColor: handleColor },
+                        handleSize && {
+                          width: handleSize.width,
+                          height: handleSize.height,
+                          borderRadius: handleSize.height / 2,
+                        },
+                      ]}
+                    />
+                  </View>
+                  <View style={styles.content} pointerEvents="box-none">
+                    {children(handleClose)}
+                  </View>
                 </View>
-                <View style={styles.content} pointerEvents="box-none">
-                  {children(handleClose)}
-                </View>
-              </GlassCardContainer>
+              ) : (
+                <GlassCardContainer backgroundVariant="bottom">
+                  <View style={styles.handleWrap} pointerEvents="none">
+                    <View style={styles.handle} />
+                  </View>
+                  <View style={styles.content} pointerEvents="box-none">
+                    {children(handleClose)}
+                  </View>
+                </GlassCardContainer>
+              )}
             </AnimatedReanimated.View>
           </GestureDetector>
         </AnimatedReanimated.View>
@@ -157,6 +187,9 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     overflow: "hidden",
+  },
+  plainCard: {
+    flex: 1,
   },
   handleWrap: {
     paddingTop: 12,

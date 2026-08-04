@@ -19,10 +19,15 @@ import { useLanguage } from "@/src/context/LanguageContext";
 import { supabase } from "@/src/config/supabase";
 import { COLORS, JOKER } from "@/src/config/constants";
 
+/** Only surface the countdown once the 30-day window is genuinely closing soon — a distant deadline reads as abstract and doesn't move behavior, and showing it the whole 30 days would just advertise how much slack there is. */
+const URGENCY_THRESHOLD_DAYS = 5;
+
 interface JokerOfferModalProps {
   visible: boolean;
   dayKey: string | null;
   jokerCount: number;
+  /** Days left in the 30-day answer window before this day locks permanently. */
+  daysLeft?: number | null;
   onClose: () => void;
   onUseJoker: (dayKey: string, questionText: string) => void;
   onNeedMoreJokers: () => void;
@@ -41,6 +46,7 @@ export default function JokerOfferModal({
   visible,
   dayKey,
   jokerCount,
+  daysLeft,
   onClose,
   onUseJoker,
   onNeedMoreJokers,
@@ -65,10 +71,15 @@ export default function JokerOfferModal({
   // so the rest of the app is never gated behind a 180ms timer.
   const [rendered, setRendered] = useState(visible);
   const [lastDayKey, setLastDayKey] = useState(dayKey);
+  const [lastDaysLeft, setLastDaysLeft] = useState(daysLeft);
 
   useEffect(() => {
     if (dayKey) setLastDayKey(dayKey);
   }, [dayKey]);
+
+  useEffect(() => {
+    if (dayKey) setLastDaysLeft(daysLeft);
+  }, [dayKey, daysLeft]);
 
   const dateObj = useMemo(() => parseDayKey(lastDayKey), [lastDayKey]);
   const dateLabel =
@@ -232,6 +243,18 @@ export default function JokerOfferModal({
 
               <Text style={styles.hintText}>{t("joker_offer_missed_hint")}</Text>
 
+              {lastDaysLeft != null && lastDaysLeft <= URGENCY_THRESHOLD_DAYS ? (
+                <View style={styles.urgencyRow}>
+                  <Feather name="clock" size={13} color={JOKER.TEXT} strokeWidth={2.5} />
+                  <Text style={styles.urgencyText}>
+                    {t(
+                      lastDaysLeft === 1 ? "joker_offer_days_left_one" : "joker_offer_days_left",
+                      { count: lastDaysLeft }
+                    )}
+                  </Text>
+                </View>
+              ) : null}
+
               {/* CTA adapts to balance: use a joker, or go earn/buy one. */}
               <View style={styles.ctaWrap}>
                 <TouchableOpacity
@@ -266,6 +289,11 @@ export default function JokerOfferModal({
                     {jokerCount > 0 ? t("joker_offer_unlock") : t("joker_offer_need_more")}
                   </Text>
                 </TouchableOpacity>
+                {jokerCount <= 0 ? (
+                  <TouchableOpacity onPress={onClose} style={styles.notNowBtn} hitSlop={8}>
+                    <Text style={styles.notNowText}>{t("joker_offer_not_now")}</Text>
+                  </TouchableOpacity>
+                ) : null}
               </View>
             </View>
           </Animated.View>
@@ -368,9 +396,31 @@ const styles = StyleSheet.create({
     marginTop: -16,
     marginBottom: 20,
   },
+  urgencyRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: -12,
+    marginBottom: 20,
+  },
+  urgencyText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: JOKER.TEXT,
+  },
   ctaWrap: {
     paddingTop: 8,
     marginTop: "auto",
+  },
+  notNowBtn: {
+    alignSelf: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+  },
+  notNowText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#9CA3AF",
   },
   ctaBtn: {
     width: "100%",

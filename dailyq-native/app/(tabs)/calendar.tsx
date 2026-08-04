@@ -396,27 +396,24 @@ function ViewAnswerModal({
 }
 
 // ----- MissedDayModal -----
+// Only ever rendered for days outside the 30-day answer window (see the
+// `lastMissedWithinWindow` branch at the call site) — within-window misses go
+// through JokerOfferModal instead. So this always shows either the
+// permanently-locked message or the generic "closed" message; there is no
+// joker-balance-aware state to show here.
 function MissedDayModal({
   visible,
   dayKey,
-  canUseJoker,
-  jokerCount,
-  withinWindow,
   isPermanentlyLocked,
   /** When locked: "before_account" vs "30_days" — only subtitle differs. */
   lockedSubtitleKey,
   onClose,
-  onUseJoker,
 }: {
   visible: boolean;
   dayKey: string | null;
-  canUseJoker: boolean;
-  jokerCount: number;
-  withinWindow: boolean;
   isPermanentlyLocked: boolean;
   lockedSubtitleKey: string | null;
   onClose: () => void;
-  onUseJoker: () => void;
 }) {
   const { t } = useLanguage();
   const opacity = React.useRef(new Animated.Value(0)).current;
@@ -465,26 +462,10 @@ function MissedDayModal({
           </Text>
           {isPermanentlyLocked && lockedSubtitleKey ? (
             <Text style={[styles.lockedModalSubtitle, styles.modalTextCenter]}>{t(lockedSubtitleKey)}</Text>
-          ) : !withinWindow ? (
+          ) : (
             <>
               <Text style={[styles.modalBody, styles.modalTextCenter]}>{t("closed_body")}</Text>
               <Text style={[styles.modalSubtitle, styles.modalTextCenter]}>{t("closed_title")}</Text>
-            </>
-          ) : !canUseJoker || jokerCount <= 0 ? (
-            <Text style={[styles.modalBody, styles.modalTextCenter]}>{t("missed_no_jokers_body")}</Text>
-          ) : (
-            <>
-              <Text style={[styles.modalBody, styles.modalTextCenter]}>{t("missed_use_joker_message")}</Text>
-              <Pressable onPress={() => dismiss(onUseJoker)} style={styles.primaryBtnWrap}>
-                <LinearGradient
-                  colors={["#C4B5FD", "#A78BFA"]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.primaryBtn}
-                >
-                  <Text style={styles.primaryBtnText}>{t("missed_use_joker_btn")}</Text>
-                </LinearGradient>
-              </Pressable>
             </>
           )}
         </View>
@@ -1259,6 +1240,7 @@ export default function CalendarScreen() {
           visible={!!missedDay}
           dayKey={missedDay}
           jokerCount={jokerCount}
+          daysLeft={missedDay ? MISSED_ANSWER_DAYS_CAP - daysBetween(missedDay, todayKey) : null}
           onClose={() => setMissedDay(null)}
           onUseJoker={(dayKey, questionText) =>
             openMissedAnswer(dayKey, questionText)
@@ -1277,9 +1259,6 @@ export default function CalendarScreen() {
         <MissedDayModal
           visible={!!missedDay}
           dayKey={missedDay}
-          canUseJoker={jokerCount > 0}
-          jokerCount={jokerCount}
-          withinWindow={false}
           isPermanentlyLocked={
             !!missedDay &&
             isPermanentlyLockedDay(missedDay, todayKey, accountBoundaryDate)
@@ -1292,7 +1271,6 @@ export default function CalendarScreen() {
               : null
           }
           onClose={() => setMissedDay(null)}
-          onUseJoker={() => missedDay && openMissedAnswer(missedDay)}
         />
       )}
       {userId && (

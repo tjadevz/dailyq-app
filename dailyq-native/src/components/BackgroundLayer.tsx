@@ -9,14 +9,23 @@ import React from "react";
 import { StyleSheet, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 
-export function BackgroundLayer({ style }: { style?: any } = {}) {
+type BackgroundLayerProps = {
+  style?: any;
+  /** "bottom" mutes the top-right gold glow so containers anchored to the bottom of the
+   * screen (e.g. bottom-sheet modals) read as the lower/purple half of the full-screen
+   * background instead of re-rendering the yellow top glow at their own top edge. */
+  variant?: "full" | "bottom";
+};
+
+export function BackgroundLayer({ style, variant = "full" }: BackgroundLayerProps = {}) {
+  const topGlowMultiplier = variant === "bottom" ? 0.3 : 1;
   return (
     <View style={[styles.container, style]} pointerEvents="none">
       {/* Gold glow – diagonal from top-right */}
       <LinearGradient
         colors={[
-          "rgba(253,230,138,0.40)",
-          "rgba(254,240,138,0.20)",
+          `rgba(253,230,138,${0.4 * topGlowMultiplier})`,
+          `rgba(254,240,138,${0.2 * topGlowMultiplier})`,
           "rgba(254,240,138,0)",
         ]}
         locations={[0, 0.35, 0.7]}

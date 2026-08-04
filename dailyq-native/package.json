@@ -1,7 +1,7 @@
 {
   "name": "dailyq-native",
   "main": "expo-router/entry",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "scripts": {
     "start": "EXPO_PUBLIC_DEBUG_MODALS=true expo start --dev-client",
     "start:no-debug": "expo start --dev-client --clear",
@@ -33,12 +33,14 @@
     "expo-notifications": "~56.0.18",
     "expo-router": "~56.2.11",
     "expo-sharing": "~56.0.18",
+    "expo-tracking-transparency": "~56.0.5",
     "expo-updates": "~56.0.19",
     "lucide-react-native": "^0.577.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "0.85.3",
     "react-native-gesture-handler": "~2.31.1",
+    "react-native-google-mobile-ads": "^16.4.0",
     "react-native-purchases": "^10.4.4",
     "react-native-purchases-ui": "^10.4.4",
     "react-native-raw-bottom-sheet": "^3.0.0",

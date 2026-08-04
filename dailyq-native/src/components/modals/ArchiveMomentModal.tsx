@@ -25,11 +25,13 @@ import AnimatedReanimated, {
 import { BackgroundLayer } from "@/src/components/BackgroundLayer";
 import { COLORS } from "@/src/config/constants";
 import { useLanguage } from "@/src/context/LanguageContext";
+import { STREAK_MILESTONES } from "@/src/lib/streakMilestones";
 import type { AccountMilestoneAnswer } from "@/src/components/modals/AccountMilestoneModal";
 
 type Props = {
   visible: boolean;
   answers: AccountMilestoneAnswer[];
+  currentStreak: number;
   onClose: () => void;
 };
 
@@ -43,7 +45,7 @@ function formatCardDate(dateStr: string, lang: string): string {
   });
 }
 
-export default function ArchiveMomentModal({ visible, answers, onClose }: Props) {
+export default function ArchiveMomentModal({ visible, answers, currentStreak, onClose }: Props) {
   // Fabric doesn't reliably size flex:1/absoluteFillObject (right/bottom-based)
   // content inside <Modal> — needs explicit numeric width/height, and window
   // size must be read reactively (useWindowDimensions), not at module scope.
@@ -112,6 +114,12 @@ export default function ArchiveMomentModal({ visible, answers, onClose }: Props)
       }
     );
   }, [closeModal, backdropOpacity, slideY, dragY]);
+
+  const nextMilestone = useMemo(
+    () => STREAK_MILESTONES.find((m) => m > currentStreak) ?? null,
+    [currentStreak]
+  );
+  const daysLeft = nextMilestone != null ? nextMilestone - currentStreak : 0;
 
   const backdropStyle = useAnimatedStyle(() => ({
     opacity: backdropOpacity.value,
@@ -182,6 +190,22 @@ export default function ArchiveMomentModal({ visible, answers, onClose }: Props)
                         </View>
                       );
                     })}
+                    {nextMilestone != null && (
+                      <AnimatedReanimated.View
+                        entering={FadeInUp.delay(250 + answers.length * 80).duration(260)}
+                        style={styles.progressCard}
+                      >
+                        <Feather name="award" size={16} color="#7C3AED" />
+                        <Text style={styles.progressText}>
+                          {t(
+                            daysLeft === 1
+                              ? "joker_shop_streak_days_left_one"
+                              : "joker_shop_streak_days_left",
+                            { count: daysLeft }
+                          )}
+                        </Text>
+                      </AnimatedReanimated.View>
+                    )}
                   </ScrollView>
                 </View>
               </View>
@@ -299,5 +323,20 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 15 * 1.5,
     color: COLORS.TEXT_PRIMARY,
+  },
+  progressCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#F3E8FF",
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 4,
+  },
+  progressText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#7C3AED",
   },
 });

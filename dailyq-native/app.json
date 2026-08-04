@@ -11,7 +11,7 @@
       "fallbackToCacheTimeout": 0
     },
     "slug": "dailyq",
-    "version": "1.6.0",
+    "version": "1.6.1",
     "orientation": "portrait",
     "scheme": "dailyq",
     "icon": "./assets/images/icon.png",
@@ -49,7 +49,21 @@
       "@sentry/react-native",
       "expo-localization",
       "expo-sharing",
-      "@bacons/apple-targets"
+      "@bacons/apple-targets",
+      [
+        "react-native-google-mobile-ads",
+        {
+          "iosAppId": "ca-app-pub-3065939958076631~1210083386",
+          "skAdNetworkItems": ["cstr6suwn9.skadnetwork"],
+          "userTrackingUsageDescription": "This identifier will be used to deliver personalized ads to you."
+        }
+      ],
+      [
+        "expo-tracking-transparency",
+        {
+          "userTrackingPermission": "This identifier will be used to deliver personalized ads to you."
+        }
+      ]
     ],
     "ios": {
       "bundleIdentifier": "com.tjade.dailyq",

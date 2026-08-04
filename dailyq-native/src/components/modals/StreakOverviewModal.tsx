@@ -4,9 +4,7 @@ import Feather from "@expo/vector-icons/Feather";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { LinearGradient } from "expo-linear-gradient";
 import Svg, { Circle } from "react-native-svg";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { COLORS, JOKER } from "@/src/config/constants";
 import { useLanguage } from "@/src/context/LanguageContext";
 import { useAuth } from "@/src/context/AuthContext";
 import { supabase } from "@/src/config/supabase";
@@ -23,15 +21,20 @@ type StreakOverviewModalProps = {
   onClose: () => void;
 };
 
-const STREAK_HERO_RING_RADIUS = 54;
-const STREAK_HERO_RING_CIRCUMFERENCE = 2 * Math.PI * STREAK_HERO_RING_RADIUS;
+const SHEET_BG = "#201a3a";
+const TILE_BG = "#292153";
+const GOLD = "#f0c766";
+
+const RING_SIZE = 52;
+const RING_STROKE = 5;
+const RING_RADIUS = (RING_SIZE - RING_STROKE) / 2;
+const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 
 export default function StreakOverviewModal({
   visible,
   currentStreak,
   onClose,
 }: StreakOverviewModalProps) {
-  const insets = useSafeAreaInsets();
   const { t } = useLanguage();
   const { effectiveUser } = useAuth();
   const userId = effectiveUser?.id ?? null;
@@ -50,9 +53,9 @@ export default function StreakOverviewModal({
   const daysLeft = nextMilestone != null ? nextMilestone - currentStreak : 0;
   const progressPercent =
     nextMilestone != null ? Math.min(100, (currentStreak / nextMilestone) * 100) : 100;
-  const heroRingDashoffset = STREAK_HERO_RING_CIRCUMFERENCE * (1 - progressPercent / 100);
+  const ringDashoffset = RING_CIRCUMFERENCE * (1 - progressPercent / 100);
 
-  /** All achieved milestones, plus only the single next upcoming one. */
+  /** Only the milestones already reached, plus the single next upcoming one. */
   const visibleMilestones = useMemo(() => {
     const reached = STREAK_MILESTONES.filter((m) => grantedMilestones.has(m) || currentStreak >= m);
     const result = [...reached];
@@ -61,87 +64,94 @@ export default function StreakOverviewModal({
   }, [currentStreak, grantedMilestones, nextMilestone]);
 
   return (
-    <BottomSheetShell visible={visible} onClose={onClose}>
+    <BottomSheetShell
+      visible={visible}
+      onClose={onClose}
+      backgroundColor={SHEET_BG}
+      handleColor="rgba(255,255,255,0.2)"
+      handleSize={{ width: 36, height: 4 }}
+    >
       {() => (
         <View style={styles.container}>
-          <ScrollView
-            contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 32, paddingTop: 36 }]}
-            showsVerticalScrollIndicator={false}
-          >
-            <Text style={styles.eyebrow}>{t("streak_overview_title")}</Text>
-
-            <View style={styles.heroRingWrap}>
-              <Svg width={124} height={124} style={styles.heroRingSvg}>
-                <Circle cx={62} cy={62} r={STREAK_HERO_RING_RADIUS} stroke="rgba(239,68,68,0.15)" strokeWidth={8} fill="none" />
-                <Circle
-                  cx={62}
-                  cy={62}
-                  r={STREAK_HERO_RING_RADIUS}
-                  stroke="#EF4444"
-                  strokeWidth={8}
-                  fill="none"
-                  strokeLinecap="round"
-                  strokeDasharray={STREAK_HERO_RING_CIRCUMFERENCE}
-                  strokeDashoffset={heroRingDashoffset}
-                />
-              </Svg>
-              <Text style={styles.heroNum}>{currentStreak}</Text>
-            </View>
-            <Text style={styles.heroLabel}>
-              {t(
-                currentStreak === 1 ? "calendar_stats_day_streak_one" : "calendar_stats_day_streak"
-              )}
-            </Text>
-
-            <View style={styles.progressCard}>
-              <Text style={styles.progressCardText}>
-                {nextMilestone != null
-                  ? t(
-                      daysLeft === 1 ? "joker_shop_streak_days_left_one" : "joker_shop_streak_days_left",
-                      { count: daysLeft }
-                    )
-                  : t("streak_overview_all_done")}
+          <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+            {/* Hero: streak count */}
+            <LinearGradient
+              colors={["#2c2452", "#211b40"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.hero}
+            >
+              <Text style={styles.heroKicker}>{t("streak_overview_title").toUpperCase()}</Text>
+              <Text style={styles.heroCount}>{currentStreak}🔥</Text>
+              <Text style={styles.heroSubtitle}>
+                {t(currentStreak === 1 ? "calendar_stats_day_streak_one" : "calendar_stats_day_streak")}
               </Text>
-              <View style={styles.progressTrack}>
-                <View style={[styles.progressFillWrap, { width: `${progressPercent}%` }]}>
-                  <LinearGradient
-                    colors={["#F0C040", "#FBDD86"]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.progressFill}
-                  />
-                </View>
-              </View>
-            </View>
+            </LinearGradient>
 
-            {visibleMilestones.length > 0 && (
-              <View style={styles.milestonesSection}>
-                <Text style={styles.sectionTitle}>{t("streak_overview_milestones_title")}</Text>
-                {visibleMilestones.map((milestone) => {
-                  const reached = grantedMilestones.has(milestone) || currentStreak >= milestone;
-                  return (
-                    <View key={milestone} style={styles.row}>
-                      <View style={styles.rowLeft}>
-                        {reached ? (
-                          <Feather name="check-circle" size={17} color="#EF4444" />
-                        ) : (
-                          <View style={styles.rowDot} />
-                        )}
-                        <Text style={[styles.rowDays, reached && styles.rowDaysReached]}>
-                          {milestone} {t("calendar_stats_day_streak")}
-                        </Text>
-                      </View>
-                      <View style={styles.rowRewardWrap}>
-                        <Text style={styles.rowReward}>+{JOKER_COUNT_BY_MILESTONE[milestone]}</Text>
-                        <View style={styles.rowJokerChip}>
-                          <MaterialCommunityIcons name="crown" size={12} color="#FFFFFF" />
-                        </View>
-                      </View>
-                    </View>
-                  );
-                })}
+            {/* Progress to next joker */}
+            {nextMilestone != null && (
+              <View style={styles.progressBar}>
+                <View style={styles.progressRingWrap}>
+                  <Svg width={RING_SIZE} height={RING_SIZE} style={styles.progressRingSvg}>
+                    <Circle
+                      cx={RING_SIZE / 2}
+                      cy={RING_SIZE / 2}
+                      r={RING_RADIUS}
+                      stroke="rgba(255,255,255,0.15)"
+                      strokeWidth={RING_STROKE}
+                      fill="none"
+                    />
+                    <Circle
+                      cx={RING_SIZE / 2}
+                      cy={RING_SIZE / 2}
+                      r={RING_RADIUS}
+                      stroke={GOLD}
+                      strokeWidth={RING_STROKE}
+                      fill="none"
+                      strokeLinecap="round"
+                      strokeDasharray={RING_CIRCUMFERENCE}
+                      strokeDashoffset={ringDashoffset}
+                    />
+                  </Svg>
+                  <View style={styles.progressRingCenter}>
+                    <MaterialCommunityIcons name="crown" size={18} color={GOLD} />
+                  </View>
+                </View>
+                <Text style={styles.progressBarText}>
+                  {t(
+                    daysLeft === 1 ? "joker_shop_streak_days_left_one" : "joker_shop_streak_days_left",
+                    { count: daysLeft }
+                  )}
+                </Text>
               </View>
             )}
+
+            <Text style={styles.sectionLabel}>{t("streak_overview_milestones_title")}</Text>
+
+            <View style={styles.milestonesList}>
+              {visibleMilestones.map((milestone) => {
+                const reached = grantedMilestones.has(milestone) || currentStreak >= milestone;
+                return (
+                  <View key={milestone} style={styles.row}>
+                    <View style={styles.rowLeft}>
+                      {reached ? (
+                        <View style={styles.rowDotFilled}>
+                          <Feather name="check" size={13} color="#201a3a" strokeWidth={3} />
+                        </View>
+                      ) : (
+                        <View style={styles.rowDot} />
+                      )}
+                      <Text style={styles.rowLabel}>
+                        {milestone} {t("calendar_stats_day_streak")}
+                      </Text>
+                    </View>
+                    <Text style={styles.rowReward}>
+                      +{JOKER_COUNT_BY_MILESTONE[milestone]} 👑
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
           </ScrollView>
         </View>
       )}
@@ -155,141 +165,120 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
   },
   scrollContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 18,
+    paddingTop: 22,
+    paddingBottom: 28,
     maxWidth: 480,
     width: "100%",
     alignSelf: "center",
-    flexGrow: 1,
-    justifyContent: "flex-start",
-    alignItems: "center",
   },
-  eyebrow: {
-    fontSize: 13,
-    fontWeight: "700",
-    letterSpacing: 1,
-    textTransform: "uppercase",
-    color: "#EF4444",
-    marginBottom: 24,
-  },
-  heroRingWrap: {
-    width: 124,
-    height: 124,
+  hero: {
+    borderRadius: 20,
+    padding: 20,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 4,
+    gap: 6,
+    marginBottom: 24,
   },
-  heroRingSvg: {
+  heroKicker: {
+    fontSize: 13,
+    fontWeight: "700",
+    letterSpacing: 0.5,
+    color: "#ff8a7a",
+  },
+  heroCount: {
+    fontSize: 46,
+    fontWeight: "800",
+    color: "#FFFFFF",
+  },
+  heroSubtitle: {
+    fontSize: 14,
+    color: "rgba(255,255,255,0.55)",
+  },
+  progressBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+    backgroundColor: TILE_BG,
+    borderRadius: 18,
+    paddingVertical: 18,
+    paddingHorizontal: 18,
+    marginBottom: 26,
+  },
+  progressRingWrap: {
+    width: RING_SIZE,
+    height: RING_SIZE,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  progressRingSvg: {
     position: "absolute",
     top: 0,
     left: 0,
     transform: [{ rotate: "-90deg" }],
   },
-  heroNum: {
-    fontSize: 36,
-    fontWeight: "800",
-    color: COLORS.TEXT_PRIMARY,
+  progressRingCenter: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: TILE_BG,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  heroLabel: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: COLORS.TEXT_SECONDARY,
-    marginTop: 12,
-    marginBottom: 26,
+  progressBarText: {
+    flex: 1,
+    fontSize: 17,
+    fontWeight: "700",
+    color: GOLD,
   },
-  progressCard: {
-    width: "100%",
-    backgroundColor: "rgba(255,255,255,0.6)",
-    borderWidth: 1,
-    borderColor: "rgba(239,68,68,0.18)",
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 28,
-    shadowColor: "#EF4444",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.09,
-    shadowRadius: 24,
-    elevation: 3,
-  },
-  progressCardText: {
+  sectionLabel: {
     fontSize: 14,
     fontWeight: "700",
-    color: JOKER.TEXT,
-    textAlign: "center",
-    marginBottom: 12,
-  },
-  progressTrack: {
-    height: 7,
-    borderRadius: 999,
-    backgroundColor: "rgba(239,68,68,0.15)",
-    overflow: "hidden",
-  },
-  progressFillWrap: {
-    height: "100%",
-    borderRadius: 999,
-    overflow: "hidden",
-  },
-  progressFill: {
-    height: "100%",
-    borderRadius: 999,
-  },
-  milestonesSection: {
-    width: "100%",
-    gap: 8,
-  },
-  sectionTitle: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: COLORS.TEXT_MUTED,
+    letterSpacing: 0.6,
+    color: "rgba(255,255,255,0.5)",
     textTransform: "uppercase",
-    letterSpacing: 0.5,
-    textAlign: "center",
-    marginBottom: 4,
+    marginBottom: 18,
+  },
+  milestonesList: {
+    gap: 10,
   },
   row: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: 12,
-    paddingHorizontal: 14,
+    backgroundColor: TILE_BG,
     borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.5)",
+    paddingVertical: 16,
+    paddingHorizontal: 18,
   },
   rowLeft: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 12,
   },
   rowDot: {
-    width: 17,
-    height: 17,
-    borderRadius: 9,
-    borderWidth: 1.5,
-    borderColor: COLORS.TEXT_MUTED,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: "rgba(255,255,255,0.3)",
   },
-  rowDays: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: COLORS.TEXT_SECONDARY,
-  },
-  rowDaysReached: {
-    color: COLORS.TEXT_PRIMARY,
-  },
-  rowRewardWrap: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  rowReward: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: JOKER.TEXT,
-  },
-  rowJokerChip: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: "#FFC700",
+  rowDotFilled: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: GOLD,
     alignItems: "center",
     justifyContent: "center",
+  },
+  rowLabel: {
+    fontSize: 17,
+    fontWeight: "600",
+    color: "#FFFFFF",
+  },
+  rowReward: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: GOLD,
   },
 });

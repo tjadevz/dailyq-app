@@ -461,6 +461,18 @@ export default function TodayScreen() {
         }
       }
 
+      // Checked right after streak/milestone (our strongest, most relevant
+      // monetization/re-engagement moment) rather than last — queued behind
+      // archiveMoment/monthlyRecap/widgetAnnouncement it used to get buried by
+      // modal fatigue before the user ever saw it.
+      if (userId && userId !== "dev-user") {
+        const missedYesterday = await checkMissedYesterday(userId);
+        if (cancelled) return;
+        if (missedYesterday) {
+          queue.push("missedDay");
+        }
+      }
+
       if (pendingArchiveMoment) {
         if (!userId || userId === "dev-user") {
           if (!cancelled) setPendingArchiveMoment(false);
@@ -481,14 +493,6 @@ export default function TodayScreen() {
 
       if (shouldQueueWidgetAnnouncement) {
         queue.push("widgetAnnouncement");
-      }
-
-      if (userId && userId !== "dev-user") {
-        const missedYesterday = await checkMissedYesterday(userId);
-        if (cancelled) return;
-        if (missedYesterday) {
-          queue.push("missedDay");
-        }
       }
 
       if (!cancelled) {
@@ -547,11 +551,18 @@ export default function TodayScreen() {
   const handleMissedDayAnswer = useCallback(() => {
     logEvent("missed_day_modal_accepted");
     advanceQueue(modalQueue);
-    router.push({
-      pathname: "/(tabs)/calendar",
-      params: { openMissedDay: getYesterdayDayKey() },
-    });
-  }, [modalQueue, advanceQueue, router]);
+    if ((profile?.joker_balance ?? 0) > 0) {
+      router.push({
+        pathname: "/(tabs)/calendar",
+        params: { openMissedDay: getYesterdayDayKey() },
+      });
+    } else {
+      // At 0 jokers the CTA already reads "Buy or earn jokers" — routing to
+      // Calendar would just re-show JokerOfferModal with that exact same CTA
+      // again, a redundant extra tap. Open the shop directly instead.
+      setJokerModalVisible(true);
+    }
+  }, [modalQueue, advanceQueue, router, profile?.joker_balance]);
 
   useEffect(() => {
     if (activeModal !== "streak" || !pendingStreakMilestone) return;
@@ -931,10 +942,26 @@ export default function TodayScreen() {
           onPress={() => setJokerModalVisible(true)}
           style={({ pressed }) => [styles.statusJokerCell, pressed && styles.statusCellPressed]}
         >
-          <View style={styles.statusJokerChip}>
-            <MaterialCommunityIcons name="crown" size={16} color="#FFFFFF" />
+          <View
+            style={[
+              styles.statusJokerChip,
+              (profile?.joker_balance ?? 0) === 0 && styles.statusJokerChipEmpty,
+            ]}
+          >
+            <MaterialCommunityIcons
+              name={(profile?.joker_balance ?? 0) === 0 ? "crown-outline" : "crown"}
+              size={16}
+              color={(profile?.joker_balance ?? 0) === 0 ? "#9CA3AF" : "#FFFFFF"}
+            />
           </View>
-          <Text style={styles.statusJokerNum}>{profile?.joker_balance ?? 0}</Text>
+          <Text
+            style={[
+              styles.statusJokerNum,
+              (profile?.joker_balance ?? 0) === 0 && styles.statusJokerNumEmpty,
+            ]}
+          >
+            {profile?.joker_balance ?? 0}
+          </Text>
         </Pressable>
       </View>
     </View>
@@ -1060,6 +1087,7 @@ export default function TodayScreen() {
           <ArchiveMomentModal
             visible={activeModal === "archiveMoment"}
             answers={archiveMomentAnswers}
+            currentStreak={currentStreak}
             onClose={handleArchiveMomentClose}
           />
           {recapData ? (
@@ -1094,8 +1122,17 @@ export default function TodayScreen() {
           <MissedDayModal
             visible={activeModal === "missedDay"}
             title={t("missed_day_modal_title")}
-            body={t("missed_day_modal_body")}
-            ctaLabel={t("missed_day_modal_cta")}
+            body={
+              (profile?.joker_balance ?? 0) > 0
+                ? t("missed_day_modal_body")
+                : t("missed_day_modal_body_no_jokers")
+            }
+            ctaLabel={
+              (profile?.joker_balance ?? 0) > 0
+                ? t("missed_day_modal_cta")
+                : t("joker_offer_need_more")
+            }
+            hasJokers={(profile?.joker_balance ?? 0) > 0}
             onClose={handleMissedDayClose}
             onAnswer={handleMissedDayAnswer}
           />
@@ -1462,6 +1499,12 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFC700",
     alignItems: "center",
     justifyContent: "center",
+  },
+  statusJokerChipEmpty: {
+    backgroundColor: "#E5E7EB",
+  },
+  statusJokerNumEmpty: {
+    color: "#9CA3AF",
   },
   statusJokerNum: {
     fontSize: 17,

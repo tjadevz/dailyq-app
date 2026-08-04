@@ -12,8 +12,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { COLORS } from "@/src/config/constants";
 import { BackgroundLayer } from "@/src/components/BackgroundLayer";
 import { AnsweringExperience } from "@/src/components/AnsweringExperience";
-import { AnswerTransitionVeil } from "@/src/components/AnswerTransitionVeil";
-import { OnboardingRewardModal } from "@/src/components/OnboardingRewardModal";
 import { useAuth } from "@/src/context/AuthContext";
 import { useLanguage } from "@/src/context/LanguageContext";
 import { useProfileContext } from "@/src/context/ProfileContext";
@@ -44,14 +42,11 @@ export default function OnboardingQuestionsScreen() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [rewardModalVisible, setRewardModalVisible] = useState(false);
-  const [showRewardModal, setShowRewardModal] = useState(false);
-  const [transitionVeilVisible, setTransitionVeilVisible] = useState(false);
   const [exiting, setExiting] = useState(false);
   const [modalDismissed, setModalDismissed] = useState(false);
   const [showIntroCard, setShowIntroCard] = useState(true);
   const [enterFromRight, setEnterFromRight] = useState(false);
-  /** Number of questions answered (submitted) in this onboarding run; reward joker granted only if all 3 are answered. */
+  /** Number of questions answered (submitted) in this onboarding run. */
   const [answeredCount, setAnsweredCount] = useState(0);
 
   const dayKeys = useMemo(
@@ -130,29 +125,19 @@ export default function OnboardingQuestionsScreen() {
   }, [loading, questions.length, showIntroCard, currentIndex]);
 
   const setOnboardingCompletedAndGoHome = useCallback(
-    async (grantJoker: boolean) => {
+    async (completedAllQuestions: boolean) => {
       if (!userId || userId === "dev-user") {
         router.replace("/(tabs)/today");
         return;
       }
       setExiting(true);
       try {
-        const { error: completeErr } = await supabase.rpc("complete_onboarding_with_reward", {
-          p_grant_joker: grantJoker,
-        });
+        const { error: completeErr } = await supabase.rpc("complete_onboarding_with_reward");
         if (completeErr) throw completeErr;
-        if (grantJoker) {
+        if (completedAllQuestions) {
           logEvent("onboarding_completed");
-          // AnsweringExperience keeps its native <Modal> presented for the length
-          // of its own close animation — mounting OnboardingRewardModal's native
-          // <Modal> before that finishes races the two on iOS and freezes the
-          // app. handleAnsweringClosed only reveals the reward modal once
-          // AnsweringExperience is genuinely gone; cover the gap with a veil.
-          setRewardModalVisible(true);
-          setTransitionVeilVisible(true);
-        } else {
-          router.replace("/(tabs)/today");
         }
+        router.replace("/(tabs)/today");
         refetchProfile().catch((e) => {
           console.error("[onboarding-questions] Failed to refetch profile:", e);
         });
@@ -171,19 +156,6 @@ export default function OnboardingQuestionsScreen() {
     setModalDismissed(true);
     setOnboardingCompletedAndGoHome(false);
   }, [setOnboardingCompletedAndGoHome, getOnboardingScreenName]);
-
-  const handleLetsGo = useCallback(() => {
-    setRewardModalVisible(false);
-    setShowRewardModal(false);
-    router.replace("/(tabs)/today");
-  }, [router]);
-
-  const handleAnsweringClosed = useCallback(() => {
-    if (rewardModalVisible) {
-      setShowRewardModal(true);
-      setTimeout(() => setTransitionVeilVisible(false), 60);
-    }
-  }, [rewardModalVisible]);
 
   const handleIntroContinue = useCallback(() => {
     setEnterFromRight(true);
@@ -241,7 +213,7 @@ export default function OnboardingQuestionsScreen() {
 
   const currentQuestion = questions[currentIndex];
   const total = questions.length;
-  const modalOpen = total > 0 && !rewardModalVisible && !modalDismissed;
+  const modalOpen = total > 0 && !modalDismissed;
 
   if (!userId || userId === "dev-user") {
     router.replace("/(tabs)/today");
@@ -298,10 +270,7 @@ export default function OnboardingQuestionsScreen() {
         enterFromRight={enterFromRight}
         slideOnAdvance={!showIntroCard}
         animateOnClose
-        onClosed={handleAnsweringClosed}
       />
-      <AnswerTransitionVeil visible={transitionVeilVisible} />
-      <OnboardingRewardModal visible={showRewardModal} onLetsGo={handleLetsGo} />
     </View>
   );
 }

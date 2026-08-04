@@ -97,10 +97,20 @@ serve(async (req) => {
 
   const { data: profs } = await supabase
     .from("profiles")
-    .select("id, language")
+    .select("id, language, current_streak")
     .in("id", userIds);
   const langByUser: Record<string, string> = {};
-  for (const p of profs ?? []) langByUser[p.id] = p.language ?? "en";
+  const streakByUser: Record<string, number> = {};
+  for (const p of profs ?? []) {
+    langByUser[p.id] = p.language ?? "en";
+    streakByUser[p.id] = Number(p.current_streak ?? 0);
+  }
+
+  // Below this, a streak doesn't yet feel like a real asset worth a "save"
+  // nudge (see Snapchat's own 3-day threshold before the streak emoji even
+  // appears) — so the generic copy stays generic and we don't cry wolf on
+  // day 1-2, when urgency framing would just feel like noise.
+  const STREAK_URGENCY_THRESHOLD = 3;
 
   const { data: answered } = await supabase
     .from("answers")
@@ -117,11 +127,16 @@ serve(async (req) => {
     const dateStr = sub._dateStr;
     if (answeredDates[sub.user_id]?.has(dateStr)) continue;
     const lang = langByUser[sub.user_id] ?? "en";
+    const streak = streakByUser[sub.user_id] ?? 0;
 
     const body =
-      lang === "nl"
-        ? "De vraag van vandaag wacht nog op je."
-        : "Today's question is still waiting for you.";
+      streak > STREAK_URGENCY_THRESHOLD
+        ? lang === "nl"
+          ? `Je streak van ${streak} dagen loopt vanavond af. Red 'm nog.`
+          : `Your ${streak}-day streak runs out tonight. Save it while you can.`
+        : lang === "nl"
+          ? "De vraag van vandaag wacht nog op je."
+          : "Today's question is still waiting for you.";
 
     messages.push({
       to: sub.expo_push_token,

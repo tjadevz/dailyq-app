@@ -45,6 +45,21 @@ function isInSlotWindow(localHour: number, localMinute: number, slot: { hour: nu
   return nowMinutes >= slotMinutes && nowMinutes < slotMinutes + 30;
 }
 
+function shiftDateStr(dateStr: string, days: number): string {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() + days);
+  const yyyy = dt.getUTCFullYear();
+  const mm = String(dt.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(dt.getUTCDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+// Same threshold as send-evening-reminder's streak-save nudge: below this a
+// streak isn't yet a real asset worth a recovery push, so we stay quiet and
+// let the generic/teaser copy do its job instead of nagging every miss.
+const STREAK_RECOVERY_THRESHOLD = 3;
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -103,10 +118,14 @@ serve(async (req) => {
 
   const { data: profs } = await supabase
     .from("profiles")
-    .select("id, language")
+    .select("id, language, current_streak")
     .in("id", userIds);
   const langByUser: Record<string, string> = {};
-  for (const p of profs ?? []) langByUser[p.id] = p.language ?? "en";
+  const streakByUser: Record<string, number> = {};
+  for (const p of profs ?? []) {
+    langByUser[p.id] = p.language ?? "en";
+    streakByUser[p.id] = Number(p.current_streak ?? 0);
+  }
 
   const dateStrForTeasers = eligibleSubs[0]._dateStr;
 
@@ -150,15 +169,21 @@ serve(async (req) => {
     const dateStr = sub._dateStr;
     if (answeredDates[sub.user_id]?.has(dateStr)) continue;
     const lang = langByUser[sub.user_id] ?? "en";
+    const streak = streakByUser[sub.user_id] ?? 0;
+    const missedYesterday = !answeredDates[sub.user_id]?.has(shiftDateStr(dateStr, -1));
 
     const body =
-      lang === "nl" && nlTeaser
-        ? nlTeaser
-        : lang === "en" && enTeaser
-          ? enTeaser
-          : lang === "nl"
-            ? "Je DailyQ staat klaar!"
-            : "Your DailyQ is ready!";
+      missedYesterday && streak > STREAK_RECOVERY_THRESHOLD
+        ? lang === "nl"
+          ? `Je hebt gisteren gemist, maar je streak van ${streak} dagen is nog te redden. Open de app om 'm te herstellen.`
+          : `You missed yesterday, but your ${streak}-day streak can still be saved. Open the app to restore it.`
+        : lang === "nl" && nlTeaser
+          ? nlTeaser
+          : lang === "en" && enTeaser
+            ? enTeaser
+            : lang === "nl"
+              ? "Je DailyQ staat klaar!"
+              : "Your DailyQ is ready!";
 
     messages.push({
       to: sub.expo_push_token,

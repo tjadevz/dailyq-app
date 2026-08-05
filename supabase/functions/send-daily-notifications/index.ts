@@ -60,6 +60,35 @@ function shiftDateStr(dateStr: string, days: number): string {
 // let the generic/teaser copy do its job instead of nagging every miss.
 const STREAK_RECOVERY_THRESHOLD = 3;
 
+// Rotates when there's no per-question notification_teaser configured, so the
+// generic nudge doesn't feel identical every day.
+const FALLBACK_MESSAGES: { nl: string; en: string }[] = [
+  { nl: "Je DailyQ van vandaag staat klaar 👀", en: "Your DailyQ is ready 👀" },
+  { nl: "Psst... je vraag van vandaag wacht op je 👋", en: "Psst... today's question is waiting for you 👋" },
+  { nl: "Nieuwe dag, nieuwe vraag ✨", en: "New day, new question ✨" },
+  { nl: "Even een momentje voor jezelf? Je DailyQ staat klaar 💭", en: "A little moment for yourself? Your DailyQ is ready 💭" },
+  { nl: "Tijd voor je dagelijkse vraag 📝", en: "Time for your daily question 📝" },
+];
+
+function pickFallbackMessage(lang: string): string {
+  const entry = FALLBACK_MESSAGES[Math.floor(Math.random() * FALLBACK_MESSAGES.length)];
+  return lang === "nl" ? entry.nl : entry.en;
+}
+
+// Rotates for the "missed yesterday, streak still recoverable" nudge.
+const RECOVERY_MESSAGES: { nl: string; en: string }[] = [
+  {
+    nl: "Je hebt gisteren gemist, maar je streak van {streak} dagen 🔥 is nog te redden. Open de app om 'm te herstellen.",
+    en: "You missed yesterday, but your {streak}-day streak 🔥 can still be saved. Open the app to restore it.",
+  },
+];
+
+function pickRecoveryMessage(lang: string, streak: number): string {
+  const entry = RECOVERY_MESSAGES[Math.floor(Math.random() * RECOVERY_MESSAGES.length)];
+  const template = lang === "nl" ? entry.nl : entry.en;
+  return template.replace("{streak}", String(streak));
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -118,13 +147,15 @@ serve(async (req) => {
 
   const { data: profs } = await supabase
     .from("profiles")
-    .select("id, language, current_streak")
+    .select("id, language, current_streak, last_answered_date")
     .in("id", userIds);
   const langByUser: Record<string, string> = {};
   const streakByUser: Record<string, number> = {};
+  const lastAnsweredByUser: Record<string, string | null> = {};
   for (const p of profs ?? []) {
     langByUser[p.id] = p.language ?? "en";
     streakByUser[p.id] = Number(p.current_streak ?? 0);
+    lastAnsweredByUser[p.id] = p.last_answered_date ?? null;
   }
 
   const dateStrForTeasers = eligibleSubs[0]._dateStr;
@@ -171,19 +202,21 @@ serve(async (req) => {
     const lang = langByUser[sub.user_id] ?? "en";
     const streak = streakByUser[sub.user_id] ?? 0;
     const missedYesterday = !answeredDates[sub.user_id]?.has(shiftDateStr(dateStr, -1));
+    // current_streak only reflects the streak as of the user's last answer.
+    // "Still recoverable" copy is only true for a fresh, single-day gap:
+    // their last answer was the day before yesterday. For anyone gone
+    // longer, the referenced streak number is stale, so fall back to the
+    // generic teaser instead of nagging about a streak that's long dead.
+    const singleDayGap = lastAnsweredByUser[sub.user_id] === shiftDateStr(dateStr, -2);
 
     const body =
-      missedYesterday && streak > STREAK_RECOVERY_THRESHOLD
-        ? lang === "nl"
-          ? `Je hebt gisteren gemist, maar je streak van ${streak} dagen is nog te redden. Open de app om 'm te herstellen.`
-          : `You missed yesterday, but your ${streak}-day streak can still be saved. Open the app to restore it.`
+      missedYesterday && streak > STREAK_RECOVERY_THRESHOLD && singleDayGap
+        ? pickRecoveryMessage(lang, streak)
         : lang === "nl" && nlTeaser
           ? nlTeaser
           : lang === "en" && enTeaser
             ? enTeaser
-            : lang === "nl"
-              ? "Je DailyQ staat klaar!"
-              : "Your DailyQ is ready!";
+            : pickFallbackMessage(lang);
 
     messages.push({
       to: sub.expo_push_token,

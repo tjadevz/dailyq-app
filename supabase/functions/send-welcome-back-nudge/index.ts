@@ -132,8 +132,8 @@ serve(async (req) => {
     const lang = profById[e.user_id]?.language ?? "en";
     const body =
       lang === "nl"
-        ? "Paar dagen gemist? Hier zijn wat extra jokers!"
-        : "Missed a few days? Here are some extra jokers!";
+        ? "Paar dagen gemist? Hier zijn wat extra jokers! 👑"
+        : "Missed a few days? Here are some extra jokers! 👑";
     return { to: e.expo_push_token, title: "DailyQ", body, entry: e };
   });
 

@@ -41,6 +41,16 @@ function isInSlotWindow(localHour: number, localMinute: number, slot: { hour: nu
   return nowMinutes >= slotMinutes && nowMinutes < slotMinutes + 30;
 }
 
+function shiftDateStr(dateStr: string, days: number): string {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() + days);
+  const yyyy = dt.getUTCFullYear();
+  const mm = String(dt.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(dt.getUTCDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -97,20 +107,51 @@ serve(async (req) => {
 
   const { data: profs } = await supabase
     .from("profiles")
-    .select("id, language, current_streak")
+    .select("id, language, current_streak, last_answered_date")
     .in("id", userIds);
   const langByUser: Record<string, string> = {};
   const streakByUser: Record<string, number> = {};
+  const lastAnsweredByUser: Record<string, string | null> = {};
   for (const p of profs ?? []) {
     langByUser[p.id] = p.language ?? "en";
     streakByUser[p.id] = Number(p.current_streak ?? 0);
+    lastAnsweredByUser[p.id] = p.last_answered_date ?? null;
   }
 
   // Below this, a streak doesn't yet feel like a real asset worth a "save"
   // nudge (see Snapchat's own 3-day threshold before the streak emoji even
-  // appears) — so the generic copy stays generic and we don't cry wolf on
+  // appears), so the generic copy stays generic and we don't cry wolf on
   // day 1-2, when urgency framing would just feel like noise.
   const STREAK_URGENCY_THRESHOLD = 3;
+
+  const URGENCY_MESSAGES: { nl: string; en: string }[] = [
+    {
+      nl: "Je streak van {streak} dagen 🔥 loopt vanavond af. Beantwoord de vraag om 'm te behouden.",
+      en: "Your {streak}-day streak 🔥 runs out tonight. Answer the question to keep it going.",
+    },
+    {
+      nl: "Nog niet geantwoord? Je streak van {streak} dagen 🔥 loopt vanavond af.",
+      en: "Haven't answered yet? Your {streak}-day streak 🔥 runs out tonight.",
+    },
+  ];
+
+  function pickUrgencyMessage(lang: string, streak: number): string {
+    const entry = URGENCY_MESSAGES[Math.floor(Math.random() * URGENCY_MESSAGES.length)];
+    const template = lang === "nl" ? entry.nl : entry.en;
+    return template.replace("{streak}", String(streak));
+  }
+
+  const GENERIC_MESSAGES: { nl: string; en: string }[] = [
+    { nl: "De vraag van vandaag wacht nog op je 👀", en: "Today's question is still waiting for you 👀" },
+    { nl: "De vraag van vandaag staat nog klaar voor je 👀", en: "Today's question is still ready for you 👀" },
+    { nl: "Mis de vraag van vandaag niet 👀", en: "Don't miss today's question 👀" },
+    { nl: "Je DailyQ staat nog open. Neem snel een kijkje 👀", en: "Your DailyQ is still open. Take a quick look 👀" },
+  ];
+
+  function pickGenericMessage(lang: string): string {
+    const entry = GENERIC_MESSAGES[Math.floor(Math.random() * GENERIC_MESSAGES.length)];
+    return lang === "nl" ? entry.nl : entry.en;
+  }
 
   const { data: answered } = await supabase
     .from("answers")
@@ -128,15 +169,16 @@ serve(async (req) => {
     if (answeredDates[sub.user_id]?.has(dateStr)) continue;
     const lang = langByUser[sub.user_id] ?? "en";
     const streak = streakByUser[sub.user_id] ?? 0;
+    // current_streak is only refreshed when the user answers, so it's stale
+    // for anyone who stopped answering days ago. Only trust it as "still
+    // alive tonight" when their last answer was yesterday, otherwise the
+    // streak already broke and this copy would be lying to them.
+    const streakStillAlive = lastAnsweredByUser[sub.user_id] === shiftDateStr(dateStr, -1);
 
     const body =
-      streak > STREAK_URGENCY_THRESHOLD
-        ? lang === "nl"
-          ? `Je streak van ${streak} dagen loopt vanavond af. Red 'm nog.`
-          : `Your ${streak}-day streak runs out tonight. Save it while you can.`
-        : lang === "nl"
-          ? "De vraag van vandaag wacht nog op je."
-          : "Today's question is still waiting for you.";
+      streak > STREAK_URGENCY_THRESHOLD && streakStillAlive
+        ? pickUrgencyMessage(lang, streak)
+        : pickGenericMessage(lang);
 
     messages.push({
       to: sub.expo_push_token,

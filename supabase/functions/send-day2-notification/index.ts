@@ -178,8 +178,8 @@ serve(async (req) => {
 
     const body =
       lang === "nl"
-        ? "Dag 2 van je archief. De vraag van vandaag staat klaar"
-        : "Day 2 of your archive. Today's question is ready";
+        ? "Je archief begint te groeien. De vraag van vandaag staat klaar 📖"
+        : "Your archive is starting to grow. Today's question is ready 📖";
 
     messages.push({
       to: sub.expo_push_token,

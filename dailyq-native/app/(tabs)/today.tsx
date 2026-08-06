@@ -1089,7 +1089,6 @@ export default function TodayScreen() {
           <ArchiveMomentModal
             visible={activeModal === "archiveMoment"}
             answers={archiveMomentAnswers}
-            currentStreak={currentStreak}
             onClose={handleArchiveMomentClose}
           />
           {recapData ? (

@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { BlurView } from "expo-blur";
 import Feather from "@expo/vector-icons/Feather";
+import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
 import AnimatedReanimated, {
@@ -25,14 +26,17 @@ import AnimatedReanimated, {
 import { BackgroundLayer } from "@/src/components/BackgroundLayer";
 import { COLORS } from "@/src/config/constants";
 import { useLanguage } from "@/src/context/LanguageContext";
-import { STREAK_MILESTONES } from "@/src/lib/streakMilestones";
 import type { AccountMilestoneAnswer } from "@/src/components/modals/AccountMilestoneModal";
 
 type Props = {
   visible: boolean;
   answers: AccountMilestoneAnswer[];
-  currentStreak: number;
   onClose: () => void;
+  /** Overrides the default day-4 hero copy (e.g. for the onboarding-completion reuse). */
+  headerText?: string;
+  subtitleText?: string;
+  /** When set, shows a primary CTA button (same action as onClose) instead of dismiss-only. */
+  ctaLabel?: string;
 };
 
 function formatCardDate(dateStr: string, lang: string): string {
@@ -45,7 +49,14 @@ function formatCardDate(dateStr: string, lang: string): string {
   });
 }
 
-export default function ArchiveMomentModal({ visible, answers, currentStreak, onClose }: Props) {
+export default function ArchiveMomentModal({
+  visible,
+  answers,
+  onClose,
+  headerText,
+  subtitleText,
+  ctaLabel,
+}: Props) {
   // Fabric doesn't reliably size flex:1/absoluteFillObject (right/bottom-based)
   // content inside <Modal> — needs explicit numeric width/height, and window
   // size must be read reactively (useWindowDimensions), not at module scope.
@@ -115,12 +126,6 @@ export default function ArchiveMomentModal({ visible, answers, currentStreak, on
     );
   }, [closeModal, backdropOpacity, slideY, dragY]);
 
-  const nextMilestone = useMemo(
-    () => STREAK_MILESTONES.find((m) => m > currentStreak) ?? null,
-    [currentStreak]
-  );
-  const daysLeft = nextMilestone != null ? nextMilestone - currentStreak : 0;
-
   const backdropStyle = useAnimatedStyle(() => ({
     opacity: backdropOpacity.value,
   }));
@@ -161,8 +166,8 @@ export default function ArchiveMomentModal({ visible, answers, currentStreak, on
                       <Feather name="x" size={18} color="#7C3AED" strokeWidth={2.5} />
                     </Pressable>
                     <View style={styles.heroBox}>
-                      <Text style={styles.heroHeader}>{t("archive_moment_day4_header")}</Text>
-                      <Text style={styles.heroSubtitle}>{t("archive_moment_day4_subtitle")}</Text>
+                      <Text style={styles.heroHeader}>{headerText ?? t("archive_moment_day4_header")}</Text>
+                      <Text style={styles.heroSubtitle}>{subtitleText ?? t("archive_moment_day4_subtitle")}</Text>
                     </View>
                   </View>
 
@@ -190,23 +195,24 @@ export default function ArchiveMomentModal({ visible, answers, currentStreak, on
                         </View>
                       );
                     })}
-                    {nextMilestone != null && (
-                      <AnimatedReanimated.View
-                        entering={FadeInUp.delay(250 + answers.length * 80).duration(260)}
-                        style={styles.progressCard}
-                      >
-                        <Feather name="award" size={16} color="#7C3AED" />
-                        <Text style={styles.progressText}>
-                          {t(
-                            daysLeft === 1
-                              ? "joker_shop_streak_days_left_one"
-                              : "joker_shop_streak_days_left",
-                            { count: daysLeft }
-                          )}
-                        </Text>
-                      </AnimatedReanimated.View>
-                    )}
                   </ScrollView>
+                  {ctaLabel ? (
+                    <View style={[styles.ctaFooter, { paddingBottom: insets.bottom + 16 }]}>
+                      <Pressable
+                        onPress={handleClose}
+                        style={({ pressed }) => [styles.ctaButton, pressed && styles.ctaButtonPressed]}
+                      >
+                        <LinearGradient
+                          colors={["#7C3AED", "#6D28D9"]}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 0 }}
+                          style={styles.ctaGradient}
+                        >
+                          <Text style={styles.ctaText}>{ctaLabel}</Text>
+                        </LinearGradient>
+                      </Pressable>
+                    </View>
+                  ) : null}
                 </View>
               </View>
             </AnimatedReanimated.View>
@@ -324,19 +330,32 @@ const styles = StyleSheet.create({
     lineHeight: 15 * 1.5,
     color: COLORS.TEXT_PRIMARY,
   },
-  progressCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: "#F3E8FF",
-    borderRadius: 12,
-    padding: 16,
-    marginTop: 4,
+  ctaFooter: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
   },
-  progressText: {
-    flex: 1,
-    fontSize: 14,
+  ctaButton: {
+    width: "100%",
+    borderRadius: 9999,
+    overflow: "hidden",
+    shadowColor: "rgba(124,58,237,0.35)",
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 1,
+    shadowRadius: 24,
+    elevation: 8,
+  },
+  ctaButtonPressed: {
+    opacity: 0.9,
+  },
+  ctaGradient: {
+    paddingVertical: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 9999,
+  },
+  ctaText: {
+    fontSize: 16,
     fontWeight: "600",
-    color: "#7C3AED",
+    color: "#FFFFFF",
   },
 });

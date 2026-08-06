@@ -70,6 +70,8 @@ export interface AnsweringExperienceProps {
   onIntroContinue?: () => void;
   /** Fires once the close animation has fully finished and the native <Modal> has actually unmounted. */
   onClosed?: () => void;
+  /** Overrides the close-out slide duration (default TRANSITION_MS). Use a short value when the card is already offscreen (e.g. right after slideOutLeft) so the close is just a safe unmount handshake, not visible dead time. */
+  closeDurationMs?: number;
 }
 
 export function AnsweringExperience({
@@ -98,6 +100,7 @@ export function AnsweringExperience({
   introCtaLabel,
   onIntroContinue,
   onClosed,
+  closeDurationMs,
 }: AnsweringExperienceProps) {
   const showProgress =
     !isIntroCard &&
@@ -241,7 +244,7 @@ export function AnsweringExperience({
     slideY.value = withTiming(
       height,
       {
-        duration: TRANSITION_MS,
+        duration: closeDurationMs ?? TRANSITION_MS,
         easing: Easing.inOut(Easing.cubic),
       },
       (finished) => {
@@ -258,6 +261,7 @@ export function AnsweringExperience({
     isIntroCard,
     runSlideInFromRight,
     handleFullyClosed,
+    closeDurationMs,
   ]);
 
   useEffect(() => {

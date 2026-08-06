@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -12,6 +12,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { COLORS } from "@/src/config/constants";
 import { BackgroundLayer } from "@/src/components/BackgroundLayer";
 import { AnsweringExperience } from "@/src/components/AnsweringExperience";
+import ArchiveMomentModal from "@/src/components/modals/ArchiveMomentModal";
+import type { AccountMilestoneAnswer } from "@/src/components/modals/AccountMilestoneModal";
 import { useAuth } from "@/src/context/AuthContext";
 import { useLanguage } from "@/src/context/LanguageContext";
 import { useProfileContext } from "@/src/context/ProfileContext";
@@ -20,7 +22,7 @@ import {
   ONBOARDING_QUESTION_COUNT,
   getOnboardingQuestionDayKeys,
 } from "@/src/lib/onboardingWindow";
-import { getOnboardingNotificationsDone, getOnboardingWidgetDone } from "@/src/lib/onboardingProgress";
+import { getOnboardingWidgetDone } from "@/src/lib/onboardingProgress";
 import { logEvent } from "@/lib/analytics";
 
 type OnboardingQuestion = {
@@ -48,6 +50,16 @@ export default function OnboardingQuestionsScreen() {
   const [enterFromRight, setEnterFromRight] = useState(false);
   /** Number of questions answered (submitted) in this onboarding run. */
   const [answeredCount, setAnsweredCount] = useState(0);
+  /** The 3 onboarding answers, collected as they're submitted, for the archive-preview completion moment. */
+  const [collectedAnswers, setCollectedAnswers] = useState<AccountMilestoneAnswer[]>([]);
+  const [showArchiveMoment, setShowArchiveMoment] = useState(false);
+  /**
+   * Set synchronously (before modalDismissed) the moment the 3rd answer is
+   * saved — by then there's nothing left to wait on but AnsweringExperience's
+   * own unmount, so a ref (not state) keeps handleExperienceClosed reading
+   * the current value without an extra render/effect round-trip.
+   */
+  const finishingOnboardingRef = useRef(false);
 
   const dayKeys = useMemo(
     () => effectiveUser?.created_at
@@ -59,13 +71,7 @@ export default function OnboardingQuestionsScreen() {
   useEffect(() => {
     if (!userId || userId === "dev-user") return;
     let cancelled = false;
-    getOnboardingNotificationsDone(userId).then(async (notificationsDone) => {
-      if (cancelled) return;
-      if (!notificationsDone) {
-        router.replace("/(tabs)/onboarding-notifications");
-        return;
-      }
-      const widgetDone = await getOnboardingWidgetDone(userId);
+    getOnboardingWidgetDone(userId).then((widgetDone) => {
       if (!cancelled && !widgetDone) {
         router.replace("/(tabs)/onboarding-widget");
       }
@@ -130,17 +136,36 @@ export default function OnboardingQuestionsScreen() {
         router.replace("/(tabs)/today");
         return;
       }
+      if (completedAllQuestions) {
+        // The 3 answers are already saved at this point — completion no
+        // longer blocks the celebration transition, it just marks the
+        // profile row in the background. A slow/failed RPC here shouldn't
+        // stall the UI; worst case the user replays onboarding once more
+        // next launch, which is recoverable (their answers aren't lost).
+        logEvent("onboarding_completed");
+        supabase
+          .rpc("complete_onboarding_with_reward", { p_grant_joker: false })
+          .then(({ error: completeErr }) => {
+            if (completeErr) {
+              console.error("[onboarding-questions] Failed to mark onboarding complete:", completeErr);
+              return;
+            }
+            refetchProfile().catch((e) => {
+              console.error("[onboarding-questions] Failed to refetch profile:", e);
+            });
+          });
+        return;
+      }
       setExiting(true);
       try {
-        const { error: completeErr } = await supabase.rpc("complete_onboarding_with_reward");
+        const { error: completeErr } = await supabase.rpc("complete_onboarding_with_reward", {
+          p_grant_joker: false,
+        });
         if (completeErr) throw completeErr;
-        if (completedAllQuestions) {
-          logEvent("onboarding_completed");
-        }
-        router.replace("/(tabs)/today");
         refetchProfile().catch((e) => {
           console.error("[onboarding-questions] Failed to refetch profile:", e);
         });
+        router.replace("/(tabs)/today");
       } catch (e) {
         console.error("[onboarding-questions] Failed to update profile:", e);
         setSaveError(e instanceof Error ? e.message : "Failed to complete onboarding");
@@ -150,6 +175,18 @@ export default function OnboardingQuestionsScreen() {
     },
     [userId, refetchProfile, router]
   );
+
+  const handleExperienceClosed = useCallback(() => {
+    if (finishingOnboardingRef.current) {
+      finishingOnboardingRef.current = false;
+      setShowArchiveMoment(true);
+    }
+  }, []);
+
+  const handleArchiveMomentClose = useCallback(() => {
+    setShowArchiveMoment(false);
+    router.replace("/(tabs)/onboarding-notifications");
+  }, [router]);
 
   const handleDismiss = useCallback(() => {
     logEvent("onboarding_skipped", { screen: getOnboardingScreenName() });
@@ -185,12 +222,18 @@ export default function OnboardingQuestionsScreen() {
         if (upsertErr) {
           throw upsertErr;
         }
+        setCollectedAnswers((prev) => [
+          ...prev,
+          { date: q.question_date, questionText: q.question_text, answerText: trimmed },
+        ]);
         const nextIndex = currentIndex + 1;
         const isLast = nextIndex >= questions.length;
         setAnsweredCount((prev) => {
           const next = prev + 1;
           if (isLast) {
             if (next === ONBOARDING_QUESTION_COUNT) {
+              finishingOnboardingRef.current = true;
+              setModalDismissed(true);
               setOnboardingCompletedAndGoHome(true);
             } else {
               setModalDismissed(true);
@@ -247,6 +290,7 @@ export default function OnboardingQuestionsScreen() {
 
   return (
     <View style={styles.container}>
+      <BackgroundLayer />
       <AnsweringExperience
         key={showIntroCard ? "intro" : "questions"}
         isOpen={modalOpen}
@@ -270,6 +314,24 @@ export default function OnboardingQuestionsScreen() {
         enterFromRight={enterFromRight}
         slideOnAdvance={!showIntroCard}
         animateOnClose
+        onClosed={handleExperienceClosed}
+        closeDurationMs={finishingOnboardingRef.current ? 100 : undefined}
+      />
+      {!modalOpen && saveError ? (
+        <View style={styles.centered}>
+          <Text style={styles.errorText}>{saveError}</Text>
+          <Pressable style={styles.dismissBtn} onPress={handleDismiss} disabled={exiting}>
+            <Text style={styles.dismissBtnText}>×</Text>
+          </Pressable>
+        </View>
+      ) : null}
+      <ArchiveMomentModal
+        visible={showArchiveMoment}
+        answers={collectedAnswers}
+        onClose={handleArchiveMomentClose}
+        headerText={t("onboarding_complete_archive_header")}
+        subtitleText={t("onboarding_complete_archive_subtitle")}
+        ctaLabel={t("onboarding_continue")}
       />
     </View>
   );

@@ -209,7 +209,7 @@ export default function SettingsScreen() {
       await refetchProfile();
       await clearOnboardingNotificationsDone(userId);
       await clearOnboardingWidgetDone(userId);
-      router.replace("/(tabs)/onboarding-notifications");
+      router.replace("/(tabs)/onboarding-widget");
     } catch (e) {
       console.error("[Settings] Replay onboarding failed:", e);
     } finally {

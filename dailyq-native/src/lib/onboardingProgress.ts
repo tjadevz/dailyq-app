@@ -11,11 +11,7 @@ function widgetDoneKey(userId: string): string {
   return `${WIDGET_DONE_PREFIX}${userId}`;
 }
 
-export async function getOnboardingNotificationsDone(userId: string): Promise<boolean> {
-  const value = await AsyncStorage.getItem(notificationsDoneKey(userId));
-  return value === "1";
-}
-
+/** Bookkeeping only (matches the widget flag) — notifications is now the last onboarding step, reached only via in-flow navigation, so nothing branches on this for routing. */
 export async function setOnboardingNotificationsDone(userId: string): Promise<void> {
   await AsyncStorage.setItem(notificationsDoneKey(userId), "1");
 }
@@ -37,10 +33,13 @@ export async function clearOnboardingWidgetDone(userId: string): Promise<void> {
   await AsyncStorage.removeItem(widgetDoneKey(userId));
 }
 
-/** Post-auth onboarding entry: notifications, then the widget step, then historical questions. */
+/**
+ * Post-auth onboarding entry: the widget step, then historical questions.
+ * Notifications is asked last (after the questions are answered, inside the
+ * questions screen's own completion flow) so permission is requested only
+ * after the user has tasted real value — not routed here.
+ */
 export async function getIncompleteOnboardingHref(userId: string): Promise<string> {
-  const notificationsDone = await getOnboardingNotificationsDone(userId);
-  if (!notificationsDone) return "/(tabs)/onboarding-notifications";
   const widgetDone = await getOnboardingWidgetDone(userId);
   if (!widgetDone) return "/(tabs)/onboarding-widget";
   return "/(tabs)/onboarding-questions";

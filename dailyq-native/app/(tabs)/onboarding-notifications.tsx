@@ -58,8 +58,8 @@ export default function OnboardingNotificationsScreen() {
           console.error("[onboarding-notifications] Push subscription upsert failed:", upsertErr);
         }
         await setOnboardingNotificationsDone(userId);
-        console.log("[NOTIF] navigating to onboarding-widget");
-        router.navigate("/(tabs)/onboarding-widget");
+        console.log("[NOTIF] onboarding complete, navigating to today");
+        router.replace("/(tabs)/today");
       } finally {
         setContinuing(false);
       }

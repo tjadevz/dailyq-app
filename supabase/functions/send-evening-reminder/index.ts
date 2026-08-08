@@ -153,10 +153,15 @@ serve(async (req) => {
     return lang === "nl" ? entry.nl : entry.en;
   }
 
+  // Scoped to today's date(s) only, not full history - an unfiltered .in("user_id", ...)
+  // fetch for a large same-timezone batch can exceed Supabase's default 1000-row
+  // response cap and silently drop rows, incorrectly flagging answered users as unanswered.
+  const relevantDates = [...new Set(eligibleSubs.map(s => s._dateStr))];
   const { data: answered } = await supabase
     .from("answers")
     .select("user_id, question_date")
-    .in("user_id", userIds);
+    .in("user_id", userIds)
+    .in("question_date", relevantDates);
   const answeredDates: Record<string, Set<string>> = {};
   for (const a of answered ?? []) {
     if (!answeredDates[a.user_id]) answeredDates[a.user_id] = new Set();
